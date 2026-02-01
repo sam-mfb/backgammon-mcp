@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit'
-import { gameReducer } from '@/game'
+import { gameReducer } from '@backgammon/game'
 
 export const store = configureStore({
   reducer: {

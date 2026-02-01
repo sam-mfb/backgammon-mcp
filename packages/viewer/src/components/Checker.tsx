@@ -1,4 +1,4 @@
-import type { Player } from '@/game'
+import type { Player } from '@backgammon/game'
 
 interface CheckerProps {
   player: Player

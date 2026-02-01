@@ -1,5 +1,4 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import type { RootState } from '@/app/store'
 import type {
   AvailableMoves,
   BoardState,
@@ -9,6 +8,9 @@ import type {
   Move,
   Player,
 } from './types'
+
+/** State shape expected by selectors - apps must configure their store with { game: GameState } */
+type RootState = { game: GameState }
 
 /**
  * Standard backgammon starting position

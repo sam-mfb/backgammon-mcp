@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import type { RootState, AppDispatch } from './store'
-import type { DieValue, MoveFrom, MoveTo, PointIndex, Player } from '@/game'
+import type { DieValue, MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
 import {
   startGame,
   setFirstPlayer,
@@ -11,9 +11,10 @@ import {
   setAvailableMoves,
   endGame,
   resetGame,
-} from '@/game'
-import { getValidMoves, checkGameOver } from '@/game/rules'
-import { BoardView, type SelectedSource } from '@/viewer'
+  getValidMoves,
+  checkGameOver,
+} from '@backgammon/game'
+import { BoardView, type SelectedSource } from '@backgammon/viewer'
 
 /** Generate a random die roll (1-6) */
 function rollDie(): DieValue {

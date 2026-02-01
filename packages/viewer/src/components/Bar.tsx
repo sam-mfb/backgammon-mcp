@@ -1,4 +1,4 @@
-import type { CheckerCounts, Player } from '@/game'
+import type { CheckerCounts, Player } from '@backgammon/game'
 import { Checker } from './Checker'
 
 interface BarProps {

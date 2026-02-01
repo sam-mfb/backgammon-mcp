@@ -1,4 +1,4 @@
-import type { DiceRoll, DieValue, GamePhase, GameResult, Player } from '@/game'
+import type { DiceRoll, DieValue, GamePhase, GameResult, Player } from '@backgammon/game'
 import { DiceDisplay } from './DiceDisplay'
 
 interface GameInfoProps {

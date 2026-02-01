@@ -1,4 +1,4 @@
-import type { BoardState, Player, PointIndex, MoveTo } from '@/game'
+import type { BoardState, Player, PointIndex, MoveTo } from '@backgammon/game'
 import type { SelectedSource } from '../BoardView'
 import { Quadrant } from './Quadrant'
 import { Bar } from './Bar'

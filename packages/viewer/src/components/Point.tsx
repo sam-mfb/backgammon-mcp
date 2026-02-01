@@ -1,4 +1,4 @@
-import type { Player, PointIndex } from '@/game'
+import type { Player, PointIndex } from '@backgammon/game'
 import { Checker } from './Checker'
 
 interface PointProps {
