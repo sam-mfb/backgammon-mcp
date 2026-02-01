@@ -293,6 +293,23 @@ describe('Dice Usage', () => {
 
     expect(point10Moves).toBeDefined()
     expect(point8Moves).toBeDefined()
+
+    // Verify each checker can use both die values (3 and 2)
+    // Point 10 should be able to move to 7 (using 3) and 8 (using 2)
+    expect(point10Moves?.destinations).toContainEqual(
+      expect.objectContaining({ to: 7, dieValue: 3 })
+    )
+    expect(point10Moves?.destinations).toContainEqual(
+      expect.objectContaining({ to: 8, dieValue: 2 })
+    )
+
+    // Point 8 should be able to move to 5 (using 3) and 6 (using 2)
+    expect(point8Moves?.destinations).toContainEqual(
+      expect.objectContaining({ to: 5, dieValue: 3 })
+    )
+    expect(point8Moves?.destinations).toContainEqual(
+      expect.objectContaining({ to: 6, dieValue: 2 })
+    )
   })
 
   it('one checker can use both dice if intermediate point is open', () => {

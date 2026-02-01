@@ -288,10 +288,11 @@ export function createBarEntryState({
 
   // Make sure opponent has 15 checkers total
   const opponentBlockCount = (opponentBlocks?.length ?? 0) * 2
-  if (opponentBlockCount < 15) {
+  const remainingCount = 15 - opponentBlockCount
+  if (remainingCount > 0) {
     // Put remaining on a non-blocking point
     const safePoint = (opponent === 'white' ? 6 : 19) as PointIndex
-    opponentConfig.push({ point: safePoint, count: 15 - opponentBlockCount })
+    opponentConfig.push({ point: safePoint, count: remainingCount })
   }
 
   const config: BoardConfig = {
