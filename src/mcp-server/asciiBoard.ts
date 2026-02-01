@@ -29,14 +29,20 @@ function formatPointNumber(n: number): string {
   return n.toString().padStart(2, ' ')
 }
 
+function formatOverflowCount(count: number): string {
+  // Keep single character width to maintain board alignment
+  if (count >= 10) return '+'
+  return count.toString()
+}
+
 function formatCheckerStack(value: number, row: number): string {
   const absValue = Math.abs(value)
   if (row < absValue && row < MAX_VISIBLE_CHECKERS) {
     return getCheckerChar(value)
   }
   if (row === MAX_VISIBLE_CHECKERS - 1 && absValue > MAX_VISIBLE_CHECKERS) {
-    // Show count for overflow
-    return absValue.toString()
+    // Show count for overflow (single char to maintain alignment)
+    return formatOverflowCount(absValue)
   }
   return ' '
 }
@@ -78,7 +84,7 @@ export function renderAsciiBoard({ state }: { state: GameState }): string {
     const barChar = row < board.bar.black && row < MAX_VISIBLE_CHECKERS
       ? BLACK_CHECKER
       : (row === MAX_VISIBLE_CHECKERS - 1 && board.bar.black > MAX_VISIBLE_CHECKERS
-        ? board.bar.black.toString()
+        ? formatOverflowCount(board.bar.black)
         : ' ')
 
     lines.push(`   | ${leftQuadrant.join('  ')} | ${barChar} | ${rightQuadrant.join('  ')} |`)
@@ -108,7 +114,7 @@ export function renderAsciiBoard({ state }: { state: GameState }): string {
     const barChar = row < board.bar.white && row < MAX_VISIBLE_CHECKERS
       ? WHITE_CHECKER
       : (row === MAX_VISIBLE_CHECKERS - 1 && board.bar.white > MAX_VISIBLE_CHECKERS
-        ? board.bar.white.toString()
+        ? formatOverflowCount(board.bar.white)
         : ' ')
 
     lines.push(`   | ${leftQuadrant.join('  ')} | ${barChar} | ${rightQuadrant.join('  ')} |`)

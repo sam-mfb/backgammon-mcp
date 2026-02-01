@@ -162,7 +162,7 @@ function createGameManager() {
     return { success: true, data: gameState }
   }
 
-  function startGame({ humanColor }: { humanColor?: Player } = {}): GameManagerResult<{
+  function startGame(): GameManagerResult<{
     state: GameState
     firstPlayer: Player
     diceRoll: DiceRoll

@@ -47,14 +47,9 @@ const server = new McpServer({
 server.tool(
   'backgammon_start_game',
   'Start a new backgammon game. Initializes the board with standard starting positions, rolls dice to determine who goes first, and begins the first turn.',
-  {
-    humanColor: z
-      .enum(['white', 'black'])
-      .optional()
-      .describe('Optional: which color the human player wants to play'),
-  },
-  async ({ humanColor }) => {
-    const result = gameManager.startGame({ humanColor })
+  {},
+  async () => {
+    const result = gameManager.startGame()
 
     if (!result.success) {
       return errorResponse(result.error)
