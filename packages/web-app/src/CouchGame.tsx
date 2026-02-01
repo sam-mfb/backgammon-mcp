@@ -1,23 +1,22 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import type { RootState, AppDispatch } from './store'
-import type { DieValue, MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
+import type { MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
 import {
-  startGame,
-  setFirstPlayer,
   rollDice,
   makeMove,
   endTurn,
   resetGame,
-  getValidMoves,
-  canEndTurn,
+  selectValidMoves,
+  selectCanEndTurn,
+  selectPhase,
+  selectCurrentPlayer,
+  selectBoard,
+  selectRemainingMoves,
+  rollDie,
+  performStartGame,
 } from '@backgammon/game'
 import { BoardView, type SelectedSource } from '@backgammon/viewer'
-
-/** Generate a random die roll (1-6) */
-function rollDie(): DieValue {
-  return (Math.floor(Math.random() * 6) + 1) as DieValue
-}
 
 export function CouchGame() {
   const dispatch = useDispatch<AppDispatch>()
@@ -26,43 +25,26 @@ export function CouchGame() {
   const [selectedSource, setSelectedSource] = useState<SelectedSource>(null)
   const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>([])
 
-  const { phase, currentPlayer, board, remainingMoves } = gameState
+  const phase = useSelector(selectPhase)
+  const currentPlayer = useSelector(selectCurrentPlayer)
+  const board = useSelector(selectBoard)
+  const remainingMoves = useSelector(selectRemainingMoves)
 
-  // Compute available moves on-demand (derived state)
-  const availableMoves = useMemo(() => {
-    if (phase === 'moving' && remainingMoves.length > 0) {
-      return getValidMoves({ state: gameState })
-    }
-    return null
-  }, [phase, remainingMoves, board, currentPlayer])
-
-  // Check if player can end their turn (must use all legal moves)
-  const canEndTurnNow = useMemo(
-    () => canEndTurn({ state: gameState }),
-    [gameState]
-  )
+  // Use memoized selectors for expensive computations
+  const availableMoves = useSelector(selectValidMoves)
+  const canEndTurnNow = useSelector(selectCanEndTurn)
 
   // Auto-end turn if no moves available
   useEffect(() => {
-    if (phase === 'moving' && availableMoves && availableMoves.length === 0) {
-      // No moves possible - auto end turn
+    if (phase === 'moving' && availableMoves.length === 0 && remainingMoves.length > 0) {
+      // No moves possible but still have dice - auto end turn
       dispatch(endTurn())
     }
-  }, [phase, availableMoves, dispatch])
+  }, [phase, availableMoves, remainingMoves, dispatch])
 
-  // Handle starting the game
+  // Handle starting the game using the new operation
   const handleStartGame = useCallback(() => {
-    dispatch(startGame())
-    // Roll to determine first player
-    let whiteDie = rollDie()
-    let blackDie = rollDie()
-    // Re-roll if tied
-    while (whiteDie === blackDie) {
-      whiteDie = rollDie()
-      blackDie = rollDie()
-    }
-    const firstPlayer: Player = whiteDie > blackDie ? 'white' : 'black'
-    dispatch(setFirstPlayer(firstPlayer))
+    dispatch(performStartGame())
   }, [dispatch])
 
   // Handle rolling dice
@@ -93,7 +75,7 @@ export function CouchGame() {
   // Get valid destinations for a source position
   const getDestinationsForSource = useCallback(
     (source: MoveFrom): MoveTo[] => {
-      if (!availableMoves) return []
+      if (!availableMoves || availableMoves.length === 0) return []
       const available = availableMoves.find((am) => am.from === source)
       if (!available) return []
       return available.destinations.map((d) => d.to)

@@ -1,3 +1,9 @@
+/**
+ * Redux Store for MCP Server
+ *
+ * Configures the Redux store with the game reducer and sync thunk middleware.
+ */
+
 import { configureStore } from '@reduxjs/toolkit'
 import { gameReducerWithOperations, gameSyncThunkMiddleware } from '@backgammon/game'
 

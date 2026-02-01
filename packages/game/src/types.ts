@@ -14,6 +14,13 @@
 /** Player colors */
 export type Player = 'white' | 'black'
 
+/**
+ * Get the opponent of a player.
+ */
+export function getOpponent(player: Player): Player {
+  return player === 'white' ? 'black' : 'white'
+}
+
 /** Valid die values (1-6) */
 export type DieValue = 1 | 2 | 3 | 4 | 5 | 6
 
@@ -43,6 +50,20 @@ export type PointIndex =
   | 22
   | 23
   | 24
+
+/**
+ * Type guard to check if a number is a valid point index (1-24).
+ */
+export function isValidPointIndex(n: number): n is PointIndex {
+  return Number.isInteger(n) && n >= 1 && n <= 24
+}
+
+/**
+ * Type guard to check if a number is a valid die value (1-6).
+ */
+export function isValidDieValue(n: number): n is DieValue {
+  return Number.isInteger(n) && n >= 1 && n <= 6
+}
 
 // =============================================================================
 // Board State

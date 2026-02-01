@@ -8,11 +8,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { gameManager } from './gameManager'
+import { store } from './store'
 import {
   renderAvailableMoves,
   renderFullGameState,
 } from './asciiBoard'
+import {
+  performStartGame,
+  performRollDice,
+  performMove,
+  performEndTurn,
+  resetGame,
+} from '@backgammon/game'
 
 // =============================================================================
 // Helpers
@@ -49,15 +56,21 @@ server.tool(
   'Start a new backgammon game. Initializes the board with standard starting positions, rolls dice to determine who goes first, and begins the first turn.',
   {},
   async () => {
-    const result = gameManager.startGame()
+    const action = store.dispatch(performStartGame())
+    const result = action.meta.result
 
-    if (!result.success) {
-      return errorResponse(result.error)
+    if (!result || !result.ok) {
+      return errorResponse('Failed to start game')
     }
 
-    const { state, firstPlayer, diceRoll } = result.data
+    const { firstPlayer, diceRoll, validMoves } = result.value
+    const state = store.getState().game
     const boardText = renderFullGameState({ state })
-    const movesText = renderAvailableMoves({ state })
+
+    const movesText =
+      validMoves.length > 0
+        ? renderAvailableMoves({ state })
+        : 'No legal moves available.'
 
     const text = `Game started!
 
@@ -82,20 +95,19 @@ server.tool(
   "Roll the dice for the current player's turn. Use at the beginning of each turn (except the first turn after start_game where dice are already rolled).",
   {},
   async () => {
-    const result = gameManager.rollDice()
+    const action = store.dispatch(performRollDice())
+    const result = action.meta.result
 
-    if (!result.success) {
-      return errorResponse(result.error)
+    if (!result) {
+      return errorResponse('Failed to roll dice')
     }
 
-    const { diceRoll, turnForfeited } = result.data
-    const stateResult = gameManager.getState()
-
-    if (!stateResult.success) {
-      return errorResponse(stateResult.error)
+    if (!result.ok) {
+      return errorResponse(result.error.message)
     }
 
-    const state = stateResult.data
+    const { diceRoll, turnForfeited } = result.value
+    const state = store.getState().game
 
     if (turnForfeited) {
       const text = `Rolled ${diceRoll.die1}-${diceRoll.die2}. No legal moves available - turn forfeited!
@@ -142,20 +154,19 @@ server.tool(
       .describe('The die value being used for this move (1-6)'),
   },
   async ({ from, to, dieUsed }) => {
-    const result = gameManager.makeMove({ from, to, dieUsed })
+    const action = store.dispatch(performMove({ from, to, dieUsed }))
+    const result = action.meta.result
 
-    if (!result.success) {
-      return errorResponse(result.error)
+    if (!result) {
+      return errorResponse('Failed to make move')
     }
 
-    const { move, hit, gameOver, remainingMoves, validMoves } = result.data
-    const stateResult = gameManager.getState()
-
-    if (!stateResult.success) {
-      return errorResponse(stateResult.error)
+    if (!result.ok) {
+      return errorResponse(result.error.message)
     }
 
-    const state = stateResult.data
+    const { move, hit, gameOver, remainingMoves, validMoves } = result.value
+    const state = store.getState().game
     const boardText = renderFullGameState({ state })
 
     let text = `Moved ${move.from} -> ${move.to} using ${move.dieUsed}`
@@ -193,20 +204,19 @@ server.tool(
   "End the current player's turn after all moves are made. Control passes to opponent who must use backgammon_roll_dice.",
   {},
   async () => {
-    const result = gameManager.endTurn()
+    const action = store.dispatch(performEndTurn())
+    const result = action.meta.result
 
-    if (!result.success) {
-      return errorResponse(result.error)
+    if (!result) {
+      return errorResponse('Failed to end turn')
     }
 
-    const { nextPlayer, turnNumber } = result.data
-    const stateResult = gameManager.getState()
-
-    if (!stateResult.success) {
-      return errorResponse(stateResult.error)
+    if (!result.ok) {
+      return errorResponse(result.error.message)
     }
 
-    const state = stateResult.data
+    const { nextPlayer, turnNumber } = result.value
+    const state = store.getState().game
     const boardText = renderFullGameState({ state })
 
     const text = `Turn ended.
@@ -228,13 +238,12 @@ server.tool(
   'Get the current state of the game including board position, current player, dice, and available moves.',
   {},
   async () => {
-    const result = gameManager.getState()
+    const state = store.getState().game
 
-    if (!result.success) {
-      return errorResponse(result.error)
+    if (state.phase === 'not_started') {
+      return errorResponse('No game in progress. Use backgammon_start_game first.')
     }
 
-    const state = result.data
     const boardText = renderFullGameState({ state })
 
     let text = boardText
@@ -244,6 +253,20 @@ server.tool(
     }
 
     return textResponse(text)
+  }
+)
+
+// =============================================================================
+// Tool: Reset Game
+// =============================================================================
+
+server.tool(
+  'backgammon_reset_game',
+  'Reset the game to its initial state. Use this to start fresh.',
+  {},
+  async () => {
+    store.dispatch(resetGame())
+    return textResponse('Game reset. Use backgammon_start_game to begin a new game.')
   }
 )
 

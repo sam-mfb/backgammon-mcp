@@ -674,7 +674,7 @@ export function canUseBothDice({
  * Apply a move to the board and return the new board state.
  * Does not mutate the original board.
  */
-function applyMoveToBoard({
+export function applyMoveToBoard({
   state,
   move,
 }: {
