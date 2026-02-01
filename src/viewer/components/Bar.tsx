@@ -33,10 +33,28 @@ export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
   const whiteSelected = isSelected && currentPlayer === 'white'
   const blackSelected = isSelected && currentPlayer === 'black'
 
+  const blackSectionClasses = [
+    'bar__section',
+    'bar__section--top',
+    blackClickable && 'bar__section--clickable',
+    blackSelected && 'bar__section--selected',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const whiteSectionClasses = [
+    'bar__section',
+    'bar__section--bottom',
+    whiteClickable && 'bar__section--clickable',
+    whiteSelected && 'bar__section--selected',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div className="bar">
       <div
-        className={`bar__section bar__section--top ${blackClickable ? 'bar__section--clickable' : ''} ${blackSelected ? 'bar__section--selected' : ''}`}
+        className={blackSectionClasses}
         onClick={handleBlackClick}
         role={blackClickable ? 'button' : undefined}
         tabIndex={blackClickable ? 0 : undefined}
@@ -49,7 +67,7 @@ export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
         {blackCheckers}
       </div>
       <div
-        className={`bar__section bar__section--bottom ${whiteClickable ? 'bar__section--clickable' : ''} ${whiteSelected ? 'bar__section--selected' : ''}`}
+        className={whiteSectionClasses}
         onClick={handleWhiteClick}
         role={whiteClickable ? 'button' : undefined}
         tabIndex={whiteClickable ? 0 : undefined}

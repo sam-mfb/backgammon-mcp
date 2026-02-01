@@ -33,12 +33,7 @@ export function CouchGame() {
   useEffect(() => {
     if (phase === 'moving' && remainingMoves.length > 0) {
       const moves = getValidMoves({ state: gameState })
-      // Convert readonly types to mutable for Redux compatibility
-      const mutableMoves = moves.map((m) => ({
-        from: m.from,
-        destinations: [...m.destinations],
-      }))
-      dispatch(setAvailableMoves(mutableMoves))
+      dispatch(setAvailableMoves(moves))
     }
   }, [phase, remainingMoves, board, currentPlayer, dispatch, gameState])
 

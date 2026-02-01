@@ -54,7 +54,7 @@ export function Point({
       className={classNames}
       data-point={pointIndex}
       onClick={handleClick}
-      role="button"
+      role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={(e) => {
         if (onClick && (e.key === 'Enter' || e.key === ' ')) {
