@@ -350,7 +350,7 @@ User types: "Should I hit or make a point?"
 
 ## Part C: Staged Implementation Plan
 
-### Stage 1: Game Rules & Unit Tests
+### Stage 1: Game Rules & Unit Tests ✅ COMPLETED
 
 **Goal**: Implement and thoroughly test backgammon rules in `game/rules.ts` before building any UI.
 
@@ -483,7 +483,7 @@ Create `src/game/__tests__/testUtils.ts`:
 
 ---
 
-### Stage 2: Interactive Viewer & Couch Play
+### Stage 2: Interactive Viewer & Couch Play ✅ COMPLETED
 
 **Goal**: Two players can play a complete game locally via `npm run dev`, with full click-based interaction.
 
@@ -853,13 +853,13 @@ jobs:
 
 ## Summary
 
-| Stage | What's Built                    | How to Test                                 |
-| ----- | ------------------------------- | ------------------------------------------- |
-| 1     | Game rules + unit tests         | `npm test`                                  |
-| 2     | Interactive viewer + couch play | `npm run dev`, play a full game             |
-| 3     | MCP server (LLM tool-only)      | `npm run serve:mcp:text`, chat with LLM     |
-| 4     | MCP App (LLM graphical)         | `npm run serve:mcp`, chat with UI           |
-| 5     | Packaging & deployment          | Fresh clone install, CI green, README clear |
+| Stage | What's Built                    | How to Test                                 | Status    |
+| ----- | ------------------------------- | ------------------------------------------- | --------- |
+| 1     | Game rules + unit tests         | `npm test`                                  | ✅ Done   |
+| 2     | Interactive viewer + couch play | `npm run dev`, play a full game             | ✅ Done   |
+| 3     | MCP server (LLM tool-only)      | `npm run serve:mcp:text`, chat with LLM     | ⬚ Pending |
+| 4     | MCP App (LLM graphical)         | `npm run serve:mcp`, chat with UI           | ⬚ Pending |
+| 5     | Packaging & deployment          | Fresh clone install, CI green, README clear | ⬚ Pending |
 
 Each stage builds on the previous. The core `game/` and `viewer/` modules remain decoupled and reusable across all three play modes:
 

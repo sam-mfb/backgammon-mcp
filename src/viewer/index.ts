@@ -1,1 +1,1 @@
-export { BoardView } from './BoardView'
+export { BoardView, type SelectedSource } from './BoardView'

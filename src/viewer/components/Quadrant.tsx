@@ -1,4 +1,5 @@
-import type { BoardState, PointIndex } from '@/game'
+import type { BoardState, PointIndex, MoveTo } from '@/game'
+import type { SelectedSource } from '../BoardView'
 import { Point } from './Point'
 
 interface QuadrantProps {
@@ -6,9 +7,20 @@ interface QuadrantProps {
   endPoint: PointIndex
   position: 'top' | 'bottom'
   points: BoardState['points']
+  selectedSource: SelectedSource
+  validDestinations: readonly MoveTo[]
+  onPointClick?: (pointIndex: PointIndex) => void
 }
 
-export function Quadrant({ startPoint, endPoint, position, points }: QuadrantProps) {
+export function Quadrant({
+  startPoint,
+  endPoint,
+  position,
+  points,
+  selectedSource,
+  validDestinations,
+  onPointClick,
+}: QuadrantProps) {
   const step = startPoint < endPoint ? 1 : -1
   const pointIndices: PointIndex[] = []
 
@@ -24,6 +36,9 @@ export function Quadrant({ startPoint, endPoint, position, points }: QuadrantPro
           pointIndex={pointIndex}
           checkerCount={points[pointIndex - 1]}
           position={position}
+          isSelected={selectedSource === pointIndex}
+          isValidDestination={validDestinations.includes(pointIndex)}
+          onClick={onPointClick}
         />
       ))}
     </div>
