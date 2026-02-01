@@ -8,6 +8,8 @@ interface PointProps {
   position: 'top' | 'bottom'
   isSelected?: boolean
   isValidDestination?: boolean
+  isLastMoveSource?: boolean
+  isLastMoveDestination?: boolean
   onClick?: (pointIndex: PointIndex) => void
 }
 
@@ -23,6 +25,8 @@ export function Point({
   position,
   isSelected = false,
   isValidDestination = false,
+  isLastMoveSource = false,
+  isLastMoveDestination = false,
   onClick
 }: PointProps): React.JSX.Element {
   const player = getCheckerPlayer(checkerCount)
@@ -45,6 +49,8 @@ export function Point({
     `point--${isOdd ? 'odd' : 'even'}`,
     isSelected && 'point--selected',
     isValidDestination && 'point--valid-destination',
+    isLastMoveSource && 'point--last-move-source',
+    isLastMoveDestination && 'point--last-move-destination',
     onClick && 'point--clickable'
   ]
     .filter(Boolean)

@@ -212,6 +212,40 @@ export interface AvailableMoves {
 }
 
 // =============================================================================
+// Game Actions (for history/replay)
+// =============================================================================
+
+/**
+ * Atomic game action - captures all non-deterministic events
+ * (dice rolls and player decisions)
+ */
+export type GameAction =
+  | {
+      readonly type: 'game_start'
+      readonly firstPlayer: Player
+      readonly whiteRoll: DieValue
+      readonly blackRoll: DieValue
+    }
+  | {
+      readonly type: 'dice_roll'
+      readonly player: Player
+      readonly roll: DiceRoll
+      readonly turnForfeited: boolean
+    }
+  | {
+      readonly type: 'piece_move'
+      readonly player: Player
+      readonly from: MoveFrom
+      readonly to: MoveTo
+      readonly dieUsed: DieValue
+      readonly hit: boolean
+    }
+  | {
+      readonly type: 'turn_end'
+      readonly player: Player
+    }
+
+// =============================================================================
 // Game State
 // =============================================================================
 
@@ -277,4 +311,7 @@ export interface GameState {
 
   /** History of all completed turns */
   readonly history: readonly Turn[]
+
+  /** Chronological history of all game actions (for replay/undo) */
+  readonly actionHistory: readonly GameAction[]
 }

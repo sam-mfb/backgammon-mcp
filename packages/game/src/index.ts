@@ -13,7 +13,8 @@ export type {
   MoveTo,
   GamePhase,
   GameResult,
-  GameState
+  GameState,
+  GameAction
 } from './types'
 
 // =============================================================================
@@ -42,7 +43,8 @@ export {
   selectPhase,
   selectRemainingMoves,
   selectValidMoves,
-  selectCanEndTurn
+  selectCanEndTurn,
+  selectLastAction
 } from './gameSlice'
 
 // =============================================================================

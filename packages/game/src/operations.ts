@@ -166,7 +166,8 @@ export const performStartGame = createSyncThunk<
     turnNumber: 1,
     movesThisTurn: [],
     result: null,
-    history: []
+    history: [],
+    actionHistory: []
   }
 
   const validMoves = getValidMoves({ state: initialState })

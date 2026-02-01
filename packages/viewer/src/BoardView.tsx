@@ -1,5 +1,11 @@
 import type React from 'react'
-import type { GameState, Player, PointIndex, MoveTo } from '@backgammon/game'
+import type {
+  GameState,
+  GameAction,
+  Player,
+  PointIndex,
+  MoveTo
+} from '@backgammon/game'
 import { GameInfo } from './components/GameInfo'
 import { BoardSurface } from './components/BoardSurface'
 import { Controls } from './components/Controls'
@@ -18,6 +24,8 @@ interface BoardViewProps {
   canEndTurn?: boolean
   /** Valid moves available for the current player */
   validMoves?: readonly unknown[]
+  /** Last action for highlighting (optional) */
+  lastAction?: GameAction | null
   /** Callback when a point is clicked */
   onPointClick?: (pointIndex: PointIndex) => void
   /** Callback when the bar is clicked for a player */
@@ -36,6 +44,7 @@ export function BoardView({
   validDestinations = [],
   canEndTurn: canEndTurnProp,
   validMoves,
+  lastAction,
   onPointClick,
   onBarClick,
   onBorneOffClick,
@@ -76,6 +85,7 @@ export function BoardView({
         currentPlayer={currentPlayer}
         selectedSource={selectedSource}
         validDestinations={validDestinations}
+        lastAction={lastAction}
         onPointClick={onPointClick}
         onBarClick={onBarClick}
         onBorneOffClick={onBorneOffClick}
