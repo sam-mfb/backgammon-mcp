@@ -1,5 +1,5 @@
-import { configureStore } from '@reduxjs/toolkit'
-import { gameReducer, gameSyncThunkMiddleware } from '@backgammon/game'
+import { configureStore } from "@reduxjs/toolkit";
+import { gameReducer, gameSyncThunkMiddleware } from "@backgammon/game";
 
 export const store = configureStore({
   reducer: {
@@ -10,10 +10,10 @@ export const store = configureStore({
       // Disable serializable check for sync thunk actions
       // (they store payloadCreator function in meta)
       serializableCheck: {
-        ignoredActionPaths: ['meta.payloadCreator'],
+        ignoredActionPaths: ["meta.payloadCreator"],
       },
     }).concat(gameSyncThunkMiddleware),
-})
+});
 
-export type RootState = ReturnType<typeof store.getState>
-export type AppDispatch = typeof store.dispatch
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;

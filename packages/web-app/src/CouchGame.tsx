@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import type { RootState, AppDispatch } from './store'
-import type { MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
+import { useState, useCallback, useEffect } from "react";
+import type { MoveFrom, MoveTo, PointIndex, Player } from "@backgammon/game";
+import { useAppDispatch, useAppSelector } from "./hooks";
 import {
   resetGame,
   selectValidMoves,
@@ -14,99 +13,116 @@ import {
   performRollDice,
   performMove,
   performEndTurn,
-} from '@backgammon/game'
-import { BoardView, type SelectedSource } from '@backgammon/viewer'
+} from "@backgammon/game";
+import { BoardView } from "@backgammon/viewer";
 
 export function CouchGame() {
-  const dispatch = useDispatch<AppDispatch>()
-  const gameState = useSelector((state: RootState) => state.game)
+  const dispatch = useAppDispatch();
+  const gameState = useAppSelector((state) => state.game);
 
-  const [selectedSource, setSelectedSource] = useState<SelectedSource>(null)
-  const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>([])
+  const [selectedSource, setSelectedSource] = useState<
+    PointIndex | "bar" | null
+  >(null);
+  const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>(
+    [],
+  );
 
-  const phase = useSelector(selectPhase)
-  const currentPlayer = useSelector(selectCurrentPlayer)
-  const board = useSelector(selectBoard)
-  const remainingMoves = useSelector(selectRemainingMoves)
+  const phase = useAppSelector(selectPhase);
+  const currentPlayer = useAppSelector(selectCurrentPlayer);
+  const board = useAppSelector(selectBoard);
+  const remainingMoves = useAppSelector(selectRemainingMoves);
 
   // Use memoized selectors for expensive computations
-  const availableMoves = useSelector(selectValidMoves)
-  const canEndTurnNow = useSelector(selectCanEndTurn)
+  const availableMoves = useAppSelector(selectValidMoves);
+  const canEndTurnNow = useAppSelector(selectCanEndTurn);
 
   // Auto-end turn if no moves available
   useEffect(() => {
-    if (phase === 'moving' && availableMoves.length === 0 && remainingMoves.length > 0) {
+    if (
+      phase === "moving" &&
+      availableMoves.length === 0 &&
+      remainingMoves.length > 0
+    ) {
       // No moves possible but still have dice - auto end turn
-      const action = dispatch(performEndTurn())
-      const result = action.meta.result
+      const action = dispatch(performEndTurn());
+      const result = action.meta.result;
       if (!result || !result.ok) {
-        console.error('Auto end turn failed:', result?.ok === false ? result.error.message : 'unknown error')
+        console.error(
+          "Auto end turn failed:",
+          result?.ok === false ? result.error.message : "unknown error",
+        );
       }
     }
-  }, [phase, availableMoves, remainingMoves, dispatch])
+  }, [phase, availableMoves, remainingMoves, dispatch]);
 
   // Handle starting the game using the new operation
   const handleStartGame = useCallback(() => {
-    dispatch(performStartGame())
-  }, [dispatch])
+    dispatch(performStartGame());
+  }, [dispatch]);
 
   // Handle rolling dice
   const handleRollClick = useCallback(() => {
-    if (phase !== 'rolling') return
-    const action = dispatch(performRollDice())
-    const result = action.meta.result
+    if (phase !== "rolling") return;
+    const action = dispatch(performRollDice());
+    const result = action.meta.result;
     if (!result || !result.ok) {
-      console.error('Roll failed:', result?.ok === false ? result.error.message : 'unknown error')
-      return
+      console.error(
+        "Roll failed:",
+        result?.ok === false ? result.error.message : "unknown error",
+      );
+      return;
     }
-    setSelectedSource(null)
-    setValidDestinations([])
-  }, [phase, dispatch])
+    setSelectedSource(null);
+    setValidDestinations([]);
+  }, [phase, dispatch]);
 
   // Handle end turn
   const handleEndTurnClick = useCallback(() => {
-    if (phase !== 'moving') return
-    const action = dispatch(performEndTurn())
-    const result = action.meta.result
+    if (phase !== "moving") return;
+    const action = dispatch(performEndTurn());
+    const result = action.meta.result;
     if (!result || !result.ok) {
-      console.error('End turn failed:', result?.ok === false ? result.error.message : 'unknown error')
-      return
+      console.error(
+        "End turn failed:",
+        result?.ok === false ? result.error.message : "unknown error",
+      );
+      return;
     }
-    setSelectedSource(null)
-    setValidDestinations([])
-  }, [phase, dispatch])
+    setSelectedSource(null);
+    setValidDestinations([]);
+  }, [phase, dispatch]);
 
   // Handle reset/new game
   const handleNewGame = useCallback(() => {
-    dispatch(resetGame())
-    setSelectedSource(null)
-    setValidDestinations([])
-  }, [dispatch])
+    dispatch(resetGame());
+    setSelectedSource(null);
+    setValidDestinations([]);
+  }, [dispatch]);
 
   // Get valid destinations for a source position
   const getDestinationsForSource = useCallback(
     (source: MoveFrom): MoveTo[] => {
-      if (availableMoves.length === 0) return []
-      const available = availableMoves.find((am) => am.from === source)
-      if (!available) return []
-      return available.destinations.map((d) => d.to)
+      if (availableMoves.length === 0) return [];
+      const available = availableMoves.find((am) => am.from === source);
+      if (!available) return [];
+      return available.destinations.map((d) => d.to);
     },
-    [availableMoves]
-  )
+    [availableMoves],
+  );
 
   // Handle point click
   const handlePointClick = useCallback(
     (pointIndex: PointIndex) => {
-      if (phase !== 'moving' || !currentPlayer) return
+      if (phase !== "moving" || !currentPlayer) return;
 
       // Check if this point is a valid destination for the selected source
       if (selectedSource !== null && validDestinations.includes(pointIndex)) {
         // Make the move
-        const source = selectedSource
-        const availableMove = availableMoves?.find((am) => am.from === source)
+        const source = selectedSource;
+        const availableMove = availableMoves?.find((am) => am.from === source);
         const destination = availableMove?.destinations.find(
-          (d) => d.to === pointIndex
-        )
+          (d) => d.to === pointIndex,
+        );
 
         if (destination) {
           const action = dispatch(
@@ -114,48 +130,51 @@ export function CouchGame() {
               from: source,
               to: pointIndex,
               dieUsed: destination.dieValue,
-            })
-          )
-          const result = action.meta.result
+            }),
+          );
+          const result = action.meta.result;
           if (!result || !result.ok) {
-            console.error('Move failed:', result?.ok === false ? result.error.message : 'unknown error')
-            return
+            console.error(
+              "Move failed:",
+              result?.ok === false ? result.error.message : "unknown error",
+            );
+            return;
           }
-          setSelectedSource(null)
-          setValidDestinations([])
+          setSelectedSource(null);
+          setValidDestinations([]);
         }
-        return
+        return;
       }
 
       // Check if this point has the current player's checker and can be selected
-      const pointValue = board.points[pointIndex - 1]
+      const pointValue = board.points[pointIndex - 1];
       const hasCurrentPlayerChecker =
-        (currentPlayer === 'white' && pointValue > 0) ||
-        (currentPlayer === 'black' && pointValue < 0)
+        (currentPlayer === "white" && pointValue > 0) ||
+        (currentPlayer === "black" && pointValue < 0);
 
       // If player has checkers on bar, they must move from bar first
       if (board.bar[currentPlayer] > 0) {
         // Cannot select points when checkers are on bar
-        setSelectedSource(null)
-        setValidDestinations([])
-        return
+        setSelectedSource(null);
+        setValidDestinations([]);
+        return;
       }
 
       if (hasCurrentPlayerChecker) {
-        const destinations = getDestinationsForSource(pointIndex)
+        const destinations = getDestinationsForSource(pointIndex);
         if (destinations.length > 0) {
           // Select this point
-          setSelectedSource(pointIndex)
-          setValidDestinations(destinations)
+          setSelectedSource(pointIndex);
+          setValidDestinations(destinations);
         } else {
           // No valid moves from this point
-          setSelectedSource(null)
-          setValidDestinations([])
+          setSelectedSource(null);
+          setValidDestinations([]);
         }
       } else {
         // Clicked on empty or opponent's point - deselect
-        setSelectedSource(null)
-        setValidDestinations([])
+        setSelectedSource(null);
+        setValidDestinations([]);
       }
     },
     [
@@ -167,66 +186,71 @@ export function CouchGame() {
       board,
       dispatch,
       getDestinationsForSource,
-    ]
-  )
+    ],
+  );
 
   // Handle bar click
   const handleBarClick = useCallback(
     (player: Player) => {
-      if (phase !== 'moving' || player !== currentPlayer) return
+      if (phase !== "moving" || player !== currentPlayer) return;
 
       if (board.bar[player] > 0) {
-        const destinations = getDestinationsForSource('bar')
+        const destinations = getDestinationsForSource("bar");
         if (destinations.length > 0) {
-          setSelectedSource('bar')
-          setValidDestinations(destinations)
+          setSelectedSource("bar");
+          setValidDestinations(destinations);
         }
       }
     },
-    [phase, currentPlayer, board.bar, getDestinationsForSource]
-  )
+    [phase, currentPlayer, board.bar, getDestinationsForSource],
+  );
 
   // Handle borne-off area click (for bearing off moves)
   const handleBorneOffClick = useCallback(
     (_player: Player) => {
       if (
-        phase !== 'moving' ||
+        phase !== "moving" ||
         selectedSource === null ||
-        !validDestinations.includes('off')
+        !validDestinations.includes("off")
       )
-        return
+        return;
 
       // Make bearing off move
       const availableMove = availableMoves?.find(
-        (am) => am.from === selectedSource
-      )
-      const destination = availableMove?.destinations.find((d) => d.to === 'off')
+        (am) => am.from === selectedSource,
+      );
+      const destination = availableMove?.destinations.find(
+        (d) => d.to === "off",
+      );
 
       if (destination) {
         const action = dispatch(
           performMove({
             from: selectedSource,
-            to: 'off',
+            to: "off",
             dieUsed: destination.dieValue,
-          })
-        )
-        const result = action.meta.result
+          }),
+        );
+        const result = action.meta.result;
         if (!result || !result.ok) {
-          console.error('Bear off failed:', result?.ok === false ? result.error.message : 'unknown error')
-          return
+          console.error(
+            "Bear off failed:",
+            result?.ok === false ? result.error.message : "unknown error",
+          );
+          return;
         }
-        setSelectedSource(null)
-        setValidDestinations([])
+        setSelectedSource(null);
+        setValidDestinations([]);
       }
     },
-    [phase, selectedSource, validDestinations, availableMoves, dispatch]
-  )
+    [phase, selectedSource, validDestinations, availableMoves, dispatch],
+  );
 
   return (
     <div className="couch-game">
       <h1>Backgammon</h1>
 
-      {phase === 'not_started' && (
+      {phase === "not_started" && (
         <div className="couch-game__start">
           <button
             className="couch-game__start-button"
@@ -237,7 +261,7 @@ export function CouchGame() {
         </div>
       )}
 
-      {phase !== 'not_started' && (
+      {phase !== "not_started" && (
         <BoardView
           gameState={gameState}
           selectedSource={selectedSource}
@@ -251,13 +275,16 @@ export function CouchGame() {
         />
       )}
 
-      {phase === 'game_over' && (
+      {phase === "game_over" && (
         <div className="couch-game__game-over">
-          <button className="couch-game__new-game-button" onClick={handleNewGame}>
+          <button
+            className="couch-game__new-game-button"
+            onClick={handleNewGame}
+          >
             New Game
           </button>
         </div>
       )}
     </div>
-  )
+  );
 }
