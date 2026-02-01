@@ -151,16 +151,11 @@ Define structured content type:
 ```typescript
 interface BackgammonStructuredContent {
   gameState: GameState
-  action: 'started' | 'rolled' | 'moved' | 'turn_ended' | 'reset' | 'state'
-  config?: GameConfig
-  validMoves?: AvailableMoves[]
-}
-
-interface GameConfig {
-  whiteControl: 'human' | 'ai'
-  blackControl: 'human' | 'ai'
+  validMoves?: AvailableMoves[]  // Included when in moving phase
 }
 ```
+
+Note: `config` (player control settings) is only returned by `backgammon_start_game`. The shim stores it locally.
 
 Create helper:
 ```typescript
@@ -175,30 +170,43 @@ function gameResponse(
 }
 ```
 
-Update each tool to use `gameResponse()`:
+### Text Content Guidelines
+
+**Remove ASCII board from action tool responses.** Text `content` should be concise:
+
 ```typescript
-// Example: backgammon_roll_dice
-return gameResponse(
-  `Rolled ${die1}-${die2}. ${movesText}`,
-  {
-    gameState: store.getState().game,
-    action: 'rolled',
-    validMoves: getValidMoves({ state: store.getState().game })
-  }
-)
+// backgammon_start_game
+"Game started. White goes first with 4-2."
+
+// backgammon_roll_dice
+"Rolled 5-3."
+// Or if no moves: "Rolled 2-1. No legal moves - turn forfeited."
+
+// backgammon_make_move
+"Moved 13 → 9 using 4."
+// Or with hit: "Moved 8 → 3 using 5 (hit!)."
+// Or bearing off: "Bore off from 2 using 2."
+
+// backgammon_end_turn
+"Turn ended. Black to roll."
+
+// backgammon_reset_game
+"Game reset."
 ```
 
+**Keep ASCII board only in `backgammon_get_game_state`** - this is the explicit "show me the board" tool for when the LLM needs to understand the position.
+
 ### Tools to Update
-- [ ] `backgammon_start_game`
-- [ ] `backgammon_roll_dice`
-- [ ] `backgammon_make_move`
-- [ ] `backgammon_end_turn`
-- [ ] `backgammon_get_game_state`
-- [ ] `backgammon_reset_game`
+- [ ] `backgammon_start_game` - concise text, include config in structuredContent
+- [ ] `backgammon_roll_dice` - concise text, no ASCII board
+- [ ] `backgammon_make_move` - concise text, no ASCII board
+- [ ] `backgammon_end_turn` - concise text, no ASCII board
+- [ ] `backgammon_get_game_state` - keep ASCII board (explicit inspection tool)
+- [ ] `backgammon_reset_game` - concise text
 
 ### Deliverables
-- [ ] All game tools return `structuredContent`
-- [ ] Text `content` remains descriptive (ASCII board, move list)
+- [ ] All game tools return `structuredContent` with gameState and validMoves
+- [ ] Text `content` is concise (no ASCII board except get_game_state)
 - [ ] Non-App hosts continue to work (text-only fallback)
 
 ---
@@ -244,8 +252,20 @@ server.tool(
       .describe("Who controls black: 'human' (UI) or 'ai' (model)")
   },
   ({ whiteControl, blackControl }) => {
-    store.dispatch(setGameConfig({ whiteControl, blackControl }))
+    const config = { whiteControl, blackControl }
+    store.dispatch(setGameConfig(config))
     // ... existing start logic
+
+    // Only start_game includes config in structuredContent
+    return {
+      content: [{ type: 'text', text: `Game started. ${firstPlayer} goes first with ${die1}-${die2}.` }],
+      structuredContent: {
+        gameState: store.getState().game,
+        validMoves: getValidMoves({ state: store.getState().game }),
+        config  // Only included here, shim stores it
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI } }
+    }
   }
 )
 ```
@@ -253,7 +273,7 @@ server.tool(
 ### Deliverables
 - [ ] `store.ts` with GameConfig state
 - [ ] `backgammon_start_game` accepts player control parameters
-- [ ] Config included in all `structuredContent` responses
+- [ ] Config included in `backgammon_start_game` structuredContent only (shim stores it)
 
 ---
 
@@ -324,12 +344,14 @@ import {
 } from '@modelcontextprotocol/ext-apps'
 import { BoardView } from '@backgammon/viewer'
 import type { GameState, Player, PointIndex, MoveTo, AvailableMoves } from '@backgammon/game'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+
+type GameConfig = { whiteControl: 'human' | 'ai'; blackControl: 'human' | 'ai' }
 
 interface BackgammonStructuredContent {
   gameState: GameState
-  config?: { whiteControl: 'human' | 'ai'; blackControl: 'human' | 'ai' }
   validMoves?: AvailableMoves[]
+  config?: GameConfig  // Only present in start_game response
 }
 
 export function McpAppShim(): React.JSX.Element {
@@ -341,6 +363,9 @@ export function McpAppShim(): React.JSX.Element {
   const [selectedSource, setSelectedSource] = useState<PointIndex | 'bar' | null>(null)
   const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>([])
 
+  // Store config from start_game, persists across subsequent tool results
+  const configRef = useRef<GameConfig>({ whiteControl: 'human', blackControl: 'ai' })
+
   // Apply host styling when context changes
   useEffect(() => {
     if (hostContext?.theme) applyDocumentTheme(hostContext.theme)
@@ -349,12 +374,20 @@ export function McpAppShim(): React.JSX.Element {
   }, [hostContext])
 
   const structuredContent = toolResult?.structuredContent
+
+  // Capture config when start_game returns it
+  useEffect(() => {
+    if (structuredContent?.config) {
+      configRef.current = structuredContent.config
+    }
+  }, [structuredContent?.config])
+
   if (!structuredContent?.gameState) {
     return <div className="waiting">Waiting for game to start...</div>
   }
 
-  const { gameState, config, validMoves } = structuredContent
-  const humanControlled = deriveHumanControlled(config)
+  const { gameState, validMoves } = structuredContent
+  const humanControlled = deriveHumanControlled(configRef.current)
 
   // Wire button clicks to MCP tool calls
   const handleRollClick = useCallback(() => {
@@ -384,10 +417,7 @@ export function McpAppShim(): React.JSX.Element {
   )
 }
 
-function deriveHumanControlled(
-  config?: { whiteControl: 'human' | 'ai'; blackControl: 'human' | 'ai' }
-): Player | 'both' | null {
-  if (!config) return 'both'
+function deriveHumanControlled(config: GameConfig): Player | 'both' | null {
   if (config.whiteControl === 'human' && config.blackControl === 'human') return 'both'
   if (config.whiteControl === 'human') return 'white'
   if (config.blackControl === 'human') return 'black'
