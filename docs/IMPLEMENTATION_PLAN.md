@@ -547,7 +547,7 @@ Create `src/game/__tests__/testUtils.ts`:
 
 ---
 
-### Stage 3: MCP Server (LLM Tool-Only)
+### Stage 3: MCP Server (LLM Tool-Only) ✅ COMPLETED
 
 **Goal**: Play backgammon with an LLM via text, no graphical UI in chat.
 
@@ -857,7 +857,7 @@ jobs:
 | ----- | ------------------------------- | ------------------------------------------- | --------- |
 | 1     | Game rules + unit tests         | `npm test`                                  | ✅ Done   |
 | 2     | Interactive viewer + couch play | `npm run dev`, play a full game             | ✅ Done   |
-| 3     | MCP server (LLM tool-only)      | `npm run serve:mcp:text`, chat with LLM     | ⬚ Pending |
+| 3     | MCP server (LLM tool-only)      | `npm run mcp`, connect MCP client           | ✅ Done   |
 | 4     | MCP App (LLM graphical)         | `npm run serve:mcp`, chat with UI           | ⬚ Pending |
 | 5     | Packaging & deployment          | Fresh clone install, CI green, README clear | ⬚ Pending |
 

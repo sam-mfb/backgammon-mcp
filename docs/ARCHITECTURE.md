@@ -2,7 +2,7 @@
 
 This document describes the current architecture of the backgammon-mcp project. It is updated as implementation progresses.
 
-**Last Updated**: After Stage 2 (Interactive Viewer & Couch Play)
+**Last Updated**: After Stage 3 (MCP Server - LLM Tool-Only)
 
 ---
 
@@ -35,12 +35,18 @@ backgammon-mcp/
 │   │       ├── Point.tsx        # Board point with selection/click
 │   │       └── Quadrant.tsx     # Groups 6 points together
 │   │
-│   └── app/                     # Couch Play mode
-│       ├── main.tsx             # Vite entry point
-│       ├── App.tsx              # Redux provider wrapper
-│       ├── CouchGame.tsx        # Two-player local game logic
-│       ├── store.ts             # Redux store configuration
-│       └── index.css            # Global and CouchGame styles
+│   ├── app/                     # Couch Play mode
+│   │   ├── main.tsx             # Vite entry point
+│   │   ├── App.tsx              # Redux provider wrapper
+│   │   ├── CouchGame.tsx        # Two-player local game logic
+│   │   ├── store.ts             # Redux store configuration
+│   │   └── index.css            # Global and CouchGame styles
+│   │
+│   └── mcp-server/              # MCP Server (LLM Tool-Only mode)
+│       ├── server.ts            # MCP server setup, tool registration
+│       ├── gameManager.ts       # Server-side game state management
+│       ├── asciiBoard.ts        # Text board rendering for LLM
+│       └── index.ts             # Public exports
 │
 ├── docs/
 │   ├── BACKGAMMON_RULES.md      # Game rules reference
@@ -237,7 +243,113 @@ const store = configureStore({
 
 ---
 
+### `src/mcp-server/` - MCP Server (LLM Tool-Only)
+
+MCP server that exposes backgammon game tools for text-based LLM interaction. Uses stdio transport for communication with MCP hosts.
+
+#### `server.ts`
+
+Main entry point that sets up the MCP server and registers all tools.
+
+**Dependencies:**
+- `@modelcontextprotocol/sdk` - Official MCP TypeScript SDK
+- `zod` - Schema validation for tool inputs
+
+**Tools Registered:**
+
+| Tool | Description | Input |
+|------|-------------|-------|
+| `backgammon_start_game` | Initialize new game, roll for first player | `{ humanColor?: 'white' \| 'black' }` |
+| `backgammon_roll_dice` | Roll dice for current player's turn | none |
+| `backgammon_make_move` | Move a checker | `{ from, to, dieUsed }` |
+| `backgammon_end_turn` | End turn, switch to opponent | none |
+| `backgammon_get_game_state` | Get current board and status | none |
+| `backgammon_get_rules` | Get rules reference | `{ section?: string }` |
+
+**Transport:** stdio (communicates via stdin/stdout)
+
+#### `gameManager.ts`
+
+Singleton module that holds the current game state and provides methods to manipulate it.
+
+**Pattern:** Factory function returning object with methods (no classes per coding standards)
+
+**Methods:**
+- `startGame({ humanColor? })` - Initialize game, roll for first player
+- `rollDice()` - Roll dice, compute valid moves, auto-forfeit if none
+- `makeMove({ from, to, dieUsed })` - Validate and execute move
+- `endTurn()` - End turn, switch player
+- `getState()` - Get current game state
+- `resetGame()` - Clear game state
+
+**Result Type:**
+```typescript
+type GameManagerResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string }
+```
+
+Uses discriminated union for clear error handling without exceptions.
+
+**Integration:**
+- Uses `game/rules.ts` for move validation
+- Uses `game/types.ts` for type definitions
+- Maintains game history for context
+
+#### `asciiBoard.ts`
+
+Renders game state as ASCII text for display in LLM tool results.
+
+**Functions:**
+- `renderAsciiBoard({ state })` - Visual board with checker positions
+- `renderGameSummary({ state })` - Turn, player, phase, dice info
+- `renderFullGameState({ state })` - Combined board + summary
+- `renderAvailableMoves({ state })` - List of legal moves
+
+**Board Format:**
+```
+    13 14 15 16 17 18   BAR   19 20 21 22 23 24
+   +-----------------+-----+-----------------+
+   | O        O  O  O |   | X  X  X        X  X |
+   | O        O  O  O |   | X                    |
+   ...
+   +-----------------+-----+-----------------+
+    12 11 10  9  8  7   BAR    6  5  4  3  2  1
+
+   Borne off: White: 0  Black: 0
+```
+
+Uses `O` for white checkers, `X` for black checkers.
+
+---
+
 ## Data Flow
+
+### MCP Tool-Only Mode
+
+```
+MCP Host (Claude Desktop, etc.)
+    │
+    │ MCP Protocol (stdio)
+    │
+    ▼
+server.ts (receives tool call)
+    │
+    ▼
+gameManager.ts (validates, executes)
+    │
+    ├─► rules.ts (move validation)
+    │
+    └─► asciiBoard.ts (render state)
+            │
+            ▼
+        Tool Result (text content)
+            │
+            │ MCP Protocol (stdio)
+            │
+            ▼
+        MCP Host (displays to user/LLM)
+```
 
 ### Couch Play Mode
 
@@ -362,22 +474,6 @@ npm test -- --run  # Single run
 
 ## Future Architecture (Planned)
 
-### Stage 3: MCP Server
-
-```
-src/mcp-server/
-├── server.ts           # MCP server setup
-├── gameManager.ts      # Server-side state
-├── asciiBoard.ts       # Text board rendering
-└── tools/
-    ├── startGame.ts
-    ├── rollDice.ts
-    ├── makeMove.ts
-    ├── endTurn.ts
-    ├── getGameState.ts
-    └── getRules.ts
-```
-
 ### Stage 4: MCP App
 
 ```
@@ -395,6 +491,7 @@ src/mcp-app/
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start Couch Play mode (Vite dev server) |
+| `npm run mcp` | Start MCP server (LLM Tool-Only mode, stdio transport) |
 | `npm run build` | Build for production |
 | `npm test` | Run tests in watch mode |
-| `npm test -- --run` | Run tests once |
+| `npm run test:run` | Run tests once |
