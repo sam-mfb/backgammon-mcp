@@ -75,7 +75,7 @@ interface UIResource {
    * @example
    * "ui://weather-dashboard"
    */
-  uri: string;
+  uri: string
 
   /**
    * Human-readable display name for the UI resource
@@ -85,7 +85,7 @@ interface UIResource {
    * @example
    * "Weather Dashboard"
    */
-  name: string;
+  name: string
 
   /**
    * Optional description of the UI resource's purpose and functionality
@@ -95,7 +95,7 @@ interface UIResource {
    * @example
    * "Interactive weather visualization with real-time updates"
    */
-  description?: string;
+  description?: string
 
   /**
    * MIME type of the UI content
@@ -106,7 +106,7 @@ interface UIResource {
    * @example
    * "text/html;profile=mcp-app"
    */
-  mimeType: string;
+  mimeType: string
 
   /**
    * Resource metadata for security and rendering configuration
@@ -115,52 +115,52 @@ interface UIResource {
    * and visual preferences.
    */
   _meta?: {
-    ui?: UIResourceMeta;
+    ui?: UIResourceMeta
   }
 }
 
 interface McpUiResourceCsp {
-    /**
-     * Origins for network requests (fetch/XHR/WebSocket)
-     *
-     * - Empty or omitted = no external connections (secure default)
-     * - Maps to CSP `connect-src` directive
-     *
-     * @example
-     * ["https://api.weather.com", "wss://realtime.service.com"]
-     */
-    connectDomains?: string[],
-    /**
-     * Origins for static resources (images, scripts, stylesheets, fonts, media)
-     *
-     * - Empty or omitted = no external resources (secure default)
-     * - Wildcard subdomains supported: `https://*.example.com`
-     * - Maps to CSP `img-src`, `script-src`, `style-src`, `font-src`, `media-src` directives
-     *
-     * @example
-     * ["https://cdn.jsdelivr.net", "https://*.cloudflare.com"]
-     */
-    resourceDomains?: string[],
-    /**
-     * Origins for nested iframes
-     *
-     * - Empty or omitted = no nested iframes allowed (`frame-src 'none'`)
-     * - Maps to CSP `frame-src` directive
-     *
-     * @example
-     * ["https://www.youtube.com", "https://player.vimeo.com"]
-     */
-    frameDomains?: string[],
-    /**
-     * Allowed base URIs for the document
-     *
-     * - Empty or omitted = only same origin allowed (`base-uri 'self'`)
-     * - Maps to CSP `base-uri` directive
-     *
-     * @example
-     * ["https://cdn.example.com"]
-     */
-    baseUriDomains?: string[],
+  /**
+   * Origins for network requests (fetch/XHR/WebSocket)
+   *
+   * - Empty or omitted = no external connections (secure default)
+   * - Maps to CSP `connect-src` directive
+   *
+   * @example
+   * ["https://api.weather.com", "wss://realtime.service.com"]
+   */
+  connectDomains?: string[]
+  /**
+   * Origins for static resources (images, scripts, stylesheets, fonts, media)
+   *
+   * - Empty or omitted = no external resources (secure default)
+   * - Wildcard subdomains supported: `https://*.example.com`
+   * - Maps to CSP `img-src`, `script-src`, `style-src`, `font-src`, `media-src` directives
+   *
+   * @example
+   * ["https://cdn.jsdelivr.net", "https://*.cloudflare.com"]
+   */
+  resourceDomains?: string[]
+  /**
+   * Origins for nested iframes
+   *
+   * - Empty or omitted = no nested iframes allowed (`frame-src 'none'`)
+   * - Maps to CSP `frame-src` directive
+   *
+   * @example
+   * ["https://www.youtube.com", "https://player.vimeo.com"]
+   */
+  frameDomains?: string[]
+  /**
+   * Allowed base URIs for the document
+   *
+   * - Empty or omitted = only same origin allowed (`base-uri 'self'`)
+   * - Maps to CSP `base-uri` directive
+   *
+   * @example
+   * ["https://cdn.example.com"]
+   */
+  baseUriDomains?: string[]
 }
 
 interface UIResourceMeta {
@@ -170,7 +170,7 @@ interface UIResourceMeta {
    * Servers declare which external origins their UI needs to access.
    * Hosts use this to enforce appropriate CSP headers.
    */
-  csp?: McpUiResourceCsp,
+  csp?: McpUiResourceCsp
   /**
    * Sandbox permissions requested by the UI
    *
@@ -184,26 +184,26 @@ interface UIResourceMeta {
      *
      * Maps to Permission Policy `camera` feature
      */
-    camera?: {},
+    camera?: {}
     /**
      * Request microphone access
      *
      * Maps to Permission Policy `microphone` feature
      */
-    microphone?: {},
+    microphone?: {}
     /**
      * Request geolocation access
      *
      * Maps to Permission Policy `geolocation` feature
      */
-    geolocation?: {},
+    geolocation?: {}
     /**
      * Request clipboard write access
      *
      * Maps to Permission Policy `clipboard-write` feature
      */
-    clipboardWrite?: {},
-  },
+    clipboardWrite?: {}
+  }
   /**
    * Dedicated origin for view
    *
@@ -223,7 +223,7 @@ interface UIResourceMeta {
    * @example
    * "www-example-com.oaiusercontent.com"
    */
-  domain?: string,
+  domain?: string
   /**
    * Visual boundary preference
    *
@@ -234,7 +234,7 @@ interface UIResourceMeta {
    * - `false`: Request no visible border + background
    * - omitted: host decides border
    */
-  prefersBorder?: boolean,
+  prefersBorder?: boolean
 }
 ```
 
@@ -331,24 +331,24 @@ Tools are associated with UI resources through the `_meta.ui` field:
 ```typescript
 interface McpUiToolMeta {
   /** URI of UI resource for rendering tool results */
-  resourceUri?: string;
+  resourceUri?: string
   /**
    * Who can access this tool. Default: ["model", "app"]
    * - "model": Tool visible to and callable by the agent
    * - "app": Tool callable by the app from this server only
    */
-  visibility?: Array<"model" | "app">;
+  visibility?: Array<'model' | 'app'>
 }
 
 interface Tool {
-  name: string;
-  description: string;
-  inputSchema: object;
+  name: string
+  description: string
+  inputSchema: object
   _meta?: {
-    ui?: McpUiToolMeta;
+    ui?: McpUiToolMeta
     /** @deprecated Use `ui.resourceUri` instead. Will be removed before GA. */
-    "ui/resourceUri"?: string;
-  };
+    'ui/resourceUri'?: string
+  }
 }
 ```
 
@@ -426,51 +426,50 @@ Conceptually, UI iframes act as MCP clients, connecting to the host via a `postM
 
 ```typescript
 // UI iframe initializes MCP client
-const transport = new MessageTransport(window.parent);
-const client = new Client({ name: "ui-view", version: "1.0.0" });
-await client.connect(transport);
+const transport = new MessageTransport(window.parent)
+const client = new Client({ name: 'ui-view', version: '1.0.0' })
+await client.connect(transport)
 ```
 
 Note that you don't need an SDK to "talk MCP" with the host:
 
 ```typescript
-let nextId = 1;
+let nextId = 1
 function sendRequest(method: string, params: any) {
-  const id = nextId++;
-  window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, '*');
+  const id = nextId++
+  window.parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*')
   return new Promise((resolve, reject) => {
     window.addEventListener('message', function listener(event) {
-      const data: JSONRPCMessage = event.data;
+      const data: JSONRPCMessage = event.data
       if (event.data?.id === id) {
-        window.removeEventListener('message', listener);
+        window.removeEventListener('message', listener)
         if (event.data?.result) {
-          resolve(event.data?.result);
+          resolve(event.data?.result)
         } else if (event.data?.error) {
-          reject(new Error(event.data.error));
+          reject(new Error(event.data.error))
         }
       } else {
-        reject(new Error(`Unsupported message: ${JSON.stringify(data)}`));
+        reject(new Error(`Unsupported message: ${JSON.stringify(data)}`))
       }
-    });
-  });
+    })
+  })
 }
 function sendNotification(method: string, params: any) {
-  window.parent.postMessage({ jsonrpc: "2.0", method, params }, '*');
+  window.parent.postMessage({ jsonrpc: '2.0', method, params }, '*')
 }
 function onNotification(method: string, handler: (params: any) => void) {
   window.addEventListener('message', function listener(event) {
     if (event.data?.method === method) {
-      handler(event.data.params);
+      handler(event.data.params)
     }
-  });
+  })
 }
 
-
-const initializeResult = await sendRequest("initialize", {
+const initializeResult = await sendRequest('initialize', {
   capabilities: {},
-  clientInfo: {name: "My UI", version: "1.0.0"},
-  protocolVersion: "2026-01-26",
-});
+  clientInfo: { name: 'My UI', version: '1.0.0' },
+  protocolVersion: '2026-01-26'
+})
 ```
 
 Hosts act as MCP servers (that can proxy the actual MCP server), receiving and handling requests from UI iframes.
@@ -522,17 +521,17 @@ When the View sends an `ui/initialize` request to the Host, it MUST include its 
 ```typescript
 interface McpUiAppCapabilities {
   /** Experimental features (structure TBD). */
-  experimental?: {};
+  experimental?: {}
   /** App exposes MCP-style tools that the host can call. */
   tools?: {
     /** App supports tools/list_changed notifications. */
-    listChanged?: boolean;
-  };
+    listChanged?: boolean
+  }
   /**
    * Display modes the app supports. See Display Modes section for details.
    * @example ["inline", "fullscreen"]
    */
-  availableDisplayModes?: Array<"inline" | "fullscreen" | "pip">;
+  availableDisplayModes?: Array<'inline' | 'fullscreen' | 'pip'>
 }
 ```
 
@@ -545,54 +544,55 @@ interface HostContext {
   /** Metadata of the tool call that instantiated the View */
   toolInfo?: {
     /** JSON-RPC id of the tools/call request */
-    id?: RequestId,
+    id?: RequestId
     /** Contains name, inputSchema, etc… */
-    tool: Tool,
-  };
+    tool: Tool
+  }
   /** Current color theme preference */
-  theme?: "light" | "dark";
+  theme?: 'light' | 'dark'
   /** Style configuration for theming. See Theming section for standardized variable names. */
   styles?: {
     /** CSS variables for theming */
-    variables?: Record<McpUiStyleVariableKey, string | undefined>;
+    variables?: Record<McpUiStyleVariableKey, string | undefined>
     /** CSS blocks that Views can inject */
     css?: {
       /** CSS for font loading (@font-face rules or @import statements) */
-      fonts?: string;
-    };
-  };
+      fonts?: string
+    }
+  }
   /** How the View is currently displayed */
-  displayMode?: "inline" | "fullscreen" | "pip";
+  displayMode?: 'inline' | 'fullscreen' | 'pip'
   /** Display modes the host supports */
-  availableDisplayModes?: string[];
+  availableDisplayModes?: string[]
   /** Container dimensions for the iframe. Specify either width or maxWidth, and either height or maxHeight. */
   containerDimensions?: (
-    | { height: number }      // If specified, container is fixed at this height
-    | { maxHeight?: number }  // Otherwise, container height is determined by the View's height, up to this maximum height (if defined)
-  ) & (
-    | { width: number }       // If specified, container is fixed at this width
-    | { maxWidth?: number }   // Otherwise, container width is determined by the View's width, up to this maximum width (if defined)
-  );
+    | { height: number } // If specified, container is fixed at this height
+    | { maxHeight?: number } // Otherwise, container height is determined by the View's height, up to this maximum height (if defined)
+  ) &
+    (
+      | { width: number } // If specified, container is fixed at this width
+      | { maxWidth?: number } // Otherwise, container width is determined by the View's width, up to this maximum width (if defined)
+    )
   /** User's language/region preference (BCP 47, e.g., "en-US") */
-  locale?: string;
+  locale?: string
   /** User's timezone (IANA, e.g., "America/New_York") */
-  timeZone?: string;
+  timeZone?: string
   /** Host application identifier */
-  userAgent?: string;
+  userAgent?: string
   /** Platform type for responsive design */
-  platform?: "web" | "desktop" | "mobile";
+  platform?: 'web' | 'desktop' | 'mobile'
   /** Device capabilities such as touch */
   deviceCapabilities?: {
-    touch?: boolean;
-    hover?: boolean;
+    touch?: boolean
+    hover?: boolean
   }
   /** Safe area boundaries in pixels */
   safeAreaInsets?: {
-    top: number;
-    right: number;
-    bottom: number;
-    left: number;
-  };
+    top: number
+    right: number
+    bottom: number
+    left: number
+  }
 }
 ```
 
@@ -635,42 +635,42 @@ They describe the features and capabilities that the Host supports.
 ```typescript
 interface HostCapabilities {
   /** Experimental features (structure TBD). */
-  experimental?: {};
+  experimental?: {}
   /** Host supports opening external URLs. */
-  openLinks?: {};
+  openLinks?: {}
   /** Host can proxy tool calls to the MCP server. */
   serverTools?: {
     /** Host supports tools/list_changed notifications. */
-    listChanged?: boolean;
-  };
+    listChanged?: boolean
+  }
   /** Host can proxy resource reads to the MCP server. */
   serverResources?: {
     /** Host supports resources/list_changed notifications. */
-    listChanged?: boolean;
-  };
+    listChanged?: boolean
+  }
   /** Host accepts log messages. */
-  logging?: {};
+  logging?: {}
   /** Sandbox configuration applied by the host. */
   sandbox?: {
     /** Permissions granted by the host (camera, microphone, geolocation, clipboard-write). */
     permissions?: {
-      camera?: {};
-      microphone?: {};
-      geolocation?: {};
-      clipboardWrite?: {};
-    };
+      camera?: {}
+      microphone?: {}
+      geolocation?: {}
+      clipboardWrite?: {}
+    }
     /** CSP domains approved by the host. */
     csp?: {
       /** Approved origins for network requests (fetch/XHR/WebSocket). */
-      connectDomains?: string[];
+      connectDomains?: string[]
       /** Approved origins for static resources (scripts, images, styles, fonts). */
-      resourceDomains?: string[];
+      resourceDomains?: string[]
       /** Approved origins for nested iframes (frame-src directive). */
-      frameDomains?: string[];
+      frameDomains?: string[]
       /** Approved base URIs for the document (base-uri directive). */
-      baseUriDomains?: string[];
-    };
-  };
+      baseUriDomains?: string[]
+    }
+  }
 }
 ```
 
@@ -682,11 +682,11 @@ The `HostContext` provides sizing information via `containerDimensions`:
 
 #### Dimension Modes
 
-| Mode | Dimensions Field | Meaning |
-|------|-----------------|---------|
-| Fixed | `height` or `width` | Host controls the size. View should fill the available space. |
-| Flexible | `maxHeight` or `maxWidth` | View controls the size, up to the specified maximum. |
-| Unbounded | Field omitted | View controls the size with no limit. |
+| Mode      | Dimensions Field          | Meaning                                                       |
+| --------- | ------------------------- | ------------------------------------------------------------- |
+| Fixed     | `height` or `width`       | Host controls the size. View should fill the available space. |
+| Flexible  | `maxHeight` or `maxWidth` | View controls the size, up to the specified maximum.          |
+| Unbounded | Field omitted             | View controls the size with no limit.                         |
 
 These modes can be combined independently. For example, a host might specify a fixed width but flexible height, allowing the View to grow vertically based on content.
 
@@ -696,26 +696,32 @@ Views should check the containerDimensions configuration and apply appropriate C
 
 ```typescript
 // In the View's initialization
-const containerDimensions = hostContext.containerDimensions;
+const containerDimensions = hostContext.containerDimensions
 
 if (containerDimensions) {
   // Handle height
-  if ("height" in containerDimensions) {
+  if ('height' in containerDimensions) {
     // Fixed height: fill the container
-    document.documentElement.style.height = "100vh";
-  } else if ("maxHeight" in containerDimensions && containerDimensions.maxHeight) {
+    document.documentElement.style.height = '100vh'
+  } else if (
+    'maxHeight' in containerDimensions &&
+    containerDimensions.maxHeight
+  ) {
     // Flexible with max: let content determine size, up to max
-    document.documentElement.style.maxHeight = `${containerDimensions.maxHeight}px`;
+    document.documentElement.style.maxHeight = `${containerDimensions.maxHeight}px`
   }
   // If neither, height is unbounded
 
   // Handle width
-  if ("width" in containerDimensions) {
+  if ('width' in containerDimensions) {
     // Fixed width: fill the container
-    document.documentElement.style.width = "100vw";
-  } else if ("maxWidth" in containerDimensions && containerDimensions.maxWidth) {
+    document.documentElement.style.width = '100vw'
+  } else if (
+    'maxWidth' in containerDimensions &&
+    containerDimensions.maxWidth
+  ) {
     // Flexible with max: let content determine size, up to max
-    document.documentElement.style.maxWidth = `${containerDimensions.maxWidth}px`;
+    document.documentElement.style.maxWidth = `${containerDimensions.maxWidth}px`
   }
   // If neither, width is unbounded
 }
@@ -730,12 +736,12 @@ When using flexible dimensions (no fixed `height` or `width`), hosts MUST listen
 bridge.onsizechange = ({ width, height }) => {
   // Update iframe to match View's content size
   if (width != null) {
-    iframe.style.width = `${width}px`;
+    iframe.style.width = `${width}px`
   }
   if (height != null) {
-    iframe.style.height = `${height}px`;
+    iframe.style.height = `${height}px`
   }
-};
+}
 ```
 
 Views using the SDK automatically send size-changed notifications via ResizeObserver when `autoResize` is enabled (the default). The notifications are debounced and only sent when dimensions actually change.
@@ -745,7 +751,7 @@ Views using the SDK automatically send size-changed notifications via ResizeObse
 Views can be displayed in different modes depending on the host's capabilities and the view's declared support.
 
 ```typescript
-type McpUiDisplayMode = "inline" | "fullscreen" | "pip";
+type McpUiDisplayMode = 'inline' | 'fullscreen' | 'pip'
 ```
 
 - **inline**: Default mode, embedded within the host's content flow
@@ -786,11 +792,13 @@ Hosts notify views of display mode changes via `ui/notifications/host-context-ch
 #### Requirements
 
 **View behavior:**
+
 - View MUST declare all display modes it supports in `appCapabilities.availableDisplayModes` during initialization.
 - View MUST check if the requested mode is in `availableDisplayModes` from host context before requesting a mode change.
 - View MUST handle the response mode differing from the requested mode.
 
 **Host behavior:**
+
 - Host MUST NOT switch the View to a display mode that does not appear in its `appCapabilities.availableDisplayModes`, if set.
 - Host MUST return the resulting mode (whether updated or not) in the response to `ui/request-display-mode`.
 - If the requested mode is not available, Host SHOULD return the current display mode in the response.
@@ -806,94 +814,94 @@ Hosts can optionally pass CSS custom properties via `HostContext.styles.variable
 /** CSS variable keys available to Views for theming. */
 type McpUiStyleVariableKey =
   // Background colors
-  | "--color-background-primary"
-  | "--color-background-secondary"
-  | "--color-background-tertiary"
-  | "--color-background-inverse"
-  | "--color-background-ghost"
-  | "--color-background-info"
-  | "--color-background-danger"
-  | "--color-background-success"
-  | "--color-background-warning"
-  | "--color-background-disabled"
+  | '--color-background-primary'
+  | '--color-background-secondary'
+  | '--color-background-tertiary'
+  | '--color-background-inverse'
+  | '--color-background-ghost'
+  | '--color-background-info'
+  | '--color-background-danger'
+  | '--color-background-success'
+  | '--color-background-warning'
+  | '--color-background-disabled'
   // Text colors
-  | "--color-text-primary"
-  | "--color-text-secondary"
-  | "--color-text-tertiary"
-  | "--color-text-inverse"
-  | "--color-text-info"
-  | "--color-text-danger"
-  | "--color-text-success"
-  | "--color-text-warning"
-  | "--color-text-disabled"
-  | "--color-text-ghost"
+  | '--color-text-primary'
+  | '--color-text-secondary'
+  | '--color-text-tertiary'
+  | '--color-text-inverse'
+  | '--color-text-info'
+  | '--color-text-danger'
+  | '--color-text-success'
+  | '--color-text-warning'
+  | '--color-text-disabled'
+  | '--color-text-ghost'
   // Border colors
-  | "--color-border-primary"
-  | "--color-border-secondary"
-  | "--color-border-tertiary"
-  | "--color-border-inverse"
-  | "--color-border-ghost"
-  | "--color-border-info"
-  | "--color-border-danger"
-  | "--color-border-success"
-  | "--color-border-warning"
-  | "--color-border-disabled"
+  | '--color-border-primary'
+  | '--color-border-secondary'
+  | '--color-border-tertiary'
+  | '--color-border-inverse'
+  | '--color-border-ghost'
+  | '--color-border-info'
+  | '--color-border-danger'
+  | '--color-border-success'
+  | '--color-border-warning'
+  | '--color-border-disabled'
   // Ring colors
-  | "--color-ring-primary"
-  | "--color-ring-secondary"
-  | "--color-ring-inverse"
-  | "--color-ring-info"
-  | "--color-ring-danger"
-  | "--color-ring-success"
-  | "--color-ring-warning"
+  | '--color-ring-primary'
+  | '--color-ring-secondary'
+  | '--color-ring-inverse'
+  | '--color-ring-info'
+  | '--color-ring-danger'
+  | '--color-ring-success'
+  | '--color-ring-warning'
   // Typography - Family
-  | "--font-sans"
-  | "--font-mono"
+  | '--font-sans'
+  | '--font-mono'
   // Typography - Weight
-  | "--font-weight-normal"
-  | "--font-weight-medium"
-  | "--font-weight-semibold"
-  | "--font-weight-bold"
+  | '--font-weight-normal'
+  | '--font-weight-medium'
+  | '--font-weight-semibold'
+  | '--font-weight-bold'
   // Typography - Text Size
-  | "--font-text-xs-size"
-  | "--font-text-sm-size"
-  | "--font-text-md-size"
-  | "--font-text-lg-size"
+  | '--font-text-xs-size'
+  | '--font-text-sm-size'
+  | '--font-text-md-size'
+  | '--font-text-lg-size'
   // Typography - Heading Size
-  | "--font-heading-xs-size"
-  | "--font-heading-sm-size"
-  | "--font-heading-md-size"
-  | "--font-heading-lg-size"
-  | "--font-heading-xl-size"
-  | "--font-heading-2xl-size"
-  | "--font-heading-3xl-size"
+  | '--font-heading-xs-size'
+  | '--font-heading-sm-size'
+  | '--font-heading-md-size'
+  | '--font-heading-lg-size'
+  | '--font-heading-xl-size'
+  | '--font-heading-2xl-size'
+  | '--font-heading-3xl-size'
   // Typography - Text Line Height
-  | "--font-text-xs-line-height"
-  | "--font-text-sm-line-height"
-  | "--font-text-md-line-height"
-  | "--font-text-lg-line-height"
+  | '--font-text-xs-line-height'
+  | '--font-text-sm-line-height'
+  | '--font-text-md-line-height'
+  | '--font-text-lg-line-height'
   // Typography - Heading Line Height
-  | "--font-heading-xs-line-height"
-  | "--font-heading-sm-line-height"
-  | "--font-heading-md-line-height"
-  | "--font-heading-lg-line-height"
-  | "--font-heading-xl-line-height"
-  | "--font-heading-2xl-line-height"
-  | "--font-heading-3xl-line-height"
+  | '--font-heading-xs-line-height'
+  | '--font-heading-sm-line-height'
+  | '--font-heading-md-line-height'
+  | '--font-heading-lg-line-height'
+  | '--font-heading-xl-line-height'
+  | '--font-heading-2xl-line-height'
+  | '--font-heading-3xl-line-height'
   // Border radius
-  | "--border-radius-xs"
-  | "--border-radius-sm"
-  | "--border-radius-md"
-  | "--border-radius-lg"
-  | "--border-radius-xl"
-  | "--border-radius-full"
+  | '--border-radius-xs'
+  | '--border-radius-sm'
+  | '--border-radius-md'
+  | '--border-radius-lg'
+  | '--border-radius-xl'
+  | '--border-radius-full'
   // Border width
-  | "--border-width-regular"
+  | '--border-width-regular'
   // Shadows
-  | "--shadow-hairline"
-  | "--shadow-sm"
-  | "--shadow-md"
-  | "--shadow-lg";
+  | '--shadow-hairline'
+  | '--shadow-sm'
+  | '--shadow-md'
+  | '--shadow-lg'
 ```
 
 #### Host Behavior
@@ -905,6 +913,7 @@ type McpUiStyleVariableKey =
 #### View Behavior
 
 - Views should set default fallback values for the set of these variables that they use, to account for hosts who don't pass some or all style variables. This ensures graceful degradation when hosts omit `styles` or specific variables:
+
 ```
 :root {
   --color-text-primary: light-dark(#171717, #000000);
@@ -912,6 +921,7 @@ type McpUiStyleVariableKey =
   ...
 }
 ```
+
 - Views can use the `applyHostStyleVariables` utility (or `useHostStyleVariables` if they prefer a React hook) to easily populate the host-provided CSS variables into their style sheet
 - Views can use the `applyDocumentTheme` utility (or `useDocumentTheme` if they prefer a React hook) to easily respond to Host Context `theme` changes in a way that is compatible with the host's light/dark color variables
 
@@ -930,7 +940,7 @@ Example usage of standardized CSS variables:
 Hosts can provide custom fonts via `styles.css.fonts`, which can contain `@font-face` rules for self-hosted fonts, `@import` statements for font services like Google Fonts, or both:
 
 ```typescript
-hostContext.styles.variables["--font-sans"] = '"Font Name", sans-serif';
+hostContext.styles.variables['--font-sans'] = '"Font Name", sans-serif'
 
 // Self-hosted fonts
 hostContext.styles.css.fonts = `
@@ -948,19 +958,19 @@ hostContext.styles.css.fonts = `
     font-style: medium;
     font-display: swap;
   }
-`;
+`
 
 // Google Fonts
 hostContext.styles.css.fonts = `
   @import url('https://fonts.googleapis.com/css2?family=Font+Name&display=swap');
-`;
+`
 ```
 
 Views can use the `applyHostFonts` utility to inject the font CSS into the document:
 
 ```typescript
 if (hostContext.styles?.css?.fonts) {
-  applyHostFonts(hostContext.styles.css.fonts);
+  applyHostFonts(hostContext.styles.css.fonts)
 }
 ```
 
@@ -1037,9 +1047,11 @@ Host SHOULD open the URL in the user's default browser or a new tab.
   }
 }
 ```
+
 Host behavior:
-* Host SHOULD add the message to the conversation context, preserving the specified role.
-* Host MAY request user consent.
+
+- Host SHOULD add the message to the conversation context, preserving the specified role.
+- Host MAY request user consent.
 
 `ui/request-display-mode` - Request host to change display mode
 
@@ -1102,6 +1114,7 @@ The View MAY send this request to update the Host's model context. This context 
 This event serves a different use case from `notifications/message` (logging) and `ui/message` (which also trigger follow-ups).
 
 Host behavior:
+
 - SHOULD provide the context to the model in future turns
 - MAY overwrite the previous model context with the new update
 - MAY defer sending the context to the model until the next user message (including `ui/message`)
@@ -1488,7 +1501,7 @@ Views can request fresh data by calling tools:
 
 ```typescript
 // View requests updated data
-await client.callTool("get_weather", { location: "New York" });
+await client.callTool('get_weather', { location: 'New York' })
 
 // Result returned via standard tools/call response
 ```
@@ -1539,25 +1552,32 @@ Future versions may add additional settings:
 Servers SHOULD check client capabilities before registering UI-enabled tools. The SDK provides the `getUiCapability` helper for this:
 
 ```typescript
-import { getUiCapability, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
+import {
+  getUiCapability,
+  RESOURCE_MIME_TYPE
+} from '@modelcontextprotocol/ext-apps/server'
 
-const uiCap = getUiCapability(clientCapabilities);
+const uiCap = getUiCapability(clientCapabilities)
 if (uiCap?.mimeTypes?.includes(RESOURCE_MIME_TYPE)) {
   // Register tools with UI templates
-  server.registerTool("get_weather", {
-    description: "Get weather with interactive dashboard",
-    inputSchema: { /* ... */ },
+  server.registerTool('get_weather', {
+    description: 'Get weather with interactive dashboard',
+    inputSchema: {
+      /* ... */
+    },
     _meta: {
-      ui: { resourceUri: "ui://weather-server/dashboard" }
+      ui: { resourceUri: 'ui://weather-server/dashboard' }
     }
-  });
+  })
 } else {
   // Register text-only version
-  server.registerTool("get_weather", {
-    description: "Get weather as text",
-    inputSchema: { /* ... */ }
+  server.registerTool('get_weather', {
+    description: 'Get weather as text',
+    inputSchema: {
+      /* ... */
+    }
     // No UI metadata
-  });
+  })
 }
 ```
 
@@ -1735,8 +1755,8 @@ Hosts MUST enforce Content Security Policies based on resource metadata.
 **CSP Construction from Metadata:**
 
 ```typescript
-const csp = resource._meta?.ui?.csp; // `resource` is extracted from the `contents` of the `resources/read` result
-const permissions = resource._meta?.ui?.permissions;
+const csp = resource._meta?.ui?.csp // `resource` is extracted from the `contents` of the `resources/read` result
+const permissions = resource._meta?.ui?.permissions
 
 const cspValue = `
   default-src 'none';
@@ -1749,14 +1769,14 @@ const cspValue = `
   frame-src ${csp?.frameDomains?.join(' ') || "'none'"};
   object-src 'none';
   base-uri ${csp?.baseUriDomains?.join(' ') || "'self'"};
-`;
+`
 
 // Permission Policy for iframe allow attribute
-const allowList: string[] = [];
-if (permissions?.camera) allowList.push('camera');
-if (permissions?.microphone) allowList.push('microphone');
-if (permissions?.geolocation) allowList.push('geolocation');
-const allowAttribute = allowList.join(' ');
+const allowList: string[] = []
+if (permissions?.camera) allowList.push('camera')
+if (permissions?.microphone) allowList.push('microphone')
+if (permissions?.geolocation) allowList.push('geolocation')
+const allowAttribute = allowList.join(' ')
 ```
 
 **Security Requirements:**

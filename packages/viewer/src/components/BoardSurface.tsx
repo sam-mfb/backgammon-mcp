@@ -21,7 +21,7 @@ export function BoardSurface({
   validDestinations,
   onPointClick,
   onBarClick,
-  onBorneOffClick,
+  onBorneOffClick
 }: BoardSurfaceProps) {
   const { points, bar, borneOff } = board
 

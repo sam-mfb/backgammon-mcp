@@ -595,14 +595,14 @@ Create `src/game/__tests__/testUtils.ts`:
 >
 > ```typescript
 > return {
->   content: [{ type: "text", text: `${summary}\n\n${asciiBoard}` }],
+>   content: [{ type: 'text', text: `${summary}\n\n${asciiBoard}` }],
 >   structuredContent: {
->     gameState,           // Full GameState for UI
->     validMoves,          // Pre-computed valid moves
->     lastAction: "roll",  // What just happened
+>     gameState, // Full GameState for UI
+>     validMoves, // Pre-computed valid moves
+>     lastAction: 'roll' // What just happened
 >   },
->   _meta: { ui: { uri: "ui://backgammon/board" } },
-> };
+>   _meta: { ui: { uri: 'ui://backgammon/board' } }
+> }
 > ```
 
 1. `gameManager.ts`:
@@ -648,11 +648,17 @@ Create `src/game/__tests__/testUtils.ts`:
    - Registers tools using fluent API with **Zod schemas** for input validation:
      ```typescript
      server.tool(
-       "make-move",
-       "Move a checker from one point to another",
-       { from: z.union([z.number(), z.literal("bar")]), to: z.union([z.number(), z.literal("off")]), dieUsed: z.number() },
-       async ({ from, to, dieUsed }) => { /* ... */ }
-     );
+       'make-move',
+       'Move a checker from one point to another',
+       {
+         from: z.union([z.number(), z.literal('bar')]),
+         to: z.union([z.number(), z.literal('off')]),
+         dieUsed: z.number()
+       },
+       async ({ from, to, dieUsed }) => {
+         /* ... */
+       }
+     )
      ```
    - Runs on port 3001 with StreamableHTTPServerTransport
 
@@ -716,12 +722,12 @@ Create `src/game/__tests__/testUtils.ts`:
    - Register UI resource with proper MIME type and metadata:
      ```typescript
      server.registerResource({
-       uri: "ui://backgammon/board",
-       name: "Backgammon Board",
-       description: "Interactive backgammon game board",
-       mimeType: "text/html;profile=mcp-app",
+       uri: 'ui://backgammon/board',
+       name: 'Backgammon Board',
+       description: 'Interactive backgammon game board',
+       mimeType: 'text/html;profile=mcp-app'
        // ... handler returns bundled HTML
-     });
+     })
      ```
    - Serve bundled HTML from `dist/mcp-app.html`
    - All game-modifying tools include `_meta.ui` (see "Hybrid Return Values" above)
@@ -847,8 +853,8 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: '20'
+          cache: 'pnpm'
       - run: pnpm install
       - run: pnpm build
       - run: pnpm test:run
@@ -856,14 +862,14 @@ jobs:
 
 **Final pnpm scripts summary:**
 
-| Command            | Description                         |
-| ------------------ | ----------------------------------- |
-| `pnpm dev`         | Couch play mode (local browser)     |
-| `pnpm mcp`         | MCP server (stdio transport)        |
-| `pnpm serve:mcp`   | MCP server with graphical app       |
-| `pnpm test`        | Run unit tests (watch mode)         |
-| `pnpm test:run`    | Run unit tests (single run)         |
-| `pnpm build`       | Build all packages                  |
+| Command          | Description                     |
+| ---------------- | ------------------------------- |
+| `pnpm dev`       | Couch play mode (local browser) |
+| `pnpm mcp`       | MCP server (stdio transport)    |
+| `pnpm serve:mcp` | MCP server with graphical app   |
+| `pnpm test`      | Run unit tests (watch mode)     |
+| `pnpm test:run`  | Run unit tests (single run)     |
+| `pnpm build`     | Build all packages              |
 
 **Verification:**
 

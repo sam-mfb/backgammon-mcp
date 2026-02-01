@@ -33,10 +33,14 @@ export function DiceDisplay({ diceRoll, remainingMoves }: DiceDisplayProps) {
   // Count how many of each die value remain
   const die1UsedCount = isDoubles
     ? 4 - remainingMoves.filter(v => v === die1).length
-    : remainingMoves.includes(die1) ? 0 : 1
+    : remainingMoves.includes(die1)
+      ? 0
+      : 1
   const die2UsedCount = isDoubles
     ? die1UsedCount // Same for doubles
-    : remainingMoves.includes(die2) ? 0 : 1
+    : remainingMoves.includes(die2)
+      ? 0
+      : 1
 
   return (
     <div className="dice-display">

@@ -27,13 +27,13 @@ export function createSyncThunkMiddleware<TExtra = undefined>(
 ): Middleware {
   const middleware: Middleware =
     ({ getState }) =>
-    (next) =>
+    next =>
     (action: unknown) => {
       if (isSyncThunkAction(action)) {
         // Execute the payload creator and store the result
         const result = action.meta.payloadCreator(action.payload, {
           getState,
-          extra: extra as TExtra,
+          extra: extra as TExtra
         })
         action.meta.result = result
       }

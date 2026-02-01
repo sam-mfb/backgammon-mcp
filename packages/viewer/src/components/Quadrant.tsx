@@ -19,18 +19,22 @@ export function Quadrant({
   points,
   selectedSource,
   validDestinations,
-  onPointClick,
+  onPointClick
 }: QuadrantProps) {
   const step = startPoint < endPoint ? 1 : -1
   const pointIndices: PointIndex[] = []
 
-  for (let i = startPoint; step > 0 ? i <= endPoint : i >= endPoint; i += step) {
+  for (
+    let i = startPoint;
+    step > 0 ? i <= endPoint : i >= endPoint;
+    i += step
+  ) {
     pointIndices.push(i as PointIndex)
   }
 
   return (
     <div className={`quadrant quadrant--${position}`}>
-      {pointIndices.map((pointIndex) => (
+      {pointIndices.map(pointIndex => (
         <Point
           key={pointIndex}
           pointIndex={pointIndex}

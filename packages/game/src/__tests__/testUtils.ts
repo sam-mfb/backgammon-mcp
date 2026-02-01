@@ -11,7 +11,7 @@ import type {
   GamePhase,
   GameState,
   Player,
-  PointIndex,
+  PointIndex
 } from '../types'
 import { createInitialBoard } from '../rules'
 
@@ -71,10 +71,10 @@ export function getRemainingMovesFromRoll(roll: DiceRoll): DieValue[] {
 export function createEmptyBoard(): BoardState {
   return {
     points: [
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ],
     bar: { white: 0, black: 0 },
-    borneOff: { white: 0, black: 0 },
+    borneOff: { white: 0, black: 0 }
   }
 }
 
@@ -115,7 +115,7 @@ export function createBoardWithCheckers(config: BoardConfig): BoardState {
     number,
     number,
     number,
-    number,
+    number
   ]
   const mutableBar = { ...board.bar }
   const mutableBorneOff = { ...board.borneOff }
@@ -149,7 +149,7 @@ export function createBoardWithCheckers(config: BoardConfig): BoardState {
   return {
     points: mutablePoints,
     bar: mutableBar,
-    borneOff: mutableBorneOff,
+    borneOff: mutableBorneOff
   }
 }
 
@@ -170,7 +170,7 @@ export function createNewGameState(): GameState {
     turnNumber: 0,
     movesThisTurn: [],
     result: null,
-    history: [],
+    history: []
   }
 }
 
@@ -196,7 +196,7 @@ export function createGameState(overrides: GameStateOverrides = {}): GameState {
     currentPlayer: overrides.currentPlayer ?? baseState.currentPlayer,
     phase: overrides.phase ?? baseState.phase,
     diceRoll: overrides.diceRoll ?? baseState.diceRoll,
-    remainingMoves: overrides.remainingMoves ?? baseState.remainingMoves,
+    remainingMoves: overrides.remainingMoves ?? baseState.remainingMoves
   }
 }
 
@@ -207,7 +207,7 @@ export function createGameState(overrides: GameStateOverrides = {}): GameState {
 export function createMovingState({
   player,
   board,
-  dice,
+  dice
 }: {
   player: Player
   board?: BoardState
@@ -218,7 +218,7 @@ export function createMovingState({
     currentPlayer: player,
     phase: 'moving',
     diceRoll: dice,
-    remainingMoves: getRemainingMovesFromRoll(dice),
+    remainingMoves: getRemainingMovesFromRoll(dice)
   })
 }
 
@@ -229,7 +229,7 @@ export function createMovingState({
 export function createBearingOffState({
   player,
   dice,
-  positions,
+  positions
 }: {
   player: Player
   dice: DiceRoll
@@ -242,13 +242,13 @@ export function createBearingOffState({
       : [{ point: 19 as PointIndex, count: 15 }]
 
   const config: BoardConfig = {
-    [player]: positions ?? defaultPositions,
+    [player]: positions ?? defaultPositions
   }
 
   return createMovingState({
     player,
     board: createBoardWithCheckers(config),
-    dice,
+    dice
   })
 }
 
@@ -259,7 +259,7 @@ export function createBarEntryState({
   player,
   barCount,
   dice,
-  opponentBlocks,
+  opponentBlocks
 }: {
   player: Player
   barCount: number
@@ -273,7 +273,7 @@ export function createBarEntryState({
     // Put remaining checkers somewhere on the board
     player === 'white'
       ? { point: 6 as PointIndex, count: 15 - barCount }
-      : { point: 19 as PointIndex, count: 15 - barCount },
+      : { point: 19 as PointIndex, count: 15 - barCount }
   ]
 
   const opponentConfig: CheckerPosition[] = []
@@ -296,13 +296,13 @@ export function createBarEntryState({
 
   const config: BoardConfig = {
     [player]: playerConfig,
-    [opponent]: opponentConfig,
+    [opponent]: opponentConfig
   }
 
   return createMovingState({
     player,
     board: createBoardWithCheckers(config),
-    dice,
+    dice
   })
 }
 
@@ -337,7 +337,10 @@ export function countCheckersAt(
 /**
  * Get total checker count for a player.
  */
-export function getTotalCheckerCount(board: BoardState, player: Player): number {
+export function getTotalCheckerCount(
+  board: BoardState,
+  player: Player
+): number {
   let count = board.bar[player] + board.borneOff[player]
 
   for (let i = 0; i < 24; i++) {

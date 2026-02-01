@@ -36,7 +36,7 @@ export function BoardView({
   onBarClick,
   onBorneOffClick,
   onRollClick,
-  onEndTurnClick,
+  onEndTurnClick
 }: BoardViewProps) {
   const {
     board,
@@ -45,12 +45,12 @@ export function BoardView({
     turnNumber,
     diceRoll,
     remainingMoves,
-    result,
+    result
   } = gameState
 
   const canRoll = phase === 'rolling'
   // Use provided canEndTurn prop if available, otherwise fall back to simple phase check
-  const canEndTurn = canEndTurnProp ?? (phase === 'moving')
+  const canEndTurn = canEndTurnProp ?? phase === 'moving'
   const isGameOver = phase === 'game_over'
 
   return (

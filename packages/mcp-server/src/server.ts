@@ -9,16 +9,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { store } from './store'
-import {
-  renderAvailableMoves,
-  renderFullGameState,
-} from './asciiBoard'
+import { renderAvailableMoves, renderFullGameState } from './asciiBoard'
 import {
   performStartGame,
   performRollDice,
   performMove,
   performEndTurn,
-  resetGame,
+  resetGame
 } from '@backgammon/game'
 
 // =============================================================================
@@ -28,13 +25,13 @@ import {
 function errorResponse(message: string) {
   return {
     content: [{ type: 'text' as const, text: `Error: ${message}` }],
-    isError: true,
+    isError: true
   }
 }
 
 function textResponse(text: string) {
   return {
-    content: [{ type: 'text' as const, text }],
+    content: [{ type: 'text' as const, text }]
   }
 }
 
@@ -44,7 +41,7 @@ function textResponse(text: string) {
 
 const server = new McpServer({
   name: 'backgammon',
-  version: '1.0.0',
+  version: '1.0.0'
 })
 
 // =============================================================================
@@ -151,7 +148,7 @@ server.tool(
       .int()
       .min(1)
       .max(6)
-      .describe('The die value being used for this move (1-6)'),
+      .describe('The die value being used for this move (1-6)')
   },
   async ({ from, to, dieUsed }) => {
     const action = store.dispatch(performMove({ from, to, dieUsed }))
@@ -185,7 +182,8 @@ server.tool(
       if (validMoves.length > 0) {
         text += '\n' + renderAvailableMoves({ state })
       } else {
-        text += '\nNo more legal moves. Use backgammon_end_turn to end your turn.'
+        text +=
+          '\nNo more legal moves. Use backgammon_end_turn to end your turn.'
       }
     } else {
       text += '\n\nAll dice used. Use backgammon_end_turn to end your turn.'
@@ -241,7 +239,9 @@ server.tool(
     const state = store.getState().game
 
     if (state.phase === 'not_started') {
-      return errorResponse('No game in progress. Use backgammon_start_game first.')
+      return errorResponse(
+        'No game in progress. Use backgammon_start_game first.'
+      )
     }
 
     const boardText = renderFullGameState({ state })
@@ -266,7 +266,9 @@ server.tool(
   {},
   async () => {
     store.dispatch(resetGame())
-    return textResponse('Game reset. Use backgammon_start_game to begin a new game.')
+    return textResponse(
+      'Game reset. Use backgammon_start_game to begin a new game.'
+    )
   }
 )
 
@@ -279,10 +281,18 @@ server.tool(
   'Get information about backgammon rules. Specify a section: overview, movement, dice, hitting, bearing_off, winning, or all.',
   {
     section: z
-      .enum(['overview', 'movement', 'dice', 'hitting', 'bearing_off', 'winning', 'all'])
+      .enum([
+        'overview',
+        'movement',
+        'dice',
+        'hitting',
+        'bearing_off',
+        'winning',
+        'all'
+      ])
       .optional()
       .default('overview')
-      .describe('Which section of rules to retrieve'),
+      .describe('Which section of rules to retrieve')
   },
   async ({ section = 'overview' }) => {
     const rules: Record<string, string> = {
@@ -361,11 +371,13 @@ Game ends when one player bears off all 15 checkers.
 VICTORY TYPES:
 - Single (1x): Opponent has borne off at least 1 checker
 - Gammon (2x): Opponent hasn't borne off any checkers
-- Backgammon (3x): Opponent hasn't borne off any AND has checker on bar or in winner's home`,
+- Backgammon (3x): Opponent hasn't borne off any AND has checker on bar or in winner's home`
     }
 
     if (section === 'all') {
-      const allRules = Object.values(rules).join('\n\n' + '='.repeat(50) + '\n\n')
+      const allRules = Object.values(rules).join(
+        '\n\n' + '='.repeat(50) + '\n\n'
+      )
       return textResponse(allRules)
     }
 
@@ -386,7 +398,7 @@ async function main(): Promise<void> {
   console.error('Backgammon MCP server running on stdio')
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error('Fatal error:', error)
   process.exit(1)
 })

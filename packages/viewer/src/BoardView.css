@@ -423,7 +423,10 @@
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  transition:
+    background 0.2s,
+    transform 0.1s,
+    box-shadow 0.2s;
 }
 
 .controls__button:hover:not(:disabled) {
@@ -478,7 +481,9 @@
 }
 
 .point--selected .checker {
-  box-shadow: 0 0 0 3px #4a90d9, 0 2px 8px rgba(74, 144, 217, 0.6);
+  box-shadow:
+    0 0 0 3px #4a90d9,
+    0 2px 8px rgba(74, 144, 217, 0.6);
 }
 
 .point--valid-destination {
@@ -501,7 +506,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.6;
     transform: translate(-50%, -50%) scale(1);
   }
@@ -531,7 +537,9 @@
 }
 
 .bar__section--selected .checker {
-  box-shadow: 0 0 0 3px #4a90d9, 0 2px 8px rgba(74, 144, 217, 0.6);
+  box-shadow:
+    0 0 0 3px #4a90d9,
+    0 2px 8px rgba(74, 144, 217, 0.6);
 }
 
 /* Borne Off - Clickable & Valid Destination States */

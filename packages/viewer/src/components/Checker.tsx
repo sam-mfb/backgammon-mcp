@@ -5,7 +5,5 @@ interface CheckerProps {
 }
 
 export function Checker({ player }: CheckerProps) {
-  return (
-    <div className={`checker checker--${player}`} />
-  )
+  return <div className={`checker checker--${player}`} />
 }

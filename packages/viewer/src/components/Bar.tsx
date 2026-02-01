@@ -28,8 +28,10 @@ export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
     <Checker key={`black-${i}`} player="black" />
   ))
 
-  const whiteClickable = bar.white > 0 && currentPlayer === 'white' && onBarClick
-  const blackClickable = bar.black > 0 && currentPlayer === 'black' && onBarClick
+  const whiteClickable =
+    bar.white > 0 && currentPlayer === 'white' && onBarClick
+  const blackClickable =
+    bar.black > 0 && currentPlayer === 'black' && onBarClick
   const whiteSelected = isSelected && currentPlayer === 'white'
   const blackSelected = isSelected && currentPlayer === 'black'
 
@@ -37,7 +39,7 @@ export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
     'bar__section',
     'bar__section--top',
     blackClickable && 'bar__section--clickable',
-    blackSelected && 'bar__section--selected',
+    blackSelected && 'bar__section--selected'
   ]
     .filter(Boolean)
     .join(' ')
@@ -46,7 +48,7 @@ export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
     'bar__section',
     'bar__section--bottom',
     whiteClickable && 'bar__section--clickable',
-    whiteSelected && 'bar__section--selected',
+    whiteSelected && 'bar__section--selected'
   ]
     .filter(Boolean)
     .join(' ')
@@ -58,7 +60,7 @@ export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
         onClick={handleBlackClick}
         role={blackClickable ? 'button' : undefined}
         tabIndex={blackClickable ? 0 : undefined}
-        onKeyDown={(e) => {
+        onKeyDown={e => {
           if (blackClickable && (e.key === 'Enter' || e.key === ' ')) {
             handleBlackClick()
           }
@@ -71,7 +73,7 @@ export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
         onClick={handleWhiteClick}
         role={whiteClickable ? 'button' : undefined}
         tabIndex={whiteClickable ? 0 : undefined}
-        onKeyDown={(e) => {
+        onKeyDown={e => {
           if (whiteClickable && (e.key === 'Enter' || e.key === ' ')) {
             handleWhiteClick()
           }

@@ -17,7 +17,7 @@ import {
   resetGame,
   getValidMoves,
   type GameState,
-  type DieValue,
+  type DieValue
 } from '../index'
 
 // =============================================================================
@@ -27,14 +27,14 @@ import {
 function createTestStore() {
   return configureStore({
     reducer: { game: gameReducer },
-    middleware: (getDefaultMiddleware) =>
+    middleware: getDefaultMiddleware =>
       getDefaultMiddleware({
         // Disable serializable check for sync thunk actions
         // (they store payloadCreator function in meta)
         serializableCheck: {
-          ignoredActionPaths: ['meta.payloadCreator'],
-        },
-      }).concat(gameSyncThunkMiddleware),
+          ignoredActionPaths: ['meta.payloadCreator']
+        }
+      }).concat(gameSyncThunkMiddleware)
   })
 }
 
@@ -65,7 +65,7 @@ function getFirstValidMove(
       return {
         from: move.from,
         to: dest.to,
-        dieUsed: dest.dieValue,
+        dieUsed: dest.dieValue
       }
     }
   }
@@ -248,9 +248,7 @@ describe('performMove', () => {
   })
 
   it('should fail if no game is started', () => {
-    const action = store.dispatch(
-      performMove({ from: 24, to: 23, dieUsed: 1 })
-    )
+    const action = store.dispatch(performMove({ from: 24, to: 23, dieUsed: 1 }))
     const result = action.meta.result!
 
     expect(result.ok).toBe(false)
@@ -262,9 +260,7 @@ describe('performMove', () => {
   it('should fail with invalid input', () => {
     store.dispatch(performStartGame())
 
-    const action = store.dispatch(
-      performMove({ from: 0, to: 23, dieUsed: 1 })
-    )
+    const action = store.dispatch(performMove({ from: 0, to: 23, dieUsed: 1 }))
     const result = action.meta.result!
 
     expect(result.ok).toBe(false)
@@ -276,9 +272,7 @@ describe('performMove', () => {
   it('should fail with invalid die value', () => {
     store.dispatch(performStartGame())
 
-    const action = store.dispatch(
-      performMove({ from: 24, to: 23, dieUsed: 7 })
-    )
+    const action = store.dispatch(performMove({ from: 24, to: 23, dieUsed: 7 }))
     const result = action.meta.result!
 
     expect(result.ok).toBe(false)

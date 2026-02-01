@@ -13,7 +13,7 @@ export type {
   MoveTo,
   GamePhase,
   GameResult,
-  GameState,
+  GameState
 } from './types'
 
 // =============================================================================
@@ -42,7 +42,7 @@ export {
   selectPhase,
   selectRemainingMoves,
   selectValidMoves,
-  selectCanEndTurn,
+  selectCanEndTurn
 } from './gameSlice'
 
 // =============================================================================
@@ -53,7 +53,7 @@ export {
   performStartGame,
   performRollDice,
   performMove,
-  performEndTurn,
+  performEndTurn
 } from './operations'
 
 // =============================================================================

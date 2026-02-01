@@ -11,7 +11,7 @@ export function Controls({
   canEndTurn,
   isGameOver,
   onRollClick,
-  onEndTurnClick,
+  onEndTurnClick
 }: ControlsProps) {
   if (isGameOver) {
     return (

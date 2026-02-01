@@ -8,13 +8,16 @@
     "build": "pnpm -r build",
     "preview": "pnpm --filter @backgammon/web-app preview",
     "test": "vitest run",
-    "mcp": "pnpm --filter @backgammon/mcp-server start"
+    "mcp": "pnpm --filter @backgammon/mcp-server start",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@testing-library/react": "^14.2.1",
     "@types/node": "^20.11.0",
     "@vitejs/plugin-react": "^4.2.1",
     "jsdom": "^24.0.0",
+    "prettier": "^3.8.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vite": "^5.1.0",
