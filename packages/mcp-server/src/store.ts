@@ -5,11 +5,11 @@
  */
 
 import { configureStore } from '@reduxjs/toolkit'
-import { gameReducerWithOperations, gameSyncThunkMiddleware } from '@backgammon/game'
+import { gameReducer, gameSyncThunkMiddleware } from '@backgammon/game'
 
 export const store = configureStore({
   reducer: {
-    game: gameReducerWithOperations,
+    game: gameReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

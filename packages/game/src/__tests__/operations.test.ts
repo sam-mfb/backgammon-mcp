@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { configureStore } from '@reduxjs/toolkit'
 import {
-  gameReducerWithOperations,
+  gameReducer,
   gameSyncThunkMiddleware,
   performStartGame,
   performRollDice,
@@ -18,7 +18,6 @@ import {
   getValidMoves,
   type GameState,
   type DieValue,
-  type AvailableMoves,
 } from '../index'
 
 // =============================================================================
@@ -27,7 +26,7 @@ import {
 
 function createTestStore() {
   return configureStore({
-    reducer: { game: gameReducerWithOperations },
+    reducer: { game: gameReducer },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         // Disable serializable check for sync thunk actions
@@ -48,22 +47,30 @@ function getState(store: TestStore): GameState {
 /**
  * Get a valid move from the current game state.
  * Returns null if no moves are available.
+ * Only returns point-to-point moves (not bar entry or bearing off).
  */
 function getFirstValidMove(
   state: GameState
 ): { from: number; to: number; dieUsed: DieValue } | null {
   const moves = getValidMoves({ state })
-  if (moves.length === 0) return null
 
-  const firstMove = moves[0]
-  if (firstMove.destinations.length === 0) return null
+  for (const move of moves) {
+    // Skip bar moves
+    if (move.from === 'bar') continue
 
-  const destination = firstMove.destinations[0]
-  return {
-    from: firstMove.from,
-    to: destination.to,
-    dieUsed: destination.dieValue,
+    for (const dest of move.destinations) {
+      // Skip bearing off moves
+      if (dest.to === 'off') continue
+
+      return {
+        from: move.from,
+        to: dest.to,
+        dieUsed: dest.dieValue,
+      }
+    }
   }
+
+  return null
 }
 
 /**
@@ -333,7 +340,6 @@ describe('performMove', () => {
 
     // Destination point should have one more checker (unless bearing off)
     if (move.to >= 1 && move.to <= 24) {
-      const destValueBefore = boardBefore.points[toIndex]
       const destValueAfter = stateAfter.board.points[toIndex]
       // Account for hitting: if opponent had a blot, it's now our checker
       expect(destValueAfter * direction).toBeGreaterThan(0)

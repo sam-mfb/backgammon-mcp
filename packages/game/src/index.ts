@@ -34,7 +34,7 @@ export {
 export { createSyncThunkMiddleware, gameSyncThunkMiddleware } from './syncThunkMiddleware'
 
 // =============================================================================
-// Game Slice (base - without operations extraReducers)
+// Game Slice
 // =============================================================================
 
 export {
@@ -72,15 +72,6 @@ export {
   // Types
   type RootState,
 } from './gameSlice'
-
-// =============================================================================
-// Game Slice with Operations (includes extraReducers for sync thunks)
-// =============================================================================
-
-export {
-  gameSlice as gameSliceWithOperations,
-  default as gameReducerWithOperations,
-} from './gameSliceWithOperations'
 
 // =============================================================================
 // Operations (sync thunks)

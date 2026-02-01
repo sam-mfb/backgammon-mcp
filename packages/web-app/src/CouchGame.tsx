@@ -75,7 +75,7 @@ export function CouchGame() {
   // Get valid destinations for a source position
   const getDestinationsForSource = useCallback(
     (source: MoveFrom): MoveTo[] => {
-      if (!availableMoves || availableMoves.length === 0) return []
+      if (availableMoves.length === 0) return []
       const available = availableMoves.find((am) => am.from === source)
       if (!available) return []
       return available.destinations.map((d) => d.to)
