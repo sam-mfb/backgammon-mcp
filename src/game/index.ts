@@ -1,2 +1,32 @@
 export * from './types'
-export { gameSlice, default as gameReducer } from './gameSlice'
+export {
+  gameSlice,
+  default as gameReducer,
+  // Actions
+  startGame,
+  setFirstPlayer,
+  rollDice,
+  makeMove,
+  endTurn,
+  setAvailableMoves,
+  endGame,
+  resetGame,
+  // Direct selectors
+  selectBoard,
+  selectCurrentPlayer,
+  selectPhase,
+  selectDiceRoll,
+  selectRemainingMoves,
+  selectTurnNumber,
+  selectMovesThisTurn,
+  selectResult,
+  selectHistory,
+  selectAvailableMoves,
+  // Derived selectors
+  selectBar,
+  selectBorneOff,
+  selectIsGameOver,
+  selectCanRoll,
+  selectCanMove,
+  selectIsDoubles,
+} from './gameSlice'

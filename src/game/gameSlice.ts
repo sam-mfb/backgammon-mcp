@@ -1,5 +1,21 @@
-import { createSlice } from '@reduxjs/toolkit'
-import type { BoardState, GameState } from './types'
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import type { RootState } from '@/app/store'
+import type {
+  BoardState,
+  DiceRoll,
+  GameResult,
+  GameState,
+  Move,
+  MoveDestination,
+  MoveFrom,
+  Player,
+} from './types'
+
+/** Mutable version of AvailableMoves for Immer compatibility in reducers */
+interface MutableAvailableMoves {
+  from: MoveFrom
+  destinations: MoveDestination[]
+}
 
 /**
  * Standard backgammon starting position
@@ -64,8 +80,162 @@ export const gameSlice = createSlice({
   name: 'game',
   initialState,
   reducers: {
-    // Game actions will be added here
+    /** Transition to rolling_for_first phase to determine who goes first */
+    startGame(state) {
+      state.phase = 'rolling_for_first'
+    },
+
+    /** Set who goes first and transition to rolling phase */
+    setFirstPlayer(state, action: PayloadAction<Player>) {
+      state.currentPlayer = action.payload
+      state.phase = 'rolling'
+    },
+
+    /** Set dice roll, compute remaining moves (4 if doubles), transition to moving */
+    rollDice(state, action: PayloadAction<DiceRoll>) {
+      const { die1, die2 } = action.payload
+      state.diceRoll = action.payload
+      state.phase = 'moving'
+
+      // Doubles give 4 moves of the same value
+      if (die1 === die2) {
+        state.remainingMoves = [die1, die1, die1, die1]
+      } else {
+        state.remainingMoves = [die1, die2]
+      }
+    },
+
+    /** Execute a move, update board/bar/borneOff, consume die from remainingMoves */
+    makeMove(state, action: PayloadAction<Move>) {
+      const { from, to, dieUsed } = action.payload
+      const player = state.currentPlayer!
+
+      // Remove checker from source
+      if (from === 'bar') {
+        state.board.bar[player]--
+      } else {
+        // from is a PointIndex (1-24), array index is from - 1
+        const fromIndex = from - 1
+        if (player === 'white') {
+          state.board.points[fromIndex]--
+        } else {
+          state.board.points[fromIndex]++
+        }
+      }
+
+      // Place checker at destination
+      if (to === 'off') {
+        state.board.borneOff[player]++
+      } else {
+        // to is a PointIndex (1-24), array index is to - 1
+        const toIndex = to - 1
+        const pointValue = state.board.points[toIndex]
+
+        // Check for hitting a blot (single opponent checker)
+        if (player === 'white' && pointValue === -1) {
+          // Hit black's blot
+          state.board.points[toIndex] = 1
+          state.board.bar.black++
+        } else if (player === 'black' && pointValue === 1) {
+          // Hit white's blot
+          state.board.points[toIndex] = -1
+          state.board.bar.white++
+        } else {
+          // Normal move
+          if (player === 'white') {
+            state.board.points[toIndex]++
+          } else {
+            state.board.points[toIndex]--
+          }
+        }
+      }
+
+      // Consume the used die value from remainingMoves
+      const dieIndex = state.remainingMoves.indexOf(dieUsed)
+      if (dieIndex !== -1) {
+        state.remainingMoves.splice(dieIndex, 1)
+      }
+
+      // Record the move
+      state.movesThisTurn.push(action.payload)
+    },
+
+    /** Archive turn to history, switch player, transition to rolling */
+    endTurn(state) {
+      // Archive the completed turn
+      if (state.currentPlayer && state.diceRoll) {
+        state.history.push({
+          player: state.currentPlayer,
+          diceRoll: state.diceRoll,
+          moves: [...state.movesThisTurn],
+        })
+      }
+
+      // Switch player
+      state.currentPlayer = state.currentPlayer === 'white' ? 'black' : 'white'
+
+      // Reset turn state
+      state.diceRoll = null
+      state.remainingMoves = []
+      state.movesThisTurn = []
+      state.availableMoves = null
+      state.turnNumber++
+      state.phase = 'rolling'
+    },
+
+    /** Update precomputed available moves for UI */
+    setAvailableMoves(state, action: PayloadAction<MutableAvailableMoves[]>) {
+      state.availableMoves = action.payload
+    },
+
+    /** Set result and transition to game_over */
+    endGame(state, action: PayloadAction<GameResult>) {
+      state.result = action.payload
+      state.phase = 'game_over'
+    },
+
+    /** Reset to initial state */
+    resetGame() {
+      return initialState
+    },
   },
 })
+
+export const {
+  startGame,
+  setFirstPlayer,
+  rollDice,
+  makeMove,
+  endTurn,
+  setAvailableMoves,
+  endGame,
+  resetGame,
+} = gameSlice.actions
+
+// =============================================================================
+// Selectors
+// =============================================================================
+
+// Direct state selectors
+export const selectBoard = (state: RootState) => state.game.board
+export const selectCurrentPlayer = (state: RootState) => state.game.currentPlayer
+export const selectPhase = (state: RootState) => state.game.phase
+export const selectDiceRoll = (state: RootState) => state.game.diceRoll
+export const selectRemainingMoves = (state: RootState) => state.game.remainingMoves
+export const selectTurnNumber = (state: RootState) => state.game.turnNumber
+export const selectMovesThisTurn = (state: RootState) => state.game.movesThisTurn
+export const selectResult = (state: RootState) => state.game.result
+export const selectHistory = (state: RootState) => state.game.history
+export const selectAvailableMoves = (state: RootState) => state.game.availableMoves
+
+// Derived selectors
+export const selectBar = (state: RootState) => state.game.board.bar
+export const selectBorneOff = (state: RootState) => state.game.board.borneOff
+export const selectIsGameOver = (state: RootState) => state.game.phase === 'game_over'
+export const selectCanRoll = (state: RootState) => state.game.phase === 'rolling'
+export const selectCanMove = (state: RootState) =>
+  state.game.phase === 'moving' && state.game.remainingMoves.length > 0
+export const selectIsDoubles = (state: RootState) =>
+  state.game.diceRoll?.die1 === state.game.diceRoll?.die2
 
 export default gameSlice.reducer
