@@ -37,30 +37,31 @@ This document provides a comprehensive reference for backgammon rules as defined
 ### Point Numbering
 
 Points are numbered 1-24 from each player's perspective:
+
 - Each player's **1-point** is in their home board (bearing off destination)
 - Each player's **24-point** is in their opponent's home board
 - A player's 24-point is the opponent's 1-point
 
 ### Quadrants
 
-| Quadrant | White's View | Black's View |
-|----------|--------------|--------------|
-| White's Home Board | Points 1-6 | Points 19-24 |
-| White's Outer Board | Points 7-12 | Points 13-18 |
-| Black's Outer Board | Points 13-18 | Points 7-12 |
-| Black's Home Board | Points 19-24 | Points 1-6 |
+| Quadrant            | White's View | Black's View |
+| ------------------- | ------------ | ------------ |
+| White's Home Board  | Points 1-6   | Points 19-24 |
+| White's Outer Board | Points 7-12  | Points 13-18 |
+| Black's Outer Board | Points 13-18 | Points 7-12  |
+| Black's Home Board  | Points 19-24 | Points 1-6   |
 
 ### Initial Checker Positions
 
 Each player starts with 15 checkers positioned as follows:
 
 | Point (from player's view) | Checkers |
-|---------------------------|----------|
-| 24-point | 2 |
-| 13-point | 5 |
-| 8-point | 3 |
-| 6-point | 5 |
-| **Total** | **15** |
+| -------------------------- | -------- |
+| 24-point                   | 2        |
+| 13-point                   | 5        |
+| 8-point                    | 3        |
+| 6-point                    | 5        |
+| **Total**                  | **15**   |
 
 **Visual representation (White's perspective):**
 
@@ -120,18 +121,21 @@ Move all 15 of your checkers into your home board, then bear them off. The first
 ### Basic Movement
 
 Each die represents a separate move:
+
 - Roll 5-3: Move one checker 5 points AND move one checker 3 points
 - OR: Move one checker 5 points, then the same checker 3 more points (total 8)
 
 ### Combining Dice on One Checker
 
 When moving one checker using both dice:
+
 - The intermediate point must be open (not blocked)
 - Example: To move 8 points with a 5-3 roll, either the point 5 away OR the point 3 away must be open
 
 ### Legal Landing Points
 
 A checker may land on a point that is:
+
 1. **Empty** (no checkers)
 2. **Occupied by your own checkers** (any number)
 3. **Occupied by exactly ONE opponent checker** (a "blot" - this hits it)
@@ -156,6 +160,7 @@ When you have two or more checkers on a point, you "own" or "make" that point. O
 ### Doubles
 
 Rolling the same number on both dice (e.g., 4-4):
+
 - Play that number **four times** instead of twice
 - Can be distributed among multiple checkers
 - Example: Roll 3-3, you have four moves of 3 points each
@@ -170,6 +175,7 @@ Rolling the same number on both dice (e.g., 4-4):
 4. **Neither die playable**: Turn is forfeited (no move)
 
 **For doubles:**
+
 - Must play as many of the four moves as legally possible
 - If only 2 of 4 can be played, play 2
 
@@ -184,6 +190,7 @@ A single checker alone on a point is called a "blot" and is vulnerable to being 
 ### Hitting
 
 When your checker lands on a point with exactly one opponent checker:
+
 1. The opponent's checker is "hit"
 2. The hit checker is placed on the bar (center of the board)
 3. Your checker occupies that point
@@ -201,11 +208,13 @@ When you have checkers on the bar:
 ### Bar Entry Examples
 
 **White has a checker on the bar, rolls 4-2:**
+
 - Can enter on point 21 (24 - 4 + 1 = 21) if open
 - OR enter on point 23 (24 - 2 + 1 = 23) if open
 - After entering, may use remaining die to move
 
 **If entry points are blocked:**
+
 - If both points are blocked: Turn is forfeited
 - If one point is blocked: Enter on the other, use remaining die if possible
 - Multiple checkers on bar: Enter as many as possible
@@ -226,6 +235,7 @@ You can only bear off when **ALL 15 of your checkers are in your home board**.
 - Black's home board: Points 19-24
 
 If a checker is hit during bearing off, you must:
+
 1. Re-enter from the bar
 2. Move that checker back to your home board
 3. Resume bearing off
@@ -233,20 +243,24 @@ If a checker is hit during bearing off, you must:
 ### Bearing Off Mechanics
 
 **Exact roll:**
+
 - Roll matches point number → Remove that checker
 - Example: Roll 4, bear off a checker from the 4-point
 
 **No checker on rolled point:**
+
 - Must move a checker from a HIGHER-numbered point if possible
 - Example: Roll 4, no checker on 4-point, but checker on 5-point → Move 5→1
 
 **No checker on higher points:**
+
 - May (and must) bear off from the HIGHEST occupied point
 - Example: Roll 6, highest checker is on 3-point → Bear off from 3-point
 
 ### Bearing Off with Both Dice
 
 You may use one die to move within the home board and the other to bear off:
+
 - Roll 5-2 with checkers on 6-point and 2-point
 - Move 6→1 (using 5), then bear off from 1-point? No - must land exactly
 - OR: Bear off 2-point (using 2), then move 6→1 (using 5)
@@ -254,6 +268,7 @@ You may use one die to move within the home board and the other to bear off:
 ### Bearing Off Priority
 
 The obligation to play both dice (or as many as possible) still applies:
+
 - If you can bear off with one die and must move with the other, do so
 - You cannot voluntarily skip a playable die
 
@@ -267,11 +282,11 @@ The game ends when one player bears off all 15 checkers.
 
 ### Victory Types
 
-| Type | Condition | Point Value |
-|------|-----------|-------------|
-| **Single** | Opponent has borne off at least 1 checker | 1× stakes |
-| **Gammon** | Opponent has NOT borne off any checkers | 2× stakes |
-| **Backgammon** | Opponent has NOT borne off any checkers AND has at least one checker on the bar or in winner's home board | 3× stakes |
+| Type           | Condition                                                                                                 | Point Value |
+| -------------- | --------------------------------------------------------------------------------------------------------- | ----------- |
+| **Single**     | Opponent has borne off at least 1 checker                                                                 | 1× stakes   |
+| **Gammon**     | Opponent has NOT borne off any checkers                                                                   | 2× stakes   |
+| **Backgammon** | Opponent has NOT borne off any checkers AND has at least one checker on the bar or in winner's home board | 3× stakes   |
 
 ---
 
@@ -280,6 +295,7 @@ The game ends when one player bears off all 15 checkers.
 > Note: The doubling cube is used for stakes/gambling and is not implemented in this version.
 
 For reference:
+
 - Games start at 1 point
 - Either player may propose doubling before their roll
 - Opponent may accept (stakes double, they own cube) or refuse (lose at current stakes)
@@ -289,6 +305,7 @@ For reference:
 ### Crawford Rule (Match Play)
 
 When one player is one point away from winning a match:
+
 - The doubling cube is out of play for that one game
 - Prevents the trailing player from immediately doubling
 
@@ -299,12 +316,15 @@ When one player is one point away from winning a match:
 These rules are sometimes used but are not part of standard play:
 
 ### Automatic Doubles
+
 If both players roll the same number to start, stakes automatically double. Often limited to one automatic double per game.
 
 ### Beavers
+
 When doubled, a player may immediately redouble ("beaver") while keeping cube ownership.
 
 ### Jacoby Rule
+
 Gammons and backgammons only count as single games unless the cube has been turned. Encourages cube action.
 
 ---
@@ -313,11 +333,11 @@ Gammons and backgammons only count as single games unless the cube has been turn
 
 ### Checker Movement Summary
 
-| Scenario | Rule |
-|----------|------|
-| Landing on empty point | Legal |
-| Landing on own checkers | Legal |
-| Landing on 1 opponent checker | Legal (hit) |
+| Scenario                        | Rule              |
+| ------------------------------- | ----------------- |
+| Landing on empty point          | Legal             |
+| Landing on own checkers         | Legal             |
+| Landing on 1 opponent checker   | Legal (hit)       |
 | Landing on 2+ opponent checkers | Illegal (blocked) |
 
 ### Must-Play Priority

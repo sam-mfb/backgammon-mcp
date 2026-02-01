@@ -57,8 +57,12 @@ export function renderAsciiBoard({ state }: { state: GameState }): string {
   const lines: string[] = []
 
   // Top point numbers (13-24)
-  const topPointNumbers = Array.from({ length: 12 }, (_, i) => formatPointNumber(13 + i))
-  lines.push(`    ${topPointNumbers.slice(0, 6).join(' ')}   BAR   ${topPointNumbers.slice(6).join(' ')}`)
+  const topPointNumbers = Array.from({ length: 12 }, (_, i) =>
+    formatPointNumber(13 + i)
+  )
+  lines.push(
+    `    ${topPointNumbers.slice(0, 6).join(' ')}   BAR   ${topPointNumbers.slice(6).join(' ')}`
+  )
 
   // Top separator
   lines.push('   +' + '-'.repeat(17) + '+-----+' + '-'.repeat(17) + '+')
@@ -82,13 +86,17 @@ export function renderAsciiBoard({ state }: { state: GameState }): string {
     }
 
     // Bar (show black's bar checkers on top half)
-    const barChar = row < board.bar.black && row < MAX_VISIBLE_CHECKERS
-      ? BLACK_CHECKER
-      : (row === MAX_VISIBLE_CHECKERS - 1 && board.bar.black > MAX_VISIBLE_CHECKERS
-        ? formatOverflowCount(board.bar.black)
-        : ' ')
+    const barChar =
+      row < board.bar.black && row < MAX_VISIBLE_CHECKERS
+        ? BLACK_CHECKER
+        : row === MAX_VISIBLE_CHECKERS - 1 &&
+            board.bar.black > MAX_VISIBLE_CHECKERS
+          ? formatOverflowCount(board.bar.black)
+          : ' '
 
-    lines.push(`   | ${leftQuadrant.join('  ')} | ${barChar} | ${rightQuadrant.join('  ')} |`)
+    lines.push(
+      `   | ${leftQuadrant.join('  ')} | ${barChar} | ${rightQuadrant.join('  ')} |`
+    )
   }
 
   // Middle separator
@@ -112,25 +120,35 @@ export function renderAsciiBoard({ state }: { state: GameState }): string {
     }
 
     // Bar (show white's bar checkers on bottom half)
-    const barChar = row < board.bar.white && row < MAX_VISIBLE_CHECKERS
-      ? WHITE_CHECKER
-      : (row === MAX_VISIBLE_CHECKERS - 1 && board.bar.white > MAX_VISIBLE_CHECKERS
-        ? formatOverflowCount(board.bar.white)
-        : ' ')
+    const barChar =
+      row < board.bar.white && row < MAX_VISIBLE_CHECKERS
+        ? WHITE_CHECKER
+        : row === MAX_VISIBLE_CHECKERS - 1 &&
+            board.bar.white > MAX_VISIBLE_CHECKERS
+          ? formatOverflowCount(board.bar.white)
+          : ' '
 
-    lines.push(`   | ${leftQuadrant.join('  ')} | ${barChar} | ${rightQuadrant.join('  ')} |`)
+    lines.push(
+      `   | ${leftQuadrant.join('  ')} | ${barChar} | ${rightQuadrant.join('  ')} |`
+    )
   }
 
   // Bottom separator
   lines.push('   +' + '-'.repeat(17) + '+-----+' + '-'.repeat(17) + '+')
 
   // Bottom point numbers (12-1)
-  const bottomPointNumbers = Array.from({ length: 12 }, (_, i) => formatPointNumber(12 - i))
-  lines.push(`    ${bottomPointNumbers.slice(0, 6).join(' ')}   BAR   ${bottomPointNumbers.slice(6).join(' ')}`)
+  const bottomPointNumbers = Array.from({ length: 12 }, (_, i) =>
+    formatPointNumber(12 - i)
+  )
+  lines.push(
+    `    ${bottomPointNumbers.slice(0, 6).join(' ')}   BAR   ${bottomPointNumbers.slice(6).join(' ')}`
+  )
 
   // Borne off area
   lines.push('')
-  lines.push(`   Borne off: White: ${board.borneOff.white}  Black: ${board.borneOff.black}`)
+  lines.push(
+    `   Borne off: White: ${String(board.borneOff.white)}  Black: ${String(board.borneOff.black)}`
+  )
 
   return lines.join('\n')
 }
@@ -141,12 +159,12 @@ export function renderAsciiBoard({ state }: { state: GameState }): string {
 export function renderGameSummary({ state }: { state: GameState }): string {
   const lines: string[] = []
 
-  lines.push(`Turn ${state.turnNumber}`)
+  lines.push(`Turn ${String(state.turnNumber)}`)
   lines.push(`Current player: ${state.currentPlayer ?? 'none'}`)
   lines.push(`Phase: ${state.phase}`)
 
   if (state.diceRoll) {
-    lines.push(`Dice: ${state.diceRoll.die1}-${state.diceRoll.die2}`)
+    lines.push(`Dice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`)
     if (state.remainingMoves.length > 0) {
       lines.push(`Remaining moves: ${state.remainingMoves.join(', ')}`)
     }
@@ -154,13 +172,15 @@ export function renderGameSummary({ state }: { state: GameState }): string {
 
   if (state.movesThisTurn.length > 0) {
     const movesStr = state.movesThisTurn
-      .map((m) => `${m.from}->${m.to}`)
+      .map(m => `${String(m.from)}->${String(m.to)}`)
       .join(', ')
     lines.push(`Moves this turn: ${movesStr}`)
   }
 
   if (state.result) {
-    lines.push(`Game over! ${state.result.winner} wins with a ${state.result.victoryType}!`)
+    lines.push(
+      `Game over! ${state.result.winner} wins with a ${state.result.victoryType}!`
+    )
   }
 
   return lines.join('\n')
@@ -179,7 +199,7 @@ export function renderFullGameState({ state }: { state: GameState }): string {
 export function renderAvailableMoves({ state }: { state: GameState }): string {
   const availableMoves = getValidMoves({ state })
 
-  if (!availableMoves || availableMoves.length === 0) {
+  if (availableMoves.length === 0) {
     return 'No legal moves available.'
   }
 
@@ -188,7 +208,9 @@ export function renderAvailableMoves({ state }: { state: GameState }): string {
   for (const am of availableMoves) {
     for (const dest of am.destinations) {
       const hitIndicator = dest.wouldHit ? ' (hit!)' : ''
-      lines.push(`  ${am.from} -> ${dest.to} using ${dest.dieValue}${hitIndicator}`)
+      lines.push(
+        `  ${String(am.from)} -> ${String(dest.to)} using ${String(dest.dieValue)}${hitIndicator}`
+      )
     }
   }
 

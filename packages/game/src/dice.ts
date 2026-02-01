@@ -19,7 +19,7 @@ export function rollDie(): DieValue {
 export function createDiceRoll(): DiceRoll {
   return {
     die1: rollDie(),
-    die2: rollDie(),
+    die2: rollDie()
   }
 }
 

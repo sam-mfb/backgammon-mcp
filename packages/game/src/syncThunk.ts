@@ -41,11 +41,12 @@ export interface SyncThunkMeta<TState, TExtra, TReturn, TArg> {
 /**
  * A sync thunk action - a PayloadAction with special metadata.
  */
-export type SyncThunkAction<TState, TExtra, TReturn, TArg = void> = PayloadAction<
-  TArg,
-  string,
-  SyncThunkMeta<TState, TExtra, TReturn, TArg>
->
+export type SyncThunkAction<
+  TState,
+  TExtra,
+  TReturn,
+  TArg = void
+> = PayloadAction<TArg, string, SyncThunkMeta<TState, TExtra, TReturn, TArg>>
 
 /**
  * Type guard to check if an action is a sync thunk action.
@@ -53,16 +54,17 @@ export type SyncThunkAction<TState, TExtra, TReturn, TArg = void> = PayloadActio
 export function isSyncThunkAction(
   action: unknown
 ): action is SyncThunkAction<unknown, unknown, unknown, unknown> {
-  return (
-    typeof action === 'object' &&
-    action !== null &&
-    'type' in action &&
-    'meta' in action &&
-    typeof (action as { meta?: unknown }).meta === 'object' &&
-    (action as { meta?: { payloadCreator?: unknown } }).meta !== null &&
-    typeof (action as { meta: { payloadCreator?: unknown } }).meta.payloadCreator ===
-      'function'
-  )
+  if (typeof action !== 'object' || action === null) {
+    return false
+  }
+  if (!('type' in action) || !('meta' in action)) {
+    return false
+  }
+  const meta = (action as { meta?: unknown }).meta
+  if (typeof meta !== 'object' || meta === null) {
+    return false
+  }
+  return typeof (meta as { payloadCreator?: unknown }).payloadCreator === 'function'
 }
 
 /**
@@ -72,18 +74,18 @@ export function isSyncThunkAction(
 export interface SyncThunkActionCreator<TState, TExtra, TReturn, TArg = void> {
   (arg: TArg): SyncThunkAction<TState, TExtra, TReturn, TArg>
   type: string
-  match: (action: unknown) => action is SyncThunkAction<TState, TExtra, TReturn, TArg>
+  match: (
+    action: unknown
+  ) => action is SyncThunkAction<TState, TExtra, TReturn, TArg>
 }
 
 /**
- * Factory interface for creating typed sync thunks.
+ * Factory type for creating typed sync thunks.
  */
-export interface CreateSyncThunk<TState, TExtra> {
-  <TReturn, TArg = void>(
-    typePrefix: string,
-    payloadCreator: PayloadCreator<TState, TExtra, TReturn, TArg>
-  ): SyncThunkActionCreator<TState, TExtra, TReturn, TArg>
-}
+export type CreateSyncThunk<TState, TExtra> = <TReturn, TArg = void>(
+  typePrefix: string,
+  payloadCreator: PayloadCreator<TState, TExtra, TReturn, TArg>
+) => SyncThunkActionCreator<TState, TExtra, TReturn, TArg>
 
 // =============================================================================
 // Factory
@@ -106,23 +108,25 @@ export interface CreateSyncThunk<TState, TExtra> {
  * )
  * ```
  */
-export function buildCreateSyncThunk<TState, TExtra = undefined>(): CreateSyncThunk<
+export function buildCreateSyncThunk<
   TState,
-  TExtra
-> {
+  TExtra = undefined
+>(): CreateSyncThunk<TState, TExtra> {
   return function createSyncThunk<TReturn, TArg = void>(
     typePrefix: string,
     payloadCreator: PayloadCreator<TState, TExtra, TReturn, TArg>
   ): SyncThunkActionCreator<TState, TExtra, TReturn, TArg> {
     const type = typePrefix
 
-    const actionCreator = ((arg: TArg): SyncThunkAction<TState, TExtra, TReturn, TArg> => {
+    const actionCreator = ((
+      arg: TArg
+    ): SyncThunkAction<TState, TExtra, TReturn, TArg> => {
       return {
         type,
         payload: arg,
         meta: {
-          payloadCreator,
-        },
+          payloadCreator
+        }
       }
     }) as SyncThunkActionCreator<TState, TExtra, TReturn, TArg>
 

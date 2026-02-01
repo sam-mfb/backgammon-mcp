@@ -1,205 +1,205 @@
-import { useState, useCallback, useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import type { RootState, AppDispatch } from './store'
+import type React from 'react'
+import { useState } from 'react'
 import type { MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
+import { useAppDispatch, useAppSelector } from './hooks'
 import {
-  rollDice,
-  makeMove,
-  endTurn,
   resetGame,
   selectValidMoves,
   selectCanEndTurn,
   selectPhase,
   selectCurrentPlayer,
   selectBoard,
-  selectRemainingMoves,
-  rollDie,
   performStartGame,
+  performRollDice,
+  performMove,
+  performEndTurn
 } from '@backgammon/game'
-import { BoardView, type SelectedSource } from '@backgammon/viewer'
+import { BoardView } from '@backgammon/viewer'
 
-export function CouchGame() {
-  const dispatch = useDispatch<AppDispatch>()
-  const gameState = useSelector((state: RootState) => state.game)
+export function CouchGame(): React.JSX.Element {
+  const dispatch = useAppDispatch()
+  const gameState = useAppSelector(state => state.game)
 
-  const [selectedSource, setSelectedSource] = useState<SelectedSource>(null)
-  const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>([])
+  const [selectedSource, setSelectedSource] = useState<
+    PointIndex | 'bar' | null
+  >(null)
+  const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>(
+    []
+  )
 
-  const phase = useSelector(selectPhase)
-  const currentPlayer = useSelector(selectCurrentPlayer)
-  const board = useSelector(selectBoard)
-  const remainingMoves = useSelector(selectRemainingMoves)
+  const phase = useAppSelector(selectPhase)
+  const currentPlayer = useAppSelector(selectCurrentPlayer)
+  const board = useAppSelector(selectBoard)
 
   // Use memoized selectors for expensive computations
-  const availableMoves = useSelector(selectValidMoves)
-  const canEndTurnNow = useSelector(selectCanEndTurn)
-
-  // Auto-end turn if no moves available
-  useEffect(() => {
-    if (phase === 'moving' && availableMoves.length === 0 && remainingMoves.length > 0) {
-      // No moves possible but still have dice - auto end turn
-      dispatch(endTurn())
-    }
-  }, [phase, availableMoves, remainingMoves, dispatch])
+  const availableMoves = useAppSelector(selectValidMoves)
+  const canEndTurnNow = useAppSelector(selectCanEndTurn)
 
   // Handle starting the game using the new operation
-  const handleStartGame = useCallback(() => {
+  const handleStartGame = (): void => {
     dispatch(performStartGame())
-  }, [dispatch])
+  }
 
   // Handle rolling dice
-  const handleRollClick = useCallback(() => {
+  const handleRollClick = (): void => {
     if (phase !== 'rolling') return
-    const die1 = rollDie()
-    const die2 = rollDie()
-    dispatch(rollDice({ die1, die2 }))
+    const action = dispatch(performRollDice())
+    const result = action.meta.result
+    if (result?.ok !== true) {
+      console.error(
+        'Roll failed:',
+        result?.ok === false ? result.error.message : 'unknown error'
+      )
+      return
+    }
     setSelectedSource(null)
     setValidDestinations([])
-  }, [phase, dispatch])
+  }
 
   // Handle end turn
-  const handleEndTurnClick = useCallback(() => {
+  const handleEndTurnClick = (): void => {
     if (phase !== 'moving') return
-    dispatch(endTurn())
+    const action = dispatch(performEndTurn())
+    const result = action.meta.result
+    if (result?.ok !== true) {
+      console.error(
+        'End turn failed:',
+        result?.ok === false ? result.error.message : 'unknown error'
+      )
+      return
+    }
     setSelectedSource(null)
     setValidDestinations([])
-  }, [phase, dispatch])
+  }
 
   // Handle reset/new game
-  const handleNewGame = useCallback(() => {
+  const handleNewGame = (): void => {
     dispatch(resetGame())
     setSelectedSource(null)
     setValidDestinations([])
-  }, [dispatch])
+  }
 
   // Get valid destinations for a source position
-  const getDestinationsForSource = useCallback(
-    (source: MoveFrom): MoveTo[] => {
-      if (availableMoves.length === 0) return []
-      const available = availableMoves.find((am) => am.from === source)
-      if (!available) return []
-      return available.destinations.map((d) => d.to)
-    },
-    [availableMoves]
-  )
+  const getDestinationsForSource = (source: MoveFrom): MoveTo[] => {
+    if (availableMoves.length === 0) return []
+    const available = availableMoves.find(am => am.from === source)
+    if (!available) return []
+    return available.destinations.map(d => d.to)
+  }
 
   // Handle point click
-  const handlePointClick = useCallback(
-    (pointIndex: PointIndex) => {
-      if (phase !== 'moving' || !currentPlayer) return
+  const handlePointClick = (pointIndex: PointIndex): void => {
+    if (phase !== 'moving' || !currentPlayer) return
 
-      // Check if this point is a valid destination for the selected source
-      if (selectedSource !== null && validDestinations.includes(pointIndex)) {
-        // Make the move
-        const source = selectedSource
-        const availableMove = availableMoves?.find((am) => am.from === source)
-        const destination = availableMove?.destinations.find(
-          (d) => d.to === pointIndex
-        )
-
-        if (destination) {
-          dispatch(
-            makeMove({
-              from: source,
-              to: pointIndex,
-              dieUsed: destination.dieValue,
-            })
-          )
-          setSelectedSource(null)
-          setValidDestinations([])
-        }
-        return
-      }
-
-      // Check if this point has the current player's checker and can be selected
-      const pointValue = board.points[pointIndex - 1]
-      const hasCurrentPlayerChecker =
-        (currentPlayer === 'white' && pointValue > 0) ||
-        (currentPlayer === 'black' && pointValue < 0)
-
-      // If player has checkers on bar, they must move from bar first
-      if (board.bar[currentPlayer] > 0) {
-        // Cannot select points when checkers are on bar
-        setSelectedSource(null)
-        setValidDestinations([])
-        return
-      }
-
-      if (hasCurrentPlayerChecker) {
-        const destinations = getDestinationsForSource(pointIndex)
-        if (destinations.length > 0) {
-          // Select this point
-          setSelectedSource(pointIndex)
-          setValidDestinations(destinations)
-        } else {
-          // No valid moves from this point
-          setSelectedSource(null)
-          setValidDestinations([])
-        }
-      } else {
-        // Clicked on empty or opponent's point - deselect
-        setSelectedSource(null)
-        setValidDestinations([])
-      }
-    },
-    [
-      phase,
-      currentPlayer,
-      selectedSource,
-      validDestinations,
-      availableMoves,
-      board,
-      dispatch,
-      getDestinationsForSource,
-    ]
-  )
-
-  // Handle bar click
-  const handleBarClick = useCallback(
-    (player: Player) => {
-      if (phase !== 'moving' || player !== currentPlayer) return
-
-      if (board.bar[player] > 0) {
-        const destinations = getDestinationsForSource('bar')
-        if (destinations.length > 0) {
-          setSelectedSource('bar')
-          setValidDestinations(destinations)
-        }
-      }
-    },
-    [phase, currentPlayer, board.bar, getDestinationsForSource]
-  )
-
-  // Handle borne-off area click (for bearing off moves)
-  const handleBorneOffClick = useCallback(
-    (_player: Player) => {
-      if (
-        phase !== 'moving' ||
-        selectedSource === null ||
-        !validDestinations.includes('off')
+    // Check if this point is a valid destination for the selected source
+    if (selectedSource !== null && validDestinations.includes(pointIndex)) {
+      // Make the move
+      const source = selectedSource
+      const availableMove = availableMoves.find(am => am.from === source)
+      const destination = availableMove?.destinations.find(
+        d => d.to === pointIndex
       )
-        return
-
-      // Make bearing off move
-      const availableMove = availableMoves?.find(
-        (am) => am.from === selectedSource
-      )
-      const destination = availableMove?.destinations.find((d) => d.to === 'off')
 
       if (destination) {
-        dispatch(
-          makeMove({
-            from: selectedSource,
-            to: 'off',
-            dieUsed: destination.dieValue,
+        const action = dispatch(
+          performMove({
+            from: source,
+            to: pointIndex,
+            dieUsed: destination.dieValue
           })
         )
+        const result = action.meta.result
+        if (result?.ok !== true) {
+          console.error(
+            'Move failed:',
+            result?.ok === false ? result.error.message : 'unknown error'
+          )
+          return
+        }
         setSelectedSource(null)
         setValidDestinations([])
       }
-    },
-    [phase, selectedSource, validDestinations, availableMoves, dispatch]
-  )
+      return
+    }
+
+    // Check if this point has the current player's checker and can be selected
+    const pointValue = board.points[pointIndex - 1]
+    const hasCurrentPlayerChecker =
+      (currentPlayer === 'white' && pointValue > 0) ||
+      (currentPlayer === 'black' && pointValue < 0)
+
+    // If player has checkers on bar, they must move from bar first
+    if (board.bar[currentPlayer] > 0) {
+      // Cannot select points when checkers are on bar
+      setSelectedSource(null)
+      setValidDestinations([])
+      return
+    }
+
+    if (hasCurrentPlayerChecker) {
+      const destinations = getDestinationsForSource(pointIndex)
+      if (destinations.length > 0) {
+        // Select this point
+        setSelectedSource(pointIndex)
+        setValidDestinations(destinations)
+      } else {
+        // No valid moves from this point
+        setSelectedSource(null)
+        setValidDestinations([])
+      }
+    } else {
+      // Clicked on empty or opponent's point - deselect
+      setSelectedSource(null)
+      setValidDestinations([])
+    }
+  }
+
+  // Handle bar click
+  const handleBarClick = (player: Player): void => {
+    if (phase !== 'moving' || player !== currentPlayer) return
+
+    if (board.bar[player] > 0) {
+      const destinations = getDestinationsForSource('bar')
+      if (destinations.length > 0) {
+        setSelectedSource('bar')
+        setValidDestinations(destinations)
+      }
+    }
+  }
+
+  // Handle borne-off area click (for bearing off moves)
+  const handleBorneOffClick = (_player: Player): void => {
+    if (
+      phase !== 'moving' ||
+      selectedSource === null ||
+      !validDestinations.includes('off')
+    )
+      return
+
+    // Make bearing off move
+    const availableMove = availableMoves.find(am => am.from === selectedSource)
+    const destination = availableMove?.destinations.find(d => d.to === 'off')
+
+    if (destination) {
+      const action = dispatch(
+        performMove({
+          from: selectedSource,
+          to: 'off',
+          dieUsed: destination.dieValue
+        })
+      )
+      const result = action.meta.result
+      if (result?.ok !== true) {
+        console.error(
+          'Bear off failed:',
+          result?.ok === false ? result.error.message : 'unknown error'
+        )
+        return
+      }
+      setSelectedSource(null)
+      setValidDestinations([])
+    }
+  }
 
   return (
     <div className="couch-game">
@@ -222,6 +222,7 @@ export function CouchGame() {
           selectedSource={selectedSource}
           validDestinations={validDestinations}
           canEndTurn={canEndTurnNow}
+          validMoves={availableMoves}
           onPointClick={handlePointClick}
           onBarClick={handleBarClick}
           onBorneOffClick={handleBorneOffClick}
@@ -232,7 +233,10 @@ export function CouchGame() {
 
       {phase === 'game_over' && (
         <div className="couch-game__game-over">
-          <button className="couch-game__new-game-button" onClick={handleNewGame}>
+          <button
+            className="couch-game__new-game-button"
+            onClick={handleNewGame}
+          >
             New Game
           </button>
         </div>

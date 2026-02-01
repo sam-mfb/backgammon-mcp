@@ -30,14 +30,18 @@ export function err<E>(error: E): Result<never, E> {
 /**
  * Type guard to check if a result is successful.
  */
-export function isOk<T, E>(result: Result<T, E>): result is { ok: true; value: T } {
+export function isOk<T, E>(
+  result: Result<T, E>
+): result is { ok: true; value: T } {
   return result.ok
 }
 
 /**
  * Type guard to check if a result is an error.
  */
-export function isErr<T, E>(result: Result<T, E>): result is { ok: false; error: E } {
+export function isErr<T, E>(
+  result: Result<T, E>
+): result is { ok: false; error: E } {
   return !result.ok
 }
 
@@ -79,7 +83,9 @@ export function unwrap<T, E>(result: Result<T, E>): T {
   }
   throw new Error(
     `Attempted to unwrap an error result: ${
-      typeof result.error === 'string' ? result.error : JSON.stringify(result.error)
+      typeof result.error === 'string'
+        ? result.error
+        : JSON.stringify(result.error)
     }`
   )
 }

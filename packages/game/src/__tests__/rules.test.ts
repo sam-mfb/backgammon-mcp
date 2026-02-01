@@ -17,7 +17,7 @@ import {
   countTotalCheckers,
   getRequiredMoves,
   getLegalMoveSequences,
-  filterMovesByDie,
+  filterMovesByDie
 } from '../rules'
 import type { PointIndex, DieValue } from '../types'
 import {
@@ -27,7 +27,7 @@ import {
   createBearingOffState,
   createBarEntryState,
   rollSpecificDice,
-  getTotalCheckerCount,
+  getTotalCheckerCount
 } from './testUtils'
 
 // =============================================================================
@@ -89,45 +89,45 @@ describe('Movement Direction', () => {
   it('white can move from point 24 toward point 1', () => {
     const state = createMovingState({
       player: 'white',
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     const moves = getValidMoves({ state })
 
     // White's checker on point 24 should be able to move to 21 (using 3)
-    const point24Moves = moves.find((m) => m.from === 24)
+    const point24Moves = moves.find(m => m.from === 24)
     expect(point24Moves).toBeDefined()
-    expect(point24Moves?.destinations.some((d) => d.to === 21)).toBe(true)
+    expect(point24Moves?.destinations.some(d => d.to === 21)).toBe(true)
   })
 
   it('black can move from point 1 toward point 24', () => {
     const state = createMovingState({
       player: 'black',
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     const moves = getValidMoves({ state })
 
     // Black's checker on point 1 should be able to move to 4 (using 3)
-    const point1Moves = moves.find((m) => m.from === 1)
+    const point1Moves = moves.find(m => m.from === 1)
     expect(point1Moves).toBeDefined()
-    expect(point1Moves?.destinations.some((d) => d.to === 4)).toBe(true)
+    expect(point1Moves?.destinations.some(d => d.to === 4)).toBe(true)
   })
 
   it('movement distance matches die value exactly', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 1 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(4, 2),
+      dice: rollSpecificDice(4, 2)
     })
 
     const moves = getValidMoves({ state })
-    const point10Moves = moves.find((m) => m.from === 10)
+    const point10Moves = moves.find(m => m.from === 10)
 
     expect(point10Moves).toBeDefined()
     // Should move to point 6 (10 - 4) or point 8 (10 - 2)
@@ -148,19 +148,19 @@ describe('Legal Move Conditions', () => {
   it('can move to an empty point', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 1 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     // Point 7 is empty, white should be able to move there
     const isValid = isValidMove({
       state,
-      move: { from: 10, to: 7, dieUsed: 3 },
+      move: { from: 10, to: 7, dieUsed: 3 }
     })
 
     expect(isValid).toBe(true)
@@ -170,21 +170,21 @@ describe('Legal Move Conditions', () => {
     const board = createBoardWithCheckers({
       white: [
         { point: 10 as PointIndex, count: 1 },
-        { point: 7 as PointIndex, count: 3 },
+        { point: 7 as PointIndex, count: 3 }
       ],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     // Point 7 has 3 white checkers, should still be able to add more
     const isValid = isValidMove({
       state,
-      move: { from: 10, to: 7, dieUsed: 3 },
+      move: { from: 10, to: 7, dieUsed: 3 }
     })
 
     expect(isValid).toBe(true)
@@ -195,28 +195,28 @@ describe('Legal Move Conditions', () => {
       white: [{ point: 10 as PointIndex, count: 1 }],
       black: [
         { point: 7 as PointIndex, count: 1 }, // Blot
-        { point: 19 as PointIndex, count: 14 },
-      ],
+        { point: 19 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     const isValid = isValidMove({
       state,
-      move: { from: 10, to: 7, dieUsed: 3 },
+      move: { from: 10, to: 7, dieUsed: 3 }
     })
 
     expect(isValid).toBe(true)
 
     // Verify the move shows wouldHit
     const moves = getValidMoves({ state })
-    const point10Moves = moves.find((m) => m.from === 10)
+    const point10Moves = moves.find(m => m.from === 10)
     const hitMove = point10Moves?.destinations.find(
-      (d) => d.to === 7 && d.dieValue === 3
+      d => d.to === 7 && d.dieValue === 3
     )
     expect(hitMove?.wouldHit).toBe(true)
   })
@@ -226,19 +226,19 @@ describe('Legal Move Conditions', () => {
       white: [{ point: 10 as PointIndex, count: 1 }],
       black: [
         { point: 7 as PointIndex, count: 2 }, // Made point (blocked)
-        { point: 19 as PointIndex, count: 13 },
-      ],
+        { point: 19 as PointIndex, count: 13 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     const isValid = isValidMove({
       state,
-      move: { from: 10, to: 7, dieUsed: 3 },
+      move: { from: 10, to: 7, dieUsed: 3 }
     })
 
     expect(isValid).toBe(false)
@@ -247,19 +247,19 @@ describe('Legal Move Conditions', () => {
   it('cannot move if no checker at source', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 6 as PointIndex, count: 15 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     // Try to move from point 10 which has no checkers
     const isValid = isValidMove({
       state,
-      move: { from: 10, to: 7, dieUsed: 3 },
+      move: { from: 10, to: 7, dieUsed: 3 }
     })
 
     expect(isValid).toBe(false)
@@ -275,22 +275,22 @@ describe('Dice Usage', () => {
     const board = createBoardWithCheckers({
       white: [
         { point: 10 as PointIndex, count: 1 },
-        { point: 8 as PointIndex, count: 1 },
+        { point: 8 as PointIndex, count: 1 }
       ],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 2),
+      dice: rollSpecificDice(3, 2)
     })
 
     const moves = getValidMoves({ state })
 
     // Both checkers should have valid moves
-    const point10Moves = moves.find((m) => m.from === 10)
-    const point8Moves = moves.find((m) => m.from === 8)
+    const point10Moves = moves.find(m => m.from === 10)
+    const point8Moves = moves.find(m => m.from === 8)
 
     expect(point10Moves).toBeDefined()
     expect(point8Moves).toBeDefined()
@@ -316,19 +316,19 @@ describe('Dice Usage', () => {
   it('one checker can use both dice if intermediate point is open', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 1 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 2),
+      dice: rollSpecificDice(3, 2)
     })
 
     // First move: 10 to 7 (using 3)
     const firstMoveValid = isValidMove({
       state,
-      move: { from: 10, to: 7, dieUsed: 3 },
+      move: { from: 10, to: 7, dieUsed: 3 }
     })
     expect(firstMoveValid).toBe(true)
 
@@ -336,18 +336,18 @@ describe('Dice Usage', () => {
     const afterFirstMove = createGameState({
       board: createBoardWithCheckers({
         white: [{ point: 7 as PointIndex, count: 1 }],
-        black: [{ point: 19 as PointIndex, count: 15 }],
+        black: [{ point: 19 as PointIndex, count: 15 }]
       }),
       currentPlayer: 'white',
       phase: 'moving',
       diceRoll: rollSpecificDice(3, 2),
-      remainingMoves: [2], // 3 was used
+      remainingMoves: [2] // 3 was used
     })
 
     // Second move: 7 to 5 (using 2)
     const secondMoveValid = isValidMove({
       state: afterFirstMove,
-      move: { from: 7, to: 5, dieUsed: 2 },
+      move: { from: 7, to: 5, dieUsed: 2 }
     })
     expect(secondMoveValid).toBe(true)
   })
@@ -356,7 +356,7 @@ describe('Dice Usage', () => {
     const dice = rollSpecificDice(3, 3)
     const state = createMovingState({
       player: 'white',
-      dice,
+      dice
     })
 
     // Should have 4 moves of value 3
@@ -366,13 +366,13 @@ describe('Dice Usage', () => {
   it('must use both dice if legally possible', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 2 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 2),
+      dice: rollSpecificDice(3, 2)
     })
 
     const requirements = getRequiredMoves({ state })
@@ -384,14 +384,14 @@ describe('Dice Usage', () => {
       white: [{ point: 5 as PointIndex, count: 1 }],
       black: [
         { point: 2 as PointIndex, count: 2 }, // Blocks 5-3=2
-        { point: 19 as PointIndex, count: 13 },
-      ],
+        { point: 19 as PointIndex, count: 13 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(4, 3),
+      dice: rollSpecificDice(4, 3)
     })
 
     // 5-4=1 is valid, 5-3=2 is blocked
@@ -399,8 +399,8 @@ describe('Dice Usage', () => {
     expect(moves.length).toBeGreaterThan(0)
 
     // Should be able to play the 4
-    const validMovesWith4 = moves.flatMap((m) =>
-      m.destinations.filter((d) => d.dieValue === 4)
+    const validMovesWith4 = moves.flatMap(m =>
+      m.destinations.filter(d => d.dieValue === 4)
     )
     expect(validMovesWith4.length).toBeGreaterThan(0)
   })
@@ -413,14 +413,14 @@ describe('Dice Usage', () => {
       black: [
         { point: 5 as PointIndex, count: 2 }, // Blocks 10-5=5
         { point: 4 as PointIndex, count: 2 }, // Blocks 7-3=4 (after 10-3=7)
-        { point: 19 as PointIndex, count: 11 },
-      ],
+        { point: 19 as PointIndex, count: 11 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(5, 3),
+      dice: rollSpecificDice(5, 3)
     })
 
     // 10-5=5 blocked, 10-3=7 open
@@ -436,8 +436,8 @@ describe('Dice Usage', () => {
     expect(validMoves.length).toBeGreaterThan(0)
 
     // At least one move should use die value 3
-    const movesUsingDie3 = validMoves.flatMap((m) =>
-      m.destinations.filter((d) => d.dieValue === 3)
+    const movesUsingDie3 = validMoves.flatMap(m =>
+      m.destinations.filter(d => d.dieValue === 3)
     )
     expect(movesUsingDie3.length).toBeGreaterThan(0)
   })
@@ -453,14 +453,14 @@ describe('Dice Usage', () => {
         { point: 20 as PointIndex, count: 2 },
         { point: 19 as PointIndex, count: 2 },
         { point: 18 as PointIndex, count: 2 },
-        { point: 17 as PointIndex, count: 3 },
-      ],
+        { point: 17 as PointIndex, count: 3 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(6, 5),
+      dice: rollSpecificDice(6, 5)
     })
 
     const hasLegalMoves = hasAnyLegalMoves({ state })
@@ -477,38 +477,38 @@ describe('Bar Entry (Re-entering hit checkers)', () => {
     const board = createBoardWithCheckers({
       white: [
         { bar: true, count: 1 },
-        { point: 10 as PointIndex, count: 14 },
+        { point: 10 as PointIndex, count: 14 }
       ],
-      black: [{ point: 1 as PointIndex, count: 15 }],
+      black: [{ point: 1 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 2),
+      dice: rollSpecificDice(3, 2)
     })
 
     // Should not be able to move checker from point 10
     const movingFromPoint = isValidMove({
       state,
-      move: { from: 10, to: 7, dieUsed: 3 },
+      move: { from: 10, to: 7, dieUsed: 3 }
     })
     expect(movingFromPoint).toBe(false)
 
     // Should only see moves from bar
     const moves = getValidMoves({ state })
-    expect(moves.every((m) => m.from === 'bar')).toBe(true)
+    expect(moves.every(m => m.from === 'bar')).toBe(true)
   })
 
   it('white enters on points 24-19 (opponent home board)', () => {
     const state = createBarEntryState({
       player: 'white',
       barCount: 1,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     const moves = getValidMoves({ state })
-    const barMoves = moves.find((m) => m.from === 'bar')
+    const barMoves = moves.find(m => m.from === 'bar')
 
     expect(barMoves).toBeDefined()
     // Die 3 -> point 22 (25-3=22), Die 1 -> point 24 (25-1=24)
@@ -524,11 +524,11 @@ describe('Bar Entry (Re-entering hit checkers)', () => {
     const state = createBarEntryState({
       player: 'black',
       barCount: 1,
-      dice: rollSpecificDice(4, 2),
+      dice: rollSpecificDice(4, 2)
     })
 
     const moves = getValidMoves({ state })
-    const barMoves = moves.find((m) => m.from === 'bar')
+    const barMoves = moves.find(m => m.from === 'bar')
 
     expect(barMoves).toBeDefined()
     // Die 4 -> point 4, Die 2 -> point 2
@@ -546,14 +546,14 @@ describe('Bar Entry (Re-entering hit checkers)', () => {
       player: 'white',
       barCount: 1,
       dice: rollSpecificDice(3, 1),
-      opponentBlocks: [22 as PointIndex],
+      opponentBlocks: [22 as PointIndex]
     })
 
     const moves = getValidMoves({ state })
-    const barMoves = moves.find((m) => m.from === 'bar')
+    const barMoves = moves.find(m => m.from === 'bar')
 
     // Should not have entry on point 22
-    expect(barMoves?.destinations.find((d) => d.to === 22)).toBeUndefined()
+    expect(barMoves?.destinations.find(d => d.to === 22)).toBeUndefined()
     // Should still have entry on point 24
     expect(barMoves?.destinations).toContainEqual(
       expect.objectContaining({ to: 24, dieValue: 1 })
@@ -566,7 +566,7 @@ describe('Bar Entry (Re-entering hit checkers)', () => {
       player: 'white',
       barCount: 1,
       dice: rollSpecificDice(6, 5),
-      opponentBlocks: [19 as PointIndex, 20 as PointIndex],
+      opponentBlocks: [19 as PointIndex, 20 as PointIndex]
     })
 
     // With dice 6 and 5, white would enter on 19 and 20 - both blocked
@@ -578,20 +578,20 @@ describe('Bar Entry (Re-entering hit checkers)', () => {
     const board = createBoardWithCheckers({
       white: [
         { bar: true, count: 2 },
-        { point: 10 as PointIndex, count: 13 },
+        { point: 10 as PointIndex, count: 13 }
       ],
-      black: [{ point: 1 as PointIndex, count: 15 }],
+      black: [{ point: 1 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 2),
+      dice: rollSpecificDice(3, 2)
     })
 
     // Should only be able to enter from bar
     const moves = getValidMoves({ state })
-    expect(moves.every((m) => m.from === 'bar')).toBe(true)
+    expect(moves.every(m => m.from === 'bar')).toBe(true)
 
     // After entering one checker, still can only enter
     const afterOneEntry = createGameState({
@@ -599,18 +599,18 @@ describe('Bar Entry (Re-entering hit checkers)', () => {
         white: [
           { bar: true, count: 1 },
           { point: 22 as PointIndex, count: 1 },
-          { point: 10 as PointIndex, count: 13 },
+          { point: 10 as PointIndex, count: 13 }
         ],
-        black: [{ point: 1 as PointIndex, count: 15 }],
+        black: [{ point: 1 as PointIndex, count: 15 }]
       }),
       currentPlayer: 'white',
       phase: 'moving',
       diceRoll: rollSpecificDice(3, 2),
-      remainingMoves: [2], // Used the 3 to enter
+      remainingMoves: [2] // Used the 3 to enter
     })
 
     const movesAfter = getValidMoves({ state: afterOneEntry })
-    expect(movesAfter.every((m) => m.from === 'bar')).toBe(true)
+    expect(movesAfter.every(m => m.from === 'bar')).toBe(true)
   })
 })
 
@@ -624,20 +624,20 @@ describe('Hitting', () => {
       white: [{ point: 10 as PointIndex, count: 1 }],
       black: [
         { point: 7 as PointIndex, count: 1 }, // Blot
-        { point: 19 as PointIndex, count: 14 },
-      ],
+        { point: 19 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 2),
+      dice: rollSpecificDice(3, 2)
     })
 
     const moves = getValidMoves({ state })
     const hitMove = moves
-      .find((m) => m.from === 10)
-      ?.destinations.find((d) => d.to === 7)
+      .find(m => m.from === 10)
+      ?.destinations.find(d => d.to === 7)
 
     expect(hitMove).toBeDefined()
     expect(hitMove?.wouldHit).toBe(true)
@@ -649,25 +649,25 @@ describe('Hitting', () => {
       white: [
         { point: 6 as PointIndex, count: 10 },
         { point: 5 as PointIndex, count: 4 },
-        { point: 12 as PointIndex, count: 1 }, // One straggler
+        { point: 12 as PointIndex, count: 1 } // One straggler
       ],
       black: [
         { point: 9 as PointIndex, count: 1 }, // Blot
-        { point: 19 as PointIndex, count: 14 },
-      ],
+        { point: 19 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     // White can hit on point 9 from point 12
     const moves = getValidMoves({ state })
     const hitMove = moves
-      .find((m) => m.from === 12)
-      ?.destinations.find((d) => d.to === 9)
+      .find(m => m.from === 12)
+      ?.destinations.find(d => d.to === 9)
 
     expect(hitMove).toBeDefined()
     expect(hitMove?.wouldHit).toBe(true)
@@ -684,15 +684,15 @@ describe('Bearing Off', () => {
     const board = createBoardWithCheckers({
       white: [
         { point: 6 as PointIndex, count: 14 },
-        { point: 10 as PointIndex, count: 1 }, // Outside home
+        { point: 10 as PointIndex, count: 1 } // Outside home
       ],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(6, 5),
+      dice: rollSpecificDice(6, 5)
     })
 
     expect(canBearOff({ state, player: 'white' })).toBe(false)
@@ -700,13 +700,13 @@ describe('Bearing Off', () => {
     // Now all in home
     const boardAllHome = createBoardWithCheckers({
       white: [{ point: 6 as PointIndex, count: 15 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const stateAllHome = createMovingState({
       player: 'white',
       board: boardAllHome,
-      dice: rollSpecificDice(6, 5),
+      dice: rollSpecificDice(6, 5)
     })
 
     expect(canBearOff({ state: stateAllHome, player: 'white' })).toBe(true)
@@ -720,15 +720,15 @@ describe('Bearing Off', () => {
         { point: 3 as PointIndex, count: 3 },
         { point: 4 as PointIndex, count: 3 },
         { point: 5 as PointIndex, count: 2 },
-        { point: 6 as PointIndex, count: 1 },
+        { point: 6 as PointIndex, count: 1 }
       ],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(6, 1),
+      dice: rollSpecificDice(6, 1)
     })
 
     expect(canBearOff({ state, player: 'white' })).toBe(true)
@@ -743,14 +743,14 @@ describe('Bearing Off', () => {
         { point: 21 as PointIndex, count: 3 },
         { point: 22 as PointIndex, count: 2 },
         { point: 23 as PointIndex, count: 1 },
-        { point: 24 as PointIndex, count: 1 },
-      ],
+        { point: 24 as PointIndex, count: 1 }
+      ]
     })
 
     const state = createMovingState({
       player: 'black',
       board,
-      dice: rollSpecificDice(6, 1),
+      dice: rollSpecificDice(6, 1)
     })
 
     expect(canBearOff({ state, player: 'black' })).toBe(true)
@@ -762,22 +762,22 @@ describe('Bearing Off', () => {
       dice: rollSpecificDice(6, 3),
       positions: [
         { point: 6 as PointIndex, count: 10 },
-        { point: 3 as PointIndex, count: 5 },
-      ],
+        { point: 3 as PointIndex, count: 5 }
+      ]
     })
 
     const moves = getValidMoves({ state })
 
     // Can bear off from point 6 with die 6
     const point6BearOff = moves
-      .find((m) => m.from === 6)
-      ?.destinations.find((d) => d.to === 'off' && d.dieValue === 6)
+      .find(m => m.from === 6)
+      ?.destinations.find(d => d.to === 'off' && d.dieValue === 6)
     expect(point6BearOff).toBeDefined()
 
     // Can bear off from point 3 with die 3
     const point3BearOff = moves
-      .find((m) => m.from === 3)
-      ?.destinations.find((d) => d.to === 'off' && d.dieValue === 3)
+      .find(m => m.from === 3)
+      ?.destinations.find(d => d.to === 'off' && d.dieValue === 3)
     expect(point3BearOff).toBeDefined()
   })
 
@@ -787,16 +787,16 @@ describe('Bearing Off', () => {
       dice: rollSpecificDice(6, 5),
       positions: [
         { point: 3 as PointIndex, count: 10 },
-        { point: 2 as PointIndex, count: 5 },
-      ],
+        { point: 2 as PointIndex, count: 5 }
+      ]
     })
 
     // No checker on 6 or 5, highest is 3
     // Should be able to bear off from 3 with the 6
     const moves = getValidMoves({ state })
     const bearOffWith6 = moves
-      .find((m) => m.from === 3)
-      ?.destinations.find((d) => d.to === 'off' && d.dieValue === 6)
+      .find(m => m.from === 3)
+      ?.destinations.find(d => d.to === 'off' && d.dieValue === 6)
 
     expect(bearOffWith6).toBeDefined()
   })
@@ -807,8 +807,8 @@ describe('Bearing Off', () => {
       dice: rollSpecificDice(6, 2),
       positions: [
         { point: 5 as PointIndex, count: 10 },
-        { point: 3 as PointIndex, count: 5 },
-      ],
+        { point: 3 as PointIndex, count: 5 }
+      ]
     })
 
     // Die 6: can bear off from point 5 (highest)
@@ -816,9 +816,9 @@ describe('Bearing Off', () => {
     const moves = getValidMoves({ state })
 
     // Check that regular moves within home board exist
-    const point5Moves = moves.find((m) => m.from === 5)
+    const point5Moves = moves.find(m => m.from === 5)
     const moveWith2 = point5Moves?.destinations.find(
-      (d) => d.dieValue === 2 && d.to === 3
+      d => d.dieValue === 2 && d.to === 3
     )
     expect(moveWith2).toBeDefined()
   })
@@ -828,15 +828,15 @@ describe('Bearing Off', () => {
     const board = createBoardWithCheckers({
       white: [
         { bar: true, count: 1 },
-        { point: 6 as PointIndex, count: 14 },
+        { point: 6 as PointIndex, count: 14 }
       ],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(6, 3),
+      dice: rollSpecificDice(6, 3)
     })
 
     // Cannot bear off (checker on bar)
@@ -844,7 +844,7 @@ describe('Bearing Off', () => {
 
     // Must enter from bar first
     const moves = getValidMoves({ state })
-    expect(moves.every((m) => m.from === 'bar')).toBe(true)
+    expect(moves.every(m => m.from === 'bar')).toBe(true)
   })
 })
 
@@ -856,13 +856,13 @@ describe('Winning Conditions', () => {
   it('first player to bear off all 15 checkers wins', () => {
     const board = createBoardWithCheckers({
       white: [{ borneOff: true, count: 15 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createGameState({
       board,
       currentPlayer: 'black',
-      phase: 'moving',
+      phase: 'moving'
     })
 
     const result = checkGameOver({ state })
@@ -875,8 +875,8 @@ describe('Winning Conditions', () => {
       white: [{ borneOff: true, count: 15 }],
       black: [
         { borneOff: true, count: 1 },
-        { point: 19 as PointIndex, count: 14 },
-      ],
+        { point: 19 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createGameState({ board })
@@ -889,7 +889,7 @@ describe('Winning Conditions', () => {
   it('gammon: opponent has not borne off any checkers', () => {
     const board = createBoardWithCheckers({
       white: [{ borneOff: true, count: 15 }],
-      black: [{ point: 19 as PointIndex, count: 15 }], // All still on board
+      black: [{ point: 19 as PointIndex, count: 15 }] // All still on board
     })
 
     const state = createGameState({ board })
@@ -904,8 +904,8 @@ describe('Winning Conditions', () => {
       white: [{ borneOff: true, count: 15 }],
       black: [
         { bar: true, count: 1 },
-        { point: 19 as PointIndex, count: 14 },
-      ],
+        { point: 19 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createGameState({ board })
@@ -920,8 +920,8 @@ describe('Winning Conditions', () => {
       white: [{ borneOff: true, count: 15 }],
       black: [
         { point: 1 as PointIndex, count: 1 }, // In white's home board
-        { point: 19 as PointIndex, count: 14 },
-      ],
+        { point: 19 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createGameState({ board })
@@ -936,8 +936,8 @@ describe('Winning Conditions', () => {
       black: [{ borneOff: true, count: 15 }],
       white: [
         { point: 24 as PointIndex, count: 1 }, // In black's home board (19-24)
-        { point: 6 as PointIndex, count: 14 },
-      ],
+        { point: 6 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createGameState({ board })
@@ -964,14 +964,14 @@ describe('Edge Cases', () => {
         { point: 20 as PointIndex, count: 2 },
         { point: 19 as PointIndex, count: 2 },
         { point: 18 as PointIndex, count: 2 },
-        { point: 17 as PointIndex, count: 3 },
-      ],
+        { point: 17 as PointIndex, count: 3 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(6, 5),
+      dice: rollSpecificDice(6, 5)
     })
 
     const sequences = getLegalMoveSequences({ state })
@@ -984,14 +984,14 @@ describe('Edge Cases', () => {
       white: [{ point: 6 as PointIndex, count: 1 }],
       black: [
         { point: 1 as PointIndex, count: 2 }, // Blocks point 1
-        { point: 19 as PointIndex, count: 13 },
-      ],
+        { point: 19 as PointIndex, count: 13 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(5, 6),
+      dice: rollSpecificDice(5, 6)
     })
 
     // 6-5=1 blocked, 6-6=0 (off board, can't bear off)
@@ -999,7 +999,7 @@ describe('Edge Cases', () => {
 
     const sequences = getLegalMoveSequences({ state })
     // All sequences should have 0 or 1 moves
-    const maxMoves = Math.max(...sequences.map((s) => s.length))
+    const maxMoves = Math.max(...sequences.map(s => s.length))
     expect(maxMoves).toBeLessThanOrEqual(1)
   })
 
@@ -1007,26 +1007,26 @@ describe('Edge Cases', () => {
     const board = createBoardWithCheckers({
       white: [
         { bar: true, count: 1 },
-        { point: 6 as PointIndex, count: 14 },
+        { point: 6 as PointIndex, count: 14 }
       ],
       black: [
         { point: 22 as PointIndex, count: 1 }, // Blot at entry point
-        { point: 19 as PointIndex, count: 14 },
-      ],
+        { point: 19 as PointIndex, count: 14 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     const moves = getValidMoves({ state })
-    const barMoves = moves.find((m) => m.from === 'bar')
+    const barMoves = moves.find(m => m.from === 'bar')
 
     // Die 3 -> point 22 (hitting the blot)
     const hitEntry = barMoves?.destinations.find(
-      (d) => d.to === 22 && d.dieValue === 3
+      d => d.to === 22 && d.dieValue === 3
     )
     expect(hitEntry).toBeDefined()
     expect(hitEntry?.wouldHit).toBe(true)
@@ -1039,14 +1039,14 @@ describe('Edge Cases', () => {
       black: [
         { point: 2 as PointIndex, count: 2 }, // Block
         { point: 1 as PointIndex, count: 2 }, // Block
-        { point: 19 as PointIndex, count: 11 },
-      ],
+        { point: 19 as PointIndex, count: 11 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(1, 2),
+      dice: rollSpecificDice(1, 2)
     })
 
     // 4-1=3 (open), 4-2=2 (blocked), 3-1=2 (blocked), 3-2=1 (blocked)
@@ -1054,9 +1054,9 @@ describe('Edge Cases', () => {
     const sequences = getLegalMoveSequences({ state })
 
     // All non-empty sequences should start with 4->3
-    const nonEmptySequences = sequences.filter((s) => s.length > 0)
+    const nonEmptySequences = sequences.filter(s => s.length > 0)
     expect(nonEmptySequences.length).toBeGreaterThan(0)
-    expect(nonEmptySequences.every((s) => s[0].from === 4 && s[0].to === 3)).toBe(
+    expect(nonEmptySequences.every(s => s[0].from === 4 && s[0].to === 3)).toBe(
       true
     )
   })
@@ -1074,19 +1074,23 @@ describe('Edge Cases', () => {
         { borneOff: true, count: 3 },
         { point: 6 as PointIndex, count: 5 },
         { point: 5 as PointIndex, count: 4 },
-        { point: 3 as PointIndex, count: 2 },
+        { point: 3 as PointIndex, count: 2 }
       ],
       black: [
         { bar: true, count: 2 },
         { borneOff: true, count: 1 },
         { point: 19 as PointIndex, count: 5 },
         { point: 20 as PointIndex, count: 4 },
-        { point: 21 as PointIndex, count: 3 },
-      ],
+        { point: 21 as PointIndex, count: 3 }
+      ]
     })
 
-    expect(countTotalCheckers({ board: boardMidGame, player: 'white' })).toBe(15)
-    expect(countTotalCheckers({ board: boardMidGame, player: 'black' })).toBe(15)
+    expect(countTotalCheckers({ board: boardMidGame, player: 'white' })).toBe(
+      15
+    )
+    expect(countTotalCheckers({ board: boardMidGame, player: 'black' })).toBe(
+      15
+    )
   })
 
   it('cannot use a die value not in remainingMoves', () => {
@@ -1095,13 +1099,13 @@ describe('Edge Cases', () => {
       currentPlayer: 'white',
       phase: 'moving',
       diceRoll: rollSpecificDice(3, 1),
-      remainingMoves: [3], // Only 3 remaining, 1 already used
+      remainingMoves: [3] // Only 3 remaining, 1 already used
     })
 
     // Try to use die value 1 which is not in remainingMoves
     const isValid = isValidMove({
       state,
-      move: { from: 24, to: 23, dieUsed: 1 },
+      move: { from: 24, to: 23, dieUsed: 1 }
     })
 
     expect(isValid).toBe(false)
@@ -1110,13 +1114,13 @@ describe('Edge Cases', () => {
   it('handles doubles correctly with 4 available moves', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 12 as PointIndex, count: 4 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 3),
+      dice: rollSpecificDice(3, 3)
     })
 
     // Should have 4 moves of 3
@@ -1124,7 +1128,7 @@ describe('Edge Cases', () => {
 
     const sequences = getLegalMoveSequences({ state })
     // Should be able to make 4 moves with doubles
-    const maxMoves = Math.max(...sequences.map((s) => s.length))
+    const maxMoves = Math.max(...sequences.map(s => s.length))
     expect(maxMoves).toBe(4)
   })
 })
@@ -1137,30 +1141,30 @@ describe('Move Validation', () => {
   it('validates correct die is used for move distance', () => {
     const state = createMovingState({
       player: 'white',
-      dice: rollSpecificDice(5, 3),
+      dice: rollSpecificDice(5, 3)
     })
 
     // Correct: 24 to 21 with die 3
-    expect(
-      isValidMove({ state, move: { from: 24, to: 21, dieUsed: 3 } })
-    ).toBe(true)
+    expect(isValidMove({ state, move: { from: 24, to: 21, dieUsed: 3 } })).toBe(
+      true
+    )
 
     // Incorrect: 24 to 21 with die 5 (wrong distance)
-    expect(
-      isValidMove({ state, move: { from: 24, to: 21, dieUsed: 5 } })
-    ).toBe(false)
+    expect(isValidMove({ state, move: { from: 24, to: 21, dieUsed: 5 } })).toBe(
+      false
+    )
   })
 
   it('cannot move opponent checkers', () => {
     const state = createMovingState({
       player: 'white',
-      dice: rollSpecificDice(3, 1),
+      dice: rollSpecificDice(3, 1)
     })
 
     // Black has checkers on point 1
     const isValid = isValidMove({
       state,
-      move: { from: 1, to: 4, dieUsed: 3 },
+      move: { from: 1, to: 4, dieUsed: 3 }
     })
 
     expect(isValid).toBe(false)
@@ -1169,13 +1173,13 @@ describe('Move Validation', () => {
   it('cannot bear off without being in home board', () => {
     const state = createMovingState({
       player: 'white',
-      dice: rollSpecificDice(6, 1),
+      dice: rollSpecificDice(6, 1)
     })
 
     // White has checkers on point 24 (not in home)
     const isValid = isValidMove({
       state,
-      move: { from: 6, to: 'off', dieUsed: 6 },
+      move: { from: 6, to: 'off', dieUsed: 6 }
     })
 
     // Should fail because not all checkers are in home board
@@ -1191,13 +1195,13 @@ describe('Utility Functions', () => {
   it('filterMovesByDie returns only moves with specified die', () => {
     const state = createMovingState({
       player: 'white',
-      dice: rollSpecificDice(5, 3),
+      dice: rollSpecificDice(5, 3)
     })
 
     const allMoves = getValidMoves({ state })
     const movesWithDie5 = filterMovesByDie({
       availableMoves: allMoves,
-      dieValue: 5,
+      dieValue: 5
     })
 
     // All returned destinations should use die value 5
@@ -1211,13 +1215,13 @@ describe('Utility Functions', () => {
   it('getRequiredMoves identifies when both dice must be played', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 2 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(4, 2),
+      dice: rollSpecificDice(4, 2)
     })
 
     const requirements = getRequiredMoves({ state })
@@ -1234,13 +1238,13 @@ describe('Turn Ending Rules', () => {
   it('cannot end turn when dice remain and legal moves exist', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 2 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(4, 2),
+      dice: rollSpecificDice(4, 2)
     })
 
     // Both dice remain, legal moves exist
@@ -1252,19 +1256,19 @@ describe('Turn Ending Rules', () => {
   it('can end turn when all dice have been used', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 2 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(4, 2),
+      dice: rollSpecificDice(4, 2)
     })
 
     // Simulate all dice being used
     const stateAfterMoves = {
       ...state,
-      remainingMoves: [],
+      remainingMoves: []
     }
 
     expect(canEndTurn({ state: stateAfterMoves })).toBe(true)
@@ -1280,14 +1284,14 @@ describe('Turn Ending Rules', () => {
         { point: 4 as PointIndex, count: 2 },
         { point: 5 as PointIndex, count: 2 },
         { point: 6 as PointIndex, count: 2 },
-        { point: 7 as PointIndex, count: 2 },
-      ],
+        { point: 7 as PointIndex, count: 2 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(2, 3),
+      dice: rollSpecificDice(2, 3)
     })
 
     // Verify no moves available
@@ -1298,19 +1302,19 @@ describe('Turn Ending Rules', () => {
   it('cannot end turn when only one die used but legal moves remain', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 2 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(4, 2),
+      dice: rollSpecificDice(4, 2)
     })
 
     // Simulate one die being used
     const stateAfterOneMove = {
       ...state,
-      remainingMoves: [2] as DieValue[],
+      remainingMoves: [2] as DieValue[]
     }
 
     expect(hasAnyLegalMoves({ state: stateAfterOneMove })).toBe(true)
@@ -1320,7 +1324,7 @@ describe('Turn Ending Rules', () => {
   it('cannot end turn when not in moving phase', () => {
     const state = createGameState({
       phase: 'rolling',
-      currentPlayer: 'white',
+      currentPlayer: 'white'
     })
 
     expect(canEndTurn({ state })).toBe(false)
@@ -1329,13 +1333,13 @@ describe('Turn Ending Rules', () => {
   it('can end turn with doubles when all four moves used', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 5 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 3),
+      dice: rollSpecificDice(3, 3)
     })
 
     // Verify doubles give 4 moves
@@ -1344,7 +1348,7 @@ describe('Turn Ending Rules', () => {
     // All four moves used
     const stateAfterMoves = {
       ...state,
-      remainingMoves: [],
+      remainingMoves: []
     }
 
     expect(canEndTurn({ state: stateAfterMoves })).toBe(true)
@@ -1353,19 +1357,19 @@ describe('Turn Ending Rules', () => {
   it('cannot end turn with doubles when fewer than maximum moves used and legal moves exist', () => {
     const board = createBoardWithCheckers({
       white: [{ point: 10 as PointIndex, count: 5 }],
-      black: [{ point: 19 as PointIndex, count: 15 }],
+      black: [{ point: 19 as PointIndex, count: 15 }]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(3, 3),
+      dice: rollSpecificDice(3, 3)
     })
 
     // Only 2 of 4 moves used, but more are possible
     const stateAfterTwoMoves = {
       ...state,
-      remainingMoves: [3, 3] as DieValue[],
+      remainingMoves: [3, 3] as DieValue[]
     }
 
     expect(hasAnyLegalMoves({ state: stateAfterTwoMoves })).toBe(true)
@@ -1379,14 +1383,14 @@ describe('Turn Ending Rules', () => {
       black: [
         { point: 1 as PointIndex, count: 2 },
         { point: 2 as PointIndex, count: 2 },
-        { point: 19 as PointIndex, count: 11 },
-      ],
+        { point: 19 as PointIndex, count: 11 }
+      ]
     })
 
     const state = createMovingState({
       player: 'white',
       board,
-      dice: rollSpecificDice(2, 2),
+      dice: rollSpecificDice(2, 2)
     })
 
     // Simulate using 2 moves, then no more legal moves
@@ -1398,10 +1402,10 @@ describe('Turn Ending Rules', () => {
         black: [
           { point: 2 as PointIndex, count: 2 },
           { point: 3 as PointIndex, count: 2 },
-          { point: 19 as PointIndex, count: 11 },
-        ],
+          { point: 19 as PointIndex, count: 11 }
+        ]
       }),
-      remainingMoves: [2, 2] as DieValue[],
+      remainingMoves: [2, 2] as DieValue[]
     }
 
     // No legal moves with remaining dice

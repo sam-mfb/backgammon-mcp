@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { BoardState, PointIndex, MoveTo } from '@backgammon/game'
 import type { SelectedSource } from '../BoardView'
 import { Point } from './Point'
@@ -19,25 +20,29 @@ export function Quadrant({
   points,
   selectedSource,
   validDestinations,
-  onPointClick,
-}: QuadrantProps) {
+  onPointClick
+}: QuadrantProps): React.JSX.Element {
   const step = startPoint < endPoint ? 1 : -1
-  const pointIndices: PointIndex[] = []
+  const pointIndices: number[] = []
 
-  for (let i = startPoint; step > 0 ? i <= endPoint : i >= endPoint; i += step) {
-    pointIndices.push(i as PointIndex)
+  for (
+    let i = startPoint as number;
+    step > 0 ? i <= endPoint : i >= endPoint;
+    i += step
+  ) {
+    pointIndices.push(i)
   }
 
   return (
     <div className={`quadrant quadrant--${position}`}>
-      {pointIndices.map((pointIndex) => (
+      {pointIndices.map(pointIndex => (
         <Point
           key={pointIndex}
-          pointIndex={pointIndex}
+          pointIndex={pointIndex as PointIndex}
           checkerCount={points[pointIndex - 1]}
           position={position}
           isSelected={selectedSource === pointIndex}
-          isValidDestination={validDestinations.includes(pointIndex)}
+          isValidDestination={validDestinations.includes(pointIndex as PointIndex)}
           onClick={onPointClick}
         />
       ))}

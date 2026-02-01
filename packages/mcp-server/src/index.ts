@@ -5,4 +5,9 @@
  */
 
 export { store } from './store'
-export { renderAsciiBoard, renderFullGameState, renderGameSummary, renderAvailableMoves } from './asciiBoard'
+export {
+  renderAsciiBoard,
+  renderFullGameState,
+  renderGameSummary,
+  renderAvailableMoves
+} from './asciiBoard'

@@ -12,17 +12,17 @@
 // =============================================================================
 
 /** Player colors */
-export type Player = "white" | "black";
+export type Player = 'white' | 'black'
 
 /**
  * Get the opponent of a player.
  */
 export function getOpponent(player: Player): Player {
-  return player === "white" ? "black" : "white";
+  return player === 'white' ? 'black' : 'white'
 }
 
 /** Valid die values (1-6) */
-export type DieValue = 1 | 2 | 3 | 4 | 5 | 6;
+export type DieValue = 1 | 2 | 3 | 4 | 5 | 6
 
 /** Point indices (1-24, matching standard backgammon notation) */
 export type PointIndex =
@@ -49,20 +49,20 @@ export type PointIndex =
   | 21
   | 22
   | 23
-  | 24;
+  | 24
 
 /**
  * Type guard to check if a number is a valid point index (1-24).
  */
 export function isValidPointIndex(n: number): n is PointIndex {
-  return Number.isInteger(n) && n >= 1 && n <= 24;
+  return Number.isInteger(n) && n >= 1 && n <= 24
 }
 
 /**
  * Type guard to check if a number is a valid die value (1-6).
  */
 export function isValidDieValue(n: number): n is DieValue {
-  return Number.isInteger(n) && n >= 1 && n <= 6;
+  return Number.isInteger(n) && n >= 1 && n <= 6
 }
 
 // =============================================================================
@@ -73,8 +73,8 @@ export function isValidDieValue(n: number): n is DieValue {
  * Checker counts for bar and borne-off areas
  */
 export interface CheckerCounts {
-  readonly white: number;
-  readonly black: number;
+  readonly white: number
+  readonly black: number
 }
 
 /**
@@ -121,14 +121,14 @@ export interface BoardState {
     number,
     number,
     number,
-    number,
-  ];
+    number
+  ]
 
   /** Checkers on the bar (hit but not re-entered) */
-  readonly bar: CheckerCounts;
+  readonly bar: CheckerCounts
 
   /** Checkers that have been borne off (removed from play) */
-  readonly borneOff: CheckerCounts;
+  readonly borneOff: CheckerCounts
 }
 
 // =============================================================================
@@ -139,8 +139,8 @@ export interface BoardState {
  * A roll of two dice
  */
 export interface DiceRoll {
-  readonly die1: DieValue;
-  readonly die2: DieValue;
+  readonly die1: DieValue
+  readonly die2: DieValue
 }
 
 // =============================================================================
@@ -148,38 +148,38 @@ export interface DiceRoll {
 // =============================================================================
 
 /** Sentinel value for moving from the bar */
-export type BarPosition = "bar";
+export type BarPosition = 'bar'
 
 /** Sentinel value for bearing off */
-export type BearOffPosition = "off";
+export type BearOffPosition = 'off'
 
 /** Valid source positions for a move */
-export type MoveFrom = PointIndex | BarPosition;
+export type MoveFrom = PointIndex | BarPosition
 
 /** Valid destination positions for a move */
-export type MoveTo = PointIndex | BearOffPosition;
+export type MoveTo = PointIndex | BearOffPosition
 
 /**
  * A single checker move
  */
 export interface Move {
   /** Starting position (point index or 'bar') */
-  readonly from: MoveFrom;
+  readonly from: MoveFrom
 
   /** Ending position (point index or 'off' for bearing off) */
-  readonly to: MoveTo;
+  readonly to: MoveTo
 
   /** The die value used for this move */
-  readonly dieUsed: DieValue;
+  readonly dieUsed: DieValue
 }
 
 /**
  * A complete turn (one player's full sequence of moves)
  */
 export interface Turn {
-  readonly player: Player;
-  readonly diceRoll: DiceRoll;
-  readonly moves: readonly Move[];
+  readonly player: Player
+  readonly diceRoll: DiceRoll
+  readonly moves: readonly Move[]
 }
 
 // =============================================================================
@@ -191,13 +191,13 @@ export interface Turn {
  */
 export interface MoveDestination {
   /** Where the checker can move to */
-  readonly to: MoveTo;
+  readonly to: MoveTo
 
   /** Which die value enables this move */
-  readonly dieValue: DieValue;
+  readonly dieValue: DieValue
 
   /** Whether this move would hit an opponent's blot */
-  readonly wouldHit: boolean;
+  readonly wouldHit: boolean
 }
 
 /**
@@ -205,10 +205,10 @@ export interface MoveDestination {
  */
 export interface AvailableMoves {
   /** The source position */
-  readonly from: MoveFrom;
+  readonly from: MoveFrom
 
   /** All valid destinations from this position */
-  readonly destinations: readonly MoveDestination[];
+  readonly destinations: readonly MoveDestination[]
 }
 
 // =============================================================================
@@ -222,11 +222,11 @@ export interface AvailableMoves {
  * not_started -> rolling_for_first -> rolling <-> moving -> game_over
  */
 export type GamePhase =
-  | "not_started"
-  | "rolling_for_first"
-  | "rolling"
-  | "moving"
-  | "game_over";
+  | 'not_started'
+  | 'rolling_for_first'
+  | 'rolling'
+  | 'moving'
+  | 'game_over'
 
 /**
  * Types of victory in backgammon
@@ -234,14 +234,14 @@ export type GamePhase =
  * - gammon: Opponent has not borne off any checkers (2x stakes)
  * - backgammon: Opponent has checkers on bar or in winner's home (3x stakes)
  */
-export type VictoryType = "single" | "gammon" | "backgammon";
+export type VictoryType = 'single' | 'gammon' | 'backgammon'
 
 /**
  * Result of a completed game
  */
 export interface GameResult {
-  readonly winner: Player;
-  readonly victoryType: VictoryType;
+  readonly winner: Player
+  readonly victoryType: VictoryType
 }
 
 /**
@@ -252,29 +252,29 @@ export interface GameResult {
  */
 export interface GameState {
   /** Current board configuration */
-  readonly board: BoardState;
+  readonly board: BoardState
 
   /** Whose turn it is (null before game starts) */
-  readonly currentPlayer: Player | null;
+  readonly currentPlayer: Player | null
 
   /** Current game phase */
-  readonly phase: GamePhase;
+  readonly phase: GamePhase
 
   /** Current dice roll (null when not rolled yet) */
-  readonly diceRoll: DiceRoll | null;
+  readonly diceRoll: DiceRoll | null
 
   /** Die values still available to use this turn */
-  readonly remainingMoves: readonly DieValue[];
+  readonly remainingMoves: readonly DieValue[]
 
   /** Number of turns completed */
-  readonly turnNumber: number;
+  readonly turnNumber: number
 
   /** Moves made in the current turn */
-  readonly movesThisTurn: readonly Move[];
+  readonly movesThisTurn: readonly Move[]
 
   /** Game result (null until game_over phase) */
-  readonly result: GameResult | null;
+  readonly result: GameResult | null
 
   /** History of all completed turns */
-  readonly history: readonly Turn[];
+  readonly history: readonly Turn[]
 }

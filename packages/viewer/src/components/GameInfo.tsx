@@ -1,4 +1,11 @@
-import type { DiceRoll, DieValue, GamePhase, GameResult, Player } from '@backgammon/game'
+import type React from 'react'
+import type {
+  DiceRoll,
+  DieValue,
+  GamePhase,
+  GameResult,
+  Player
+} from '@backgammon/game'
 import { DiceDisplay } from './DiceDisplay'
 
 interface GameInfoProps {
@@ -12,19 +19,27 @@ interface GameInfoProps {
 
 function phaseLabel(phase: GamePhase): string {
   switch (phase) {
-    case 'not_started': return 'Not Started'
-    case 'rolling_for_first': return 'Rolling for First'
-    case 'rolling': return 'Roll Dice'
-    case 'moving': return 'Make Moves'
-    case 'game_over': return 'Game Over'
+    case 'not_started':
+      return 'Not Started'
+    case 'rolling_for_first':
+      return 'Rolling for First'
+    case 'rolling':
+      return 'Roll Dice'
+    case 'moving':
+      return 'Make Moves'
+    case 'game_over':
+      return 'Game Over'
   }
 }
 
 function victoryLabel(victoryType: GameResult['victoryType']): string {
   switch (victoryType) {
-    case 'single': return ''
-    case 'gammon': return ' (Gammon!)'
-    case 'backgammon': return ' (Backgammon!)'
+    case 'single':
+      return ''
+    case 'gammon':
+      return ' (Gammon!)'
+    case 'backgammon':
+      return ' (Backgammon!)'
   }
 }
 
@@ -34,13 +49,15 @@ export function GameInfo({
   turnNumber,
   diceRoll,
   remainingMoves,
-  result,
-}: GameInfoProps) {
+  result
+}: GameInfoProps): React.JSX.Element {
   return (
     <div className="game-info">
       {result ? (
         <div className="game-info__result">
-          <span className={`game-info__winner game-info__winner--${result.winner}`}>
+          <span
+            className={`game-info__winner game-info__winner--${result.winner}`}
+          >
             {result.winner} wins{victoryLabel(result.victoryType)}
           </span>
         </div>
@@ -48,7 +65,9 @@ export function GameInfo({
         <>
           <div className="game-info__player">
             <span className="game-info__label">Player:</span>
-            <span className={`game-info__value game-info__value--${currentPlayer ?? 'none'}`}>
+            <span
+              className={`game-info__value game-info__value--${currentPlayer ?? 'none'}`}
+            >
               {currentPlayer ?? '—'}
             </span>
           </div>

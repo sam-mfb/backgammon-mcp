@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { Player, PointIndex } from '@backgammon/game'
 import { Checker } from './Checker'
 
@@ -22,8 +23,8 @@ export function Point({
   position,
   isSelected = false,
   isValidDestination = false,
-  onClick,
-}: PointProps) {
+  onClick
+}: PointProps): React.JSX.Element {
   const player = getCheckerPlayer(checkerCount)
   const count = Math.abs(checkerCount)
   const isOdd = pointIndex % 2 === 1
@@ -34,7 +35,7 @@ export function Point({
       ))
     : null
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     onClick?.(pointIndex)
   }
 
@@ -44,7 +45,7 @@ export function Point({
     `point--${isOdd ? 'odd' : 'even'}`,
     isSelected && 'point--selected',
     isValidDestination && 'point--valid-destination',
-    onClick && 'point--clickable',
+    onClick && 'point--clickable'
   ]
     .filter(Boolean)
     .join(' ')
@@ -56,7 +57,7 @@ export function Point({
       onClick={handleClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={(e) => {
+      onKeyDown={e => {
         if (onClick && (e.key === 'Enter' || e.key === ' ')) {
           handleClick()
         }

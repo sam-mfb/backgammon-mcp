@@ -17,21 +17,21 @@ import type {
   MoveDestination,
   Player,
   PointIndex,
-  VictoryType,
-} from "./types";
+  VictoryType
+} from './types'
 
 // =============================================================================
 // Constants
 // =============================================================================
 
 /** Total checkers per player */
-const CHECKERS_PER_PLAYER = 15;
+const CHECKERS_PER_PLAYER = 15
 
 /** Points in home board for each player */
 const HOME_BOARD = {
   white: [1, 2, 3, 4, 5, 6] as const,
-  black: [19, 20, 21, 22, 23, 24] as const,
-};
+  black: [19, 20, 21, 22, 23, 24] as const
+}
 
 // =============================================================================
 // Helper Functions
@@ -43,7 +43,7 @@ const HOME_BOARD = {
  * Black moves from point 1 toward point 24 (increasing).
  */
 export function getMoveDirection(player: Player): 1 | -1 {
-  return player === "white" ? -1 : 1;
+  return player === 'white' ? -1 : 1
 }
 
 /**
@@ -53,17 +53,17 @@ export function getMoveDirection(player: Player): 1 | -1 {
 function getCheckerCount({
   board,
   pointIndex,
-  player,
+  player
 }: {
-  board: BoardState;
-  pointIndex: PointIndex;
-  player: Player;
+  board: BoardState
+  pointIndex: PointIndex
+  player: Player
 }): number {
-  const value = board.points[pointIndex - 1];
-  if (player === "white") {
-    return value > 0 ? value : 0;
+  const value = board.points[pointIndex - 1]
+  if (player === 'white') {
+    return value > 0 ? value : 0
   } else {
-    return value < 0 ? -value : 0;
+    return value < 0 ? -value : 0
   }
 }
 
@@ -73,17 +73,17 @@ function getCheckerCount({
 function isPointBlocked({
   board,
   pointIndex,
-  player,
+  player
 }: {
-  board: BoardState;
-  pointIndex: PointIndex;
-  player: Player;
+  board: BoardState
+  pointIndex: PointIndex
+  player: Player
 }): boolean {
-  const value = board.points[pointIndex - 1];
-  if (player === "white") {
-    return value <= -2;
+  const value = board.points[pointIndex - 1]
+  if (player === 'white') {
+    return value <= -2
   } else {
-    return value >= 2;
+    return value >= 2
   }
 }
 
@@ -93,17 +93,17 @@ function isPointBlocked({
 function wouldHitBlot({
   board,
   pointIndex,
-  player,
+  player
 }: {
-  board: BoardState;
-  pointIndex: PointIndex;
-  player: Player;
+  board: BoardState
+  pointIndex: PointIndex
+  player: Player
 }): boolean {
-  const value = board.points[pointIndex - 1];
-  if (player === "white") {
-    return value === -1;
+  const value = board.points[pointIndex - 1]
+  if (player === 'white') {
+    return value === -1
   } else {
-    return value === 1;
+    return value === 1
   }
 }
 
@@ -112,12 +112,12 @@ function wouldHitBlot({
  */
 function hasCheckersOnBar({
   board,
-  player,
+  player
 }: {
-  board: BoardState;
-  player: Player;
+  board: BoardState
+  player: Player
 }): boolean {
-  return board.bar[player] > 0;
+  return board.bar[player] > 0
 }
 
 /**
@@ -127,15 +127,15 @@ function hasCheckersOnBar({
  */
 function getBarEntryPoint({
   player,
-  dieValue,
+  dieValue
 }: {
-  player: Player;
-  dieValue: DieValue;
+  player: Player
+  dieValue: DieValue
 }): PointIndex {
-  if (player === "white") {
-    return (25 - dieValue) as PointIndex;
+  if (player === 'white') {
+    return (25 - dieValue) as PointIndex
   } else {
-    return dieValue as PointIndex;
+    return dieValue as PointIndex
   }
 }
 
@@ -146,21 +146,21 @@ function getBarEntryPoint({
 function calculateDestination({
   from,
   dieValue,
-  player,
+  player
 }: {
-  from: PointIndex;
-  dieValue: DieValue;
-  player: Player;
+  from: PointIndex
+  dieValue: DieValue
+  player: Player
 }): PointIndex | null {
-  const direction = getMoveDirection(player);
-  const destination = from + direction * dieValue;
+  const direction = getMoveDirection(player)
+  const destination = from + direction * dieValue
 
   // Check bounds
   if (destination < 1 || destination > 24) {
-    return null;
+    return null
   }
 
-  return destination as PointIndex;
+  return destination as PointIndex
 }
 
 /**
@@ -171,19 +171,19 @@ function calculateDestination({
 function isBearingOffDestination({
   from,
   dieValue,
-  player,
+  player
 }: {
-  from: PointIndex;
-  dieValue: DieValue;
-  player: Player;
+  from: PointIndex
+  dieValue: DieValue
+  player: Player
 }): boolean {
-  const direction = getMoveDirection(player);
-  const destination = from + direction * dieValue;
+  const direction = getMoveDirection(player)
+  const destination = from + direction * dieValue
 
-  if (player === "white") {
-    return destination <= 0;
+  if (player === 'white') {
+    return destination <= 0
   } else {
-    return destination >= 25;
+    return destination >= 25
   }
 }
 
@@ -192,23 +192,23 @@ function isBearingOffDestination({
  */
 function getOccupiedPoints({
   board,
-  player,
+  player
 }: {
-  board: BoardState;
-  player: Player;
+  board: BoardState
+  player: Player
 }): PointIndex[] {
-  const points: PointIndex[] = [];
+  const points: PointIndex[] = []
 
   for (let i = 0; i < 24; i++) {
-    const value = board.points[i];
+    const value = board.points[i]
     const hasChecker =
-      (player === "white" && value > 0) || (player === "black" && value < 0);
+      (player === 'white' && value > 0) || (player === 'black' && value < 0)
     if (hasChecker) {
-      points.push((i + 1) as PointIndex);
+      points.push((i + 1) as PointIndex)
     }
   }
 
-  return points;
+  return points
 }
 
 /**
@@ -218,22 +218,22 @@ function getOccupiedPoints({
  */
 function getHighestHomePoint({
   board,
-  player,
+  player
 }: {
-  board: BoardState;
-  player: Player;
+  board: BoardState
+  player: Player
 }): PointIndex | null {
-  const homePoints = HOME_BOARD[player] as readonly number[];
-  const occupied = getOccupiedPoints({ board, player }).filter((p) =>
-    homePoints.includes(p),
-  );
+  const homePoints = HOME_BOARD[player] as readonly number[]
+  const occupied = getOccupiedPoints({ board, player }).filter(p =>
+    homePoints.includes(p)
+  )
 
-  if (occupied.length === 0) return null;
+  if (occupied.length === 0) return null
 
-  if (player === "white") {
-    return Math.max(...occupied) as PointIndex;
+  if (player === 'white') {
+    return Math.max(...occupied) as PointIndex
   } else {
-    return Math.min(...occupied) as PointIndex;
+    return Math.min(...occupied) as PointIndex
   }
 }
 
@@ -247,32 +247,32 @@ function getHighestHomePoint({
  */
 export function canBearOff({
   state,
-  player,
+  player
 }: {
-  state: GameState;
-  player: Player;
+  state: GameState
+  player: Player
 }): boolean {
-  const { board } = state;
+  const { board } = state
 
   // Cannot bear off if any checkers are on the bar
   if (board.bar[player] > 0) {
-    return false;
+    return false
   }
 
   // Count checkers in home board + borne off
-  const homePoints = HOME_BOARD[player];
-  let checkersInHomeOrOff = board.borneOff[player];
+  const homePoints = HOME_BOARD[player]
+  let checkersInHomeOrOff = board.borneOff[player]
 
   for (const point of homePoints) {
     checkersInHomeOrOff += getCheckerCount({
       board,
       pointIndex: point,
-      player,
-    });
+      player
+    })
   }
 
   // All 15 checkers must be in home board or already borne off
-  return checkersInHomeOrOff === CHECKERS_PER_PLAYER;
+  return checkersInHomeOrOff === CHECKERS_PER_PLAYER
 }
 
 /**
@@ -280,76 +280,76 @@ export function canBearOff({
  */
 export function isValidMove({
   state,
-  move,
+  move
 }: {
-  state: GameState;
-  move: Move;
+  state: GameState
+  move: Move
 }): boolean {
-  const { from, to, dieUsed } = move;
-  const player = state.currentPlayer;
+  const { from, to, dieUsed } = move
+  const player = state.currentPlayer
 
-  if (!player) return false;
+  if (!player) return false
 
   // Check if the die is available
   if (!state.remainingMoves.includes(dieUsed)) {
-    return false;
+    return false
   }
 
-  const { board } = state;
-  const hasBar = hasCheckersOnBar({ board, player });
+  const { board } = state
+  const hasBar = hasCheckersOnBar({ board, player })
 
   // If player has checkers on bar, they must enter first
-  if (hasBar && from !== "bar") {
-    return false;
+  if (hasBar && from !== 'bar') {
+    return false
   }
 
   // Handle bar entry
-  if (from === "bar") {
-    if (!hasBar) return false;
+  if (from === 'bar') {
+    if (!hasBar) return false
 
-    const entryPoint = getBarEntryPoint({ player, dieValue: dieUsed });
+    const entryPoint = getBarEntryPoint({ player, dieValue: dieUsed })
 
     // Entry point must not be blocked
     if (isPointBlocked({ board, pointIndex: entryPoint, player })) {
-      return false;
+      return false
     }
 
     // The destination must match the entry point
-    return to === entryPoint;
+    return to === entryPoint
   }
 
   // Handle bearing off
-  if (to === "off") {
+  if (to === 'off') {
     if (!canBearOff({ state, player })) {
-      return false;
+      return false
     }
 
     // Check if this is a valid bearing off move
-    return isValidBearOffMove({ board, from, dieUsed, player });
+    return isValidBearOffMove({ board, from, dieUsed, player })
   }
 
   // Regular move
   const expectedDestination = calculateDestination({
     from,
     dieValue: dieUsed,
-    player,
-  });
+    player
+  })
 
   if (expectedDestination === null || expectedDestination !== to) {
-    return false;
+    return false
   }
 
   // Check destination is not blocked
   if (isPointBlocked({ board, pointIndex: to, player })) {
-    return false;
+    return false
   }
 
   // Check source has a checker
   if (getCheckerCount({ board, pointIndex: from, player }) === 0) {
-    return false;
+    return false
   }
 
-  return true;
+  return true
 }
 
 /**
@@ -359,97 +359,97 @@ function isValidBearOffMove({
   board,
   from,
   dieUsed,
-  player,
+  player
 }: {
-  board: BoardState;
-  from: PointIndex;
-  dieUsed: DieValue;
-  player: Player;
+  board: BoardState
+  from: PointIndex
+  dieUsed: DieValue
+  player: Player
 }): boolean {
   // Must have a checker at the source
   if (getCheckerCount({ board, pointIndex: from, player }) === 0) {
-    return false;
+    return false
   }
 
   // Get the point value (distance from bearing off)
   // White bears off from point 1, so point value is the point number
   // Black bears off from point 24, so point value is 25 - point number
-  const pointValue = player === "white" ? from : 25 - from;
+  const pointValue = player === 'white' ? from : 25 - from
 
   // Exact roll: die matches point value
   if (dieUsed === pointValue) {
-    return true;
+    return true
   }
 
   // Higher roll: can bear off from highest occupied point if die is higher
   if (dieUsed > pointValue) {
-    const highestHome = getHighestHomePoint({ board, player });
+    const highestHome = getHighestHomePoint({ board, player })
     // Can only bear off with higher die if this is the highest occupied point
-    return highestHome === from;
+    return highestHome === from
   }
 
-  return false;
+  return false
 }
 
 /**
  * Get all valid moves for the current player.
  */
 export function getValidMoves({
-  state,
+  state
 }: {
-  state: GameState;
+  state: GameState
 }): AvailableMoves[] {
-  const player = state.currentPlayer;
+  const player = state.currentPlayer
   if (!player || state.remainingMoves.length === 0) {
-    return [];
+    return []
   }
 
-  const { board } = state;
-  const hasBar = hasCheckersOnBar({ board, player });
-  const canBearOffNow = canBearOff({ state, player });
-  const uniqueDice = [...new Set(state.remainingMoves)];
+  const { board } = state
+  const hasBar = hasCheckersOnBar({ board, player })
+  const canBearOffNow = canBearOff({ state, player })
+  const uniqueDice = [...new Set(state.remainingMoves)]
 
-  const result: AvailableMoves[] = [];
+  const result: AvailableMoves[] = []
 
   // If player has checkers on bar, can only enter from bar
   if (hasBar) {
-    const destinations: MoveDestination[] = [];
+    const destinations: MoveDestination[] = []
 
     for (const dieValue of uniqueDice) {
-      const entryPoint = getBarEntryPoint({ player, dieValue });
+      const entryPoint = getBarEntryPoint({ player, dieValue })
 
       if (!isPointBlocked({ board, pointIndex: entryPoint, player })) {
         destinations.push({
           to: entryPoint,
           dieValue,
-          wouldHit: wouldHitBlot({ board, pointIndex: entryPoint, player }),
-        });
+          wouldHit: wouldHitBlot({ board, pointIndex: entryPoint, player })
+        })
       }
     }
 
     if (destinations.length > 0) {
-      result.push({ from: "bar", destinations });
+      result.push({ from: 'bar', destinations })
     }
 
-    return result;
+    return result
   }
 
   // Regular moves from points
-  const occupiedPoints = getOccupiedPoints({ board, player });
+  const occupiedPoints = getOccupiedPoints({ board, player })
 
   for (const from of occupiedPoints) {
-    const destinations: MoveDestination[] = [];
+    const destinations: MoveDestination[] = []
 
     for (const dieValue of uniqueDice) {
       // Try regular move
-      const to = calculateDestination({ from, dieValue, player });
+      const to = calculateDestination({ from, dieValue, player })
 
       if (to !== null && !isPointBlocked({ board, pointIndex: to, player })) {
         destinations.push({
           to,
           dieValue,
-          wouldHit: wouldHitBlot({ board, pointIndex: to, player }),
-        });
+          wouldHit: wouldHitBlot({ board, pointIndex: to, player })
+        })
       }
 
       // Try bearing off
@@ -459,20 +459,20 @@ export function getValidMoves({
       ) {
         if (isValidBearOffMove({ board, from, dieUsed: dieValue, player })) {
           destinations.push({
-            to: "off",
+            to: 'off',
             dieValue,
-            wouldHit: false,
-          });
+            wouldHit: false
+          })
         }
       }
     }
 
     if (destinations.length > 0) {
-      result.push({ from, destinations });
+      result.push({ from, destinations })
     }
   }
 
-  return result;
+  return result
 }
 
 /**
@@ -480,30 +480,30 @@ export function getValidMoves({
  * Returns null if the game is not over.
  */
 export function checkGameOver({
-  state,
+  state
 }: {
-  state: GameState;
+  state: GameState
 }): GameResult | null {
-  const { board } = state;
+  const { board } = state
 
   // Check if either player has borne off all checkers
-  for (const player of ["white", "black"] as const) {
+  for (const player of ['white', 'black'] as const) {
     if (board.borneOff[player] === CHECKERS_PER_PLAYER) {
-      const opponent = player === "white" ? "black" : "white";
+      const opponent = player === 'white' ? 'black' : 'white'
       const victoryType = determineVictoryType({
         board,
         winner: player,
-        loser: opponent,
-      });
+        loser: opponent
+      })
 
       return {
         winner: player,
-        victoryType,
-      };
+        victoryType
+      }
     }
   }
 
-  return null;
+  return null
 }
 
 /**
@@ -512,33 +512,33 @@ export function checkGameOver({
 function determineVictoryType({
   board,
   winner,
-  loser,
+  loser
 }: {
-  board: BoardState;
-  winner: Player;
-  loser: Player;
+  board: BoardState
+  winner: Player
+  loser: Player
 }): VictoryType {
   // If loser has borne off any checkers, it's a single game
   if (board.borneOff[loser] > 0) {
-    return "single";
+    return 'single'
   }
 
   // Check for backgammon: loser has checker on bar or in winner's home board
   if (board.bar[loser] > 0) {
-    return "backgammon";
+    return 'backgammon'
   }
 
   // Check if loser has checkers in winner's home board
-  const winnerHomePoints = HOME_BOARD[winner];
+  const winnerHomePoints = HOME_BOARD[winner]
   for (const point of winnerHomePoints) {
-    const count = getCheckerCount({ board, pointIndex: point, player: loser });
+    const count = getCheckerCount({ board, pointIndex: point, player: loser })
     if (count > 0) {
-      return "backgammon";
+      return 'backgammon'
     }
   }
 
   // Gammon: loser hasn't borne off any checkers
-  return "gammon";
+  return 'gammon'
 }
 
 /**
@@ -546,7 +546,7 @@ function determineVictoryType({
  * Used to determine if turn should be automatically forfeited.
  */
 export function hasAnyLegalMoves({ state }: { state: GameState }): boolean {
-  return getValidMoves({ state }).length > 0;
+  return getValidMoves({ state }).length > 0
 }
 
 /**
@@ -558,17 +558,17 @@ export function hasAnyLegalMoves({ state }: { state: GameState }): boolean {
  */
 export function canEndTurn({ state }: { state: GameState }): boolean {
   // If not in moving phase, turn cannot be ended this way
-  if (state.phase !== "moving") {
-    return false;
+  if (state.phase !== 'moving') {
+    return false
   }
 
   // All dice used - can end turn
   if (state.remainingMoves.length === 0) {
-    return true;
+    return true
   }
 
   // Still have dice remaining - can only end if no legal moves
-  return !hasAnyLegalMoves({ state });
+  return !hasAnyLegalMoves({ state })
 }
 
 /**
@@ -600,11 +600,11 @@ export function createInitialBoard(): BoardState {
       0, // Point 21
       0, // Point 22
       0, // Point 23
-      2, // Point 24: 2 white
+      2 // Point 24: 2 white
     ],
     bar: { white: 0, black: 0 },
-    borneOff: { white: 0, black: 0 },
-  };
+    borneOff: { white: 0, black: 0 }
+  }
 }
 
 /**
@@ -612,23 +612,23 @@ export function createInitialBoard(): BoardState {
  */
 export function countTotalCheckers({
   board,
-  player,
+  player
 }: {
-  board: BoardState;
-  player: Player;
+  board: BoardState
+  player: Player
 }): number {
-  let count = board.bar[player] + board.borneOff[player];
+  let count = board.bar[player] + board.borneOff[player]
 
   for (let i = 0; i < 24; i++) {
-    const value = board.points[i];
-    if (player === "white" && value > 0) {
-      count += value;
-    } else if (player === "black" && value < 0) {
-      count += -value;
+    const value = board.points[i]
+    if (player === 'white' && value > 0) {
+      count += value
+    } else if (player === 'black' && value < 0) {
+      count += -value
     }
   }
 
-  return count;
+  return count
 }
 
 /**
@@ -637,17 +637,17 @@ export function countTotalCheckers({
  */
 export function filterMovesByDie({
   availableMoves,
-  dieValue,
+  dieValue
 }: {
-  availableMoves: readonly AvailableMoves[];
-  dieValue: DieValue;
+  availableMoves: readonly AvailableMoves[]
+  dieValue: DieValue
 }): AvailableMoves[] {
   return availableMoves
-    .map((am) => ({
+    .map(am => ({
       from: am.from,
-      destinations: am.destinations.filter((d) => d.dieValue === dieValue),
+      destinations: am.destinations.filter(d => d.dieValue === dieValue)
     }))
-    .filter((am) => am.destinations.length > 0);
+    .filter(am => am.destinations.length > 0)
 }
 
 /**
@@ -656,30 +656,30 @@ export function filterMovesByDie({
  */
 export function canUseBothDice({
   state,
-  firstMove,
+  firstMove
 }: {
-  state: GameState;
-  firstMove: Move;
+  state: GameState
+  firstMove: Move
 }): boolean {
   // Apply the first move to a copy of the state
-  const afterFirstMove = applyMoveToBoard({ state, move: firstMove });
+  const afterFirstMove = applyMoveToBoard({ state, move: firstMove })
 
   // Check if there are remaining moves with the other die
   const remainingDice = state.remainingMoves.filter(
-    (_, i) => i !== state.remainingMoves.indexOf(firstMove.dieUsed),
-  );
+    (_, i) => i !== state.remainingMoves.indexOf(firstMove.dieUsed)
+  )
 
   if (remainingDice.length === 0) {
-    return true; // No second die to use
+    return true // No second die to use
   }
 
   const stateAfterMove: GameState = {
     ...state,
     board: afterFirstMove,
-    remainingMoves: remainingDice,
-  };
+    remainingMoves: remainingDice
+  }
 
-  return hasAnyLegalMoves({ state: stateAfterMove });
+  return hasAnyLegalMoves({ state: stateAfterMove })
 }
 
 /**
@@ -688,14 +688,17 @@ export function canUseBothDice({
  */
 export function applyMoveToBoard({
   state,
-  move,
+  move
 }: {
-  state: GameState;
-  move: Move;
+  state: GameState
+  move: Move
 }): BoardState {
-  const { from, to } = move;
-  const player = state.currentPlayer!;
-  const board = state.board;
+  const { from, to } = move
+  const player = state.currentPlayer
+  if (!player) {
+    throw new Error('Cannot apply move: no current player')
+  }
+  const board = state.board
 
   // Create mutable copies
   const newPoints = [...board.points] as [
@@ -722,42 +725,42 @@ export function applyMoveToBoard({
     number,
     number,
     number,
-    number,
-  ];
-  const newBar = { ...board.bar };
-  const newBorneOff = { ...board.borneOff };
+    number
+  ]
+  const newBar = { ...board.bar }
+  const newBorneOff = { ...board.borneOff }
 
   // Remove checker from source
-  if (from === "bar") {
-    newBar[player]--;
+  if (from === 'bar') {
+    newBar[player]--
   } else {
-    const fromIndex = from - 1;
-    if (player === "white") {
-      newPoints[fromIndex]--;
+    const fromIndex = from - 1
+    if (player === 'white') {
+      newPoints[fromIndex]--
     } else {
-      newPoints[fromIndex]++;
+      newPoints[fromIndex]++
     }
   }
 
   // Place checker at destination
-  if (to === "off") {
-    newBorneOff[player]++;
+  if (to === 'off') {
+    newBorneOff[player]++
   } else {
-    const toIndex = to - 1;
-    const pointValue = newPoints[toIndex];
+    const toIndex = to - 1
+    const pointValue = newPoints[toIndex]
 
     // Check for hitting a blot
-    if (player === "white" && pointValue === -1) {
-      newPoints[toIndex] = 1;
-      newBar.black++;
-    } else if (player === "black" && pointValue === 1) {
-      newPoints[toIndex] = -1;
-      newBar.white++;
+    if (player === 'white' && pointValue === -1) {
+      newPoints[toIndex] = 1
+      newBar.black++
+    } else if (player === 'black' && pointValue === 1) {
+      newPoints[toIndex] = -1
+      newBar.white++
     } else {
-      if (player === "white") {
-        newPoints[toIndex]++;
+      if (player === 'white') {
+        newPoints[toIndex]++
       } else {
-        newPoints[toIndex]--;
+        newPoints[toIndex]--
       }
     }
   }
@@ -765,8 +768,8 @@ export function applyMoveToBoard({
   return {
     points: newPoints,
     bar: newBar,
-    borneOff: newBorneOff,
-  };
+    borneOff: newBorneOff
+  }
 }
 
 /**
@@ -775,21 +778,21 @@ export function applyMoveToBoard({
  * to implement the "must play higher die" rule.
  */
 export function getLegalMoveSequences({
-  state,
+  state
 }: {
-  state: GameState;
+  state: GameState
 }): Move[][] {
-  const sequences: Move[][] = [];
+  const sequences: Move[][] = []
 
   function explore(currentState: GameState, currentSequence: Move[]): void {
-    const validMoves = getValidMoves({ state: currentState });
+    const validMoves = getValidMoves({ state: currentState })
 
     if (validMoves.length === 0) {
       // No more moves possible, save this sequence if it's non-empty
       if (currentSequence.length > 0) {
-        sequences.push([...currentSequence]);
+        sequences.push([...currentSequence])
       }
-      return;
+      return
     }
 
     // Try each possible move
@@ -798,37 +801,37 @@ export function getLegalMoveSequences({
         const move: Move = {
           from: available.from,
           to: dest.to,
-          dieUsed: dest.dieValue,
-        };
+          dieUsed: dest.dieValue
+        }
 
-        const newBoard = applyMoveToBoard({ state: currentState, move });
-        const newRemainingMoves = [...currentState.remainingMoves];
-        const dieIndex = newRemainingMoves.indexOf(dest.dieValue);
+        const newBoard = applyMoveToBoard({ state: currentState, move })
+        const newRemainingMoves = [...currentState.remainingMoves]
+        const dieIndex = newRemainingMoves.indexOf(dest.dieValue)
         if (dieIndex !== -1) {
-          newRemainingMoves.splice(dieIndex, 1);
+          newRemainingMoves.splice(dieIndex, 1)
         }
 
         const newState: GameState = {
           ...currentState,
           board: newBoard,
-          remainingMoves: newRemainingMoves,
-        };
+          remainingMoves: newRemainingMoves
+        }
 
-        currentSequence.push(move);
-        explore(newState, currentSequence);
-        currentSequence.pop();
+        currentSequence.push(move)
+        explore(newState, currentSequence)
+        currentSequence.pop()
       }
     }
   }
 
-  explore(state, []);
+  explore(state, [])
 
   // If no sequences found, add an empty sequence
   if (sequences.length === 0) {
-    sequences.push([]);
+    sequences.push([])
   }
 
-  return sequences;
+  return sequences
 }
 
 /**
@@ -836,38 +839,38 @@ export function getLegalMoveSequences({
  * "must use both dice if possible" and "must play higher die" rules.
  */
 export function getRequiredMoves({ state }: { state: GameState }): {
-  mustPlayBothDice: boolean;
-  mustPlayHigherDie: boolean;
-  requiredDie: DieValue | null;
-  maxMovesUsable: number;
+  mustPlayBothDice: boolean
+  mustPlayHigherDie: boolean
+  requiredDie: DieValue | null
+  maxMovesUsable: number
 } {
-  const sequences = getLegalMoveSequences({ state });
+  const sequences = getLegalMoveSequences({ state })
 
   // Find the maximum number of dice used in any sequence
-  const maxMovesUsable = Math.max(...sequences.map((s) => s.length), 0);
+  const maxMovesUsable = Math.max(...sequences.map(s => s.length), 0)
 
   // If only 0 or 1 moves possible, no special requirements
   if (maxMovesUsable <= 1) {
     // Check if we need to play the higher die
     if (maxMovesUsable === 1 && state.remainingMoves.length === 2) {
-      const [d1, d2] = state.remainingMoves;
+      const [d1, d2] = state.remainingMoves
       if (d1 !== d2) {
-        const higherDie = Math.max(d1, d2) as DieValue;
-        const lowerDie = Math.min(d1, d2) as DieValue;
+        const higherDie = Math.max(d1, d2) as DieValue
+        const lowerDie = Math.min(d1, d2) as DieValue
 
         // Check if higher die can be played
         const higherMoves = filterMovesByDie({
           availableMoves: getValidMoves({ state }),
-          dieValue: higherDie,
-        });
+          dieValue: higherDie
+        })
 
         if (higherMoves.length > 0) {
           return {
             mustPlayBothDice: false,
             mustPlayHigherDie: true,
             requiredDie: higherDie,
-            maxMovesUsable,
-          };
+            maxMovesUsable
+          }
         }
 
         // Must play lower die
@@ -875,8 +878,8 @@ export function getRequiredMoves({ state }: { state: GameState }): {
           mustPlayBothDice: false,
           mustPlayHigherDie: false,
           requiredDie: lowerDie,
-          maxMovesUsable,
-        };
+          maxMovesUsable
+        }
       }
     }
 
@@ -884,8 +887,8 @@ export function getRequiredMoves({ state }: { state: GameState }): {
       mustPlayBothDice: false,
       mustPlayHigherDie: false,
       requiredDie: null,
-      maxMovesUsable,
-    };
+      maxMovesUsable
+    }
   }
 
   // If 2+ moves are possible, must play both dice
@@ -893,6 +896,6 @@ export function getRequiredMoves({ state }: { state: GameState }): {
     mustPlayBothDice: maxMovesUsable >= 2,
     mustPlayHigherDie: false,
     requiredDie: null,
-    maxMovesUsable,
-  };
+    maxMovesUsable
+  }
 }

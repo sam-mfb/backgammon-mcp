@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { Player } from '@backgammon/game'
 import { Checker } from './Checker'
 
@@ -12,13 +13,13 @@ export function BorneOffArea({
   player,
   count,
   isValidDestination = false,
-  onClick,
-}: BorneOffAreaProps) {
+  onClick
+}: BorneOffAreaProps): React.JSX.Element {
   const checkers = Array.from({ length: count }, (_, i) => (
     <Checker key={i} player={player} />
   ))
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     onClick?.(player)
   }
 
@@ -28,7 +29,7 @@ export function BorneOffArea({
     'borne-off',
     `borne-off--${player}`,
     isValidDestination && 'borne-off--valid-destination',
-    isClickable && 'borne-off--clickable',
+    isClickable && 'borne-off--clickable'
   ]
     .filter(Boolean)
     .join(' ')
@@ -39,7 +40,7 @@ export function BorneOffArea({
       onClick={isClickable ? handleClick : undefined}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
-      onKeyDown={(e) => {
+      onKeyDown={e => {
         if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
           handleClick()
         }
