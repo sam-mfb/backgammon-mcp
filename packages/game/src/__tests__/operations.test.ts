@@ -15,8 +15,10 @@ import {
   performMove,
   performEndTurn,
   resetGame,
+  getValidMoves,
   type GameState,
   type DieValue,
+  type AvailableMoves,
 } from '../index'
 
 // =============================================================================
@@ -43,6 +45,52 @@ function getState(store: TestStore): GameState {
   return store.getState().game
 }
 
+/**
+ * Get a valid move from the current game state.
+ * Returns null if no moves are available.
+ */
+function getFirstValidMove(
+  state: GameState
+): { from: number; to: number; dieUsed: DieValue } | null {
+  const moves = getValidMoves({ state })
+  if (moves.length === 0) return null
+
+  const firstMove = moves[0]
+  if (firstMove.destinations.length === 0) return null
+
+  const destination = firstMove.destinations[0]
+  return {
+    from: firstMove.from,
+    to: destination.to,
+    dieUsed: destination.dieValue,
+  }
+}
+
+/**
+ * Make all available moves until no moves remain.
+ * Returns the number of moves made.
+ */
+function makeAllAvailableMoves(store: TestStore): number {
+  let movesMade = 0
+  const maxIterations = 10 // Safety limit
+
+  while (movesMade < maxIterations) {
+    const state = getState(store)
+    if (state.remainingMoves.length === 0) break
+
+    const move = getFirstValidMove(state)
+    if (!move) break
+
+    const action = store.dispatch(performMove(move))
+    const result = action.meta.result
+    if (!result?.ok) break
+
+    movesMade++
+  }
+
+  return movesMade
+}
+
 // =============================================================================
 // performStartGame Tests
 // =============================================================================
@@ -59,21 +107,38 @@ describe('performStartGame', () => {
     const result = action.meta.result!
 
     expect(result.ok).toBe(true)
+    if (!result.ok) return
 
-    if (result.ok) {
-      expect(['white', 'black']).toContain(result.value.firstPlayer)
-      expect(result.value.diceRoll.die1).toBeGreaterThanOrEqual(1)
-      expect(result.value.diceRoll.die1).toBeLessThanOrEqual(6)
-      expect(result.value.diceRoll.die2).toBeGreaterThanOrEqual(1)
-      expect(result.value.diceRoll.die2).toBeLessThanOrEqual(6)
-      expect(result.value.diceRoll.die1).not.toBe(result.value.diceRoll.die2)
-    }
+    // Verify result structure
+    expect(['white', 'black']).toContain(result.value.firstPlayer)
+    expect(result.value.diceRoll.die1).toBeGreaterThanOrEqual(1)
+    expect(result.value.diceRoll.die1).toBeLessThanOrEqual(6)
+    expect(result.value.diceRoll.die2).toBeGreaterThanOrEqual(1)
+    expect(result.value.diceRoll.die2).toBeLessThanOrEqual(6)
+    expect(result.value.diceRoll.die1).not.toBe(result.value.diceRoll.die2)
+    expect(result.value.validMoves.length).toBeGreaterThan(0)
 
+    // Verify state was updated correctly
     const state = getState(store)
     expect(state.phase).toBe('moving')
-    expect(state.currentPlayer).not.toBeNull()
-    expect(state.diceRoll).not.toBeNull()
+    expect(state.currentPlayer).toBe(result.value.firstPlayer)
+    expect(state.diceRoll).toEqual(result.value.diceRoll)
     expect(state.turnNumber).toBe(1)
+    expect(state.movesThisTurn).toEqual([])
+    expect(state.result).toBeNull()
+
+    // Verify initial board setup (15 checkers per side)
+    const board = state.board
+    expect(board.bar.white).toBe(0)
+    expect(board.bar.black).toBe(0)
+    expect(board.borneOff.white).toBe(0)
+    expect(board.borneOff.black).toBe(0)
+
+    // Verify remaining moves match dice
+    const { die1, die2 } = result.value.diceRoll
+    expect(state.remainingMoves).toContain(die1)
+    expect(state.remainingMoves).toContain(die2)
+    expect(state.remainingMoves.length).toBe(2)
   })
 
   it('should set up valid moves for the starting position', () => {
@@ -122,16 +187,45 @@ describe('performRollDice', () => {
   })
 
   it('should succeed in rolling phase', () => {
-    // Start game and end turn to get to rolling phase
+    // Start game (puts us in moving phase)
     store.dispatch(performStartGame())
 
-    // Make enough moves to be able to end turn, or simulate ending turn
-    // For simplicity, manually set up state to rolling phase
-    const state = getState(store)
-    if (state.phase === 'moving') {
-      // Force end turn (this would normally require all dice to be used)
-      // We'll test the happy path with a full game flow instead
-    }
+    const stateAfterStart = getState(store)
+    expect(stateAfterStart.phase).toBe('moving')
+    const firstPlayer = stateAfterStart.currentPlayer
+
+    // Make all available moves to use up the dice
+    const movesMade = makeAllAvailableMoves(store)
+    expect(movesMade).toBeGreaterThan(0)
+
+    // Now end the turn
+    const endTurnAction = store.dispatch(performEndTurn())
+    const endTurnResult = endTurnAction.meta.result!
+    expect(endTurnResult.ok).toBe(true)
+
+    // Should now be in rolling phase for the other player
+    const stateAfterEndTurn = getState(store)
+    expect(stateAfterEndTurn.phase).toBe('rolling')
+    expect(stateAfterEndTurn.currentPlayer).not.toBe(firstPlayer)
+
+    // Now test performRollDice succeeds
+    const rollAction = store.dispatch(performRollDice())
+    const rollResult = rollAction.meta.result!
+
+    expect(rollResult.ok).toBe(true)
+    if (!rollResult.ok) return
+
+    // Verify the result contains dice values
+    expect(rollResult.value.diceRoll.die1).toBeGreaterThanOrEqual(1)
+    expect(rollResult.value.diceRoll.die1).toBeLessThanOrEqual(6)
+    expect(rollResult.value.diceRoll.die2).toBeGreaterThanOrEqual(1)
+    expect(rollResult.value.diceRoll.die2).toBeLessThanOrEqual(6)
+
+    // Verify state transitioned to moving phase
+    const stateAfterRoll = getState(store)
+    expect(stateAfterRoll.phase).toBe('moving')
+    expect(stateAfterRoll.diceRoll).toEqual(rollResult.value.diceRoll)
+    expect(stateAfterRoll.remainingMoves.length).toBeGreaterThan(0)
   })
 })
 
@@ -189,36 +283,61 @@ describe('performMove', () => {
   it('should succeed with a valid move', () => {
     store.dispatch(performStartGame())
 
-    const state = getState(store)
-    if (!state.diceRoll) return
+    const stateBefore = getState(store)
+    expect(stateBefore.diceRoll).not.toBeNull()
+    expect(stateBefore.currentPlayer).not.toBeNull()
 
-    // Get a valid move from the available moves
-    // The starting position always has moves available
-    const player = state.currentPlayer!
-    const dice = [state.diceRoll.die1, state.diceRoll.die2]
+    // Get an actual valid move from the rules engine
+    const move = getFirstValidMove(stateBefore)
+    expect(move).not.toBeNull()
+    if (!move) return
 
-    // White starts from high points, black from low points
-    let from: number
-    let dieUsed: DieValue
+    const remainingMovesBefore = [...stateBefore.remainingMoves]
+    const boardBefore = stateBefore.board
 
-    if (player === 'white') {
-      // White has checkers on points 24, 13, 8, 6
-      from = 24
-      dieUsed = dice[0]
-    } else {
-      // Black has checkers on points 1, 12, 17, 19
-      from = 1
-      dieUsed = dice[0]
+    // Execute the move
+    const action = store.dispatch(performMove(move))
+    const result = action.meta.result!
+
+    // Verify the operation succeeded
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    // Verify the result contains expected data
+    expect(result.value.move).toEqual(move)
+    expect(typeof result.value.hit).toBe('boolean')
+    expect(Array.isArray(result.value.remainingMoves)).toBe(true)
+    expect(Array.isArray(result.value.validMoves)).toBe(true)
+
+    // Verify state was updated correctly
+    const stateAfter = getState(store)
+
+    // Remaining moves should have one fewer die value
+    expect(stateAfter.remainingMoves.length).toBe(
+      remainingMovesBefore.length - 1
+    )
+
+    // The move should be recorded in movesThisTurn
+    expect(stateAfter.movesThisTurn).toContainEqual(move)
+
+    // Board should have changed - checker moved from source
+    const fromIndex = move.from - 1
+    const toIndex = move.to - 1
+    const player = stateBefore.currentPlayer!
+    const direction = player === 'white' ? 1 : -1
+
+    // Source point should have one fewer checker
+    expect(Math.abs(stateAfter.board.points[fromIndex])).toBe(
+      Math.abs(boardBefore.points[fromIndex]) - 1
+    )
+
+    // Destination point should have one more checker (unless bearing off)
+    if (move.to >= 1 && move.to <= 24) {
+      const destValueBefore = boardBefore.points[toIndex]
+      const destValueAfter = stateAfter.board.points[toIndex]
+      // Account for hitting: if opponent had a blot, it's now our checker
+      expect(destValueAfter * direction).toBeGreaterThan(0)
     }
-
-    const to = player === 'white' ? from - dieUsed : from + dieUsed
-
-    const action = store.dispatch(performMove({ from, to, dieUsed }))
-    const result = action.meta.result
-
-    // This might fail if the specific move isn't valid, but the test
-    // should at least verify the error handling is proper
-    expect(result).toBeDefined()
   })
 })
 
@@ -277,31 +396,51 @@ describe('Full Game Flow', () => {
     expect(state.phase).toBe('moving')
     expect(state.currentPlayer).not.toBeNull()
 
-    // Try to make moves until we can end turn or have no more moves
-    let moveCount = 0
-    const maxMoves = 4 // Maximum possible moves (doubles)
+    const firstPlayer = state.currentPlayer
+    const initialTurnNumber = state.turnNumber
 
-    while (moveCount < maxMoves) {
-      state = getState(store)
-      if (state.remainingMoves.length === 0) break
+    // Make all available moves
+    const movesMade = makeAllAvailableMoves(store)
+    expect(movesMade).toBeGreaterThan(0)
 
-      // Get valid moves from the state
-      // Since we can't easily import getValidMoves without circular deps,
-      // we'll just verify that the state transitions correctly
-
-      moveCount++
-
-      // Break out to avoid infinite loop in test
-      if (moveCount > maxMoves) break
-
-      // In a real test, we'd make actual valid moves
-      // For this integration test, we verify the state machine works
-      break
-    }
-
-    // The game should still be functioning
     state = getState(store)
-    expect(['moving', 'rolling', 'game_over']).toContain(state.phase)
+    expect(state.remainingMoves.length).toBe(0)
+    expect(state.movesThisTurn.length).toBe(movesMade)
+
+    // End turn
+    const endTurnAction = store.dispatch(performEndTurn())
+    const endTurnResult = endTurnAction.meta.result!
+    expect(endTurnResult.ok).toBe(true)
+
+    state = getState(store)
+    expect(state.phase).toBe('rolling')
+    expect(state.currentPlayer).not.toBe(firstPlayer)
+    expect(state.turnNumber).toBe(initialTurnNumber + 1)
+    expect(state.movesThisTurn.length).toBe(0) // Reset for new turn
+
+    // Roll dice for second player
+    const rollAction = store.dispatch(performRollDice())
+    const rollResult = rollAction.meta.result!
+    expect(rollResult.ok).toBe(true)
+
+    state = getState(store)
+    expect(state.phase).toBe('moving')
+    expect(state.diceRoll).not.toBeNull()
+    expect(state.remainingMoves.length).toBeGreaterThan(0)
+
+    // Make moves for second player
+    const secondPlayerMoves = makeAllAvailableMoves(store)
+    expect(secondPlayerMoves).toBeGreaterThan(0)
+
+    // End second player's turn
+    const endTurn2Action = store.dispatch(performEndTurn())
+    const endTurn2Result = endTurn2Action.meta.result!
+    expect(endTurn2Result.ok).toBe(true)
+
+    state = getState(store)
+    expect(state.phase).toBe('rolling')
+    expect(state.currentPlayer).toBe(firstPlayer) // Back to first player
+    expect(state.turnNumber).toBe(initialTurnNumber + 2)
   })
 
   it('should reset game state', () => {
@@ -384,17 +523,51 @@ describe('Sync Thunk Middleware', () => {
     // The middleware should have executed and stored the result
     expect(action.meta).toHaveProperty('result')
     expect(action.meta.result).toBeDefined()
+
+    // Verify the result is a proper Result type (has ok property)
+    const result = action.meta.result!
+    expect(typeof result.ok).toBe('boolean')
+
+    // For performStartGame, result should be successful
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value).toHaveProperty('firstPlayer')
+      expect(result.value).toHaveProperty('diceRoll')
+      expect(result.value).toHaveProperty('validMoves')
+    }
   })
 
   it('should pass action through to reducer after middleware', () => {
     const store = createTestStore()
 
     // State should be 'not_started' before
-    expect(getState(store).phase).toBe('not_started')
+    const stateBefore = getState(store)
+    expect(stateBefore.phase).toBe('not_started')
+    expect(stateBefore.currentPlayer).toBeNull()
+    expect(stateBefore.diceRoll).toBeNull()
 
     store.dispatch(performStartGame())
 
     // State should be updated by the reducer after middleware executes
-    expect(getState(store).phase).toBe('moving')
+    const stateAfter = getState(store)
+    expect(stateAfter.phase).toBe('moving')
+    expect(stateAfter.currentPlayer).not.toBeNull()
+    expect(stateAfter.diceRoll).not.toBeNull()
+    expect(stateAfter.turnNumber).toBe(1)
+  })
+
+  it('should store error result when operation fails', () => {
+    const store = createTestStore()
+
+    // Try to roll dice without starting a game (should fail)
+    const action = store.dispatch(performRollDice())
+    const result = action.meta.result!
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toHaveProperty('type')
+      expect(result.error).toHaveProperty('message')
+      expect(result.error.type).toBe('no_game')
+    }
   })
 })
