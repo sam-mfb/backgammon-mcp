@@ -4,7 +4,7 @@
  * Renders the game state as ASCII text for display in text-only contexts.
  */
 
-import type { BoardState, GameState, Player } from '../game/types'
+import type { GameState } from '@backgammon/game'
 
 // =============================================================================
 // Constants

@@ -1,4 +1,4 @@
-import type { GameState, Player, PointIndex, MoveTo } from '@/game'
+import type { GameState, Player, PointIndex, MoveTo } from '@backgammon/game'
 import { GameInfo } from './components/GameInfo'
 import { BoardSurface } from './components/BoardSurface'
 import { Controls } from './components/Controls'

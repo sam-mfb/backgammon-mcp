@@ -2,75 +2,120 @@
 
 This document describes the current architecture of the backgammon-mcp project. It is updated as implementation progresses.
 
-**Last Updated**: After Stage 3 (MCP Server - LLM Tool-Only)
+**Last Updated**: After Stage 3 (MCP Server - LLM Tool-Only) + Monorepo Migration
 
 ---
 
 ## Current Directory Structure
 
+The project is organized as a **pnpm workspace monorepo** with four packages:
+
 ```
 backgammon-mcp/
-├── src/
-│   ├── game/                    # Core game logic (shared)
-│   │   ├── types.ts             # Type definitions
-│   │   ├── gameSlice.ts         # Redux state management
-│   │   ├── rules.ts             # Move validation, legal moves
-│   │   ├── index.ts             # Public exports
-│   │   └── __tests__/
-│   │       ├── rules.test.ts    # 54 comprehensive tests
-│   │       └── testUtils.ts     # Test helpers
+├── packages/
+│   ├── game/                      # @backgammon/game - Core game logic
+│   │   ├── src/
+│   │   │   ├── types.ts           # Type definitions
+│   │   │   ├── gameSlice.ts       # Redux state management
+│   │   │   ├── rules.ts           # Move validation, legal moves
+│   │   │   ├── index.ts           # Public exports
+│   │   │   └── __tests__/
+│   │   │       ├── rules.test.ts  # 54 comprehensive tests
+│   │   │       └── testUtils.ts   # Test helpers
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   │
-│   ├── viewer/                  # Pure display components (shared)
-│   │   ├── BoardView.tsx        # Main board component with callbacks
-│   │   ├── BoardView.css        # All board styles
-│   │   ├── index.ts             # Public exports
-│   │   └── components/
-│   │       ├── Bar.tsx          # Bar display with click handlers
-│   │       ├── BoardSurface.tsx # Board layout orchestration
-│   │       ├── BorneOffArea.tsx # Borne-off area with click handlers
-│   │       ├── Checker.tsx      # Single checker display
-│   │       ├── Controls.tsx     # Roll Dice / End Turn buttons
-│   │       ├── DiceDisplay.tsx  # Dice value display
-│   │       ├── GameInfo.tsx     # Player, phase, turn info, winner
-│   │       ├── Point.tsx        # Board point with selection/click
-│   │       └── Quadrant.tsx     # Groups 6 points together
+│   ├── viewer/                    # @backgammon/viewer - React UI components
+│   │   ├── src/
+│   │   │   ├── BoardView.tsx      # Main board component with callbacks
+│   │   │   ├── BoardView.css      # All board styles
+│   │   │   ├── index.ts           # Public exports
+│   │   │   └── components/
+│   │   │       ├── Bar.tsx        # Bar display with click handlers
+│   │   │       ├── BoardSurface.tsx
+│   │   │       ├── BorneOffArea.tsx
+│   │   │       ├── Checker.tsx
+│   │   │       ├── Controls.tsx
+│   │   │       ├── DiceDisplay.tsx
+│   │   │       ├── GameInfo.tsx
+│   │   │       ├── Point.tsx
+│   │   │       └── Quadrant.tsx
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   │
-│   ├── app/                     # Couch Play mode
-│   │   ├── main.tsx             # Vite entry point
-│   │   ├── App.tsx              # Redux provider wrapper
-│   │   ├── CouchGame.tsx        # Two-player local game logic
-│   │   ├── store.ts             # Redux store configuration
-│   │   └── index.css            # Global and CouchGame styles
+│   ├── web-app/                   # @backgammon/web-app - Browser app (Couch Play)
+│   │   ├── src/
+│   │   │   ├── main.tsx           # Vite entry point
+│   │   │   ├── App.tsx            # Redux provider wrapper
+│   │   │   ├── CouchGame.tsx      # Two-player local game logic
+│   │   │   ├── store.ts           # Redux store configuration
+│   │   │   └── index.css          # Global and CouchGame styles
+│   │   ├── index.html
+│   │   ├── vite.config.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   │
-│   └── mcp-server/              # MCP Server (LLM Tool-Only mode)
-│       ├── server.ts            # MCP server setup, tool registration
-│       ├── gameManager.ts       # Server-side game state management
-│       ├── asciiBoard.ts        # Text board rendering for LLM
-│       └── index.ts             # Public exports
+│   └── mcp-server/                # @backgammon/mcp-server - MCP Server
+│       ├── src/
+│       │   ├── server.ts          # MCP server setup, tool registration
+│       │   ├── gameManager.ts     # Server-side game state management
+│       │   ├── asciiBoard.ts      # Text board rendering for LLM
+│       │   └── index.ts           # Public exports
+│       ├── package.json
+│       └── tsconfig.json
 │
 ├── docs/
-│   ├── BACKGAMMON_RULES.md      # Game rules reference
-│   ├── IMPLEMENTATION_PLAN.md   # Staged implementation plan
-│   └── ARCHITECTURE.md          # This file
+│   ├── BACKGAMMON_RULES.md        # Game rules reference
+│   ├── IMPLEMENTATION_PLAN.md     # Staged implementation plan
+│   ├── MCP_APPS_SPEC.md           # MCP Apps specification reference
+│   └── ARCHITECTURE.md            # This file
 │
 ├── tests/
-│   └── setup.ts                 # Vitest setup
+│   └── setup.ts                   # Vitest setup
 │
-├── vite.config.ts               # Vite configuration
-├── vitest.config.ts             # Vitest configuration
-├── tsconfig.json                # TypeScript configuration
-└── package.json
+├── pnpm-workspace.yaml            # Workspace configuration
+├── vitest.config.ts               # Root Vitest configuration
+├── tsconfig.json                  # Root TypeScript configuration
+└── package.json                   # Root workspace scripts
+```
+
+### Package Dependencies
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   @backgammon/game                          │
+│         (types, rules, gameSlice - pure TypeScript)         │
+│              Dependencies: @reduxjs/toolkit                 │
+└──────────────────┬──────────────────────────────────────────┘
+                   │ (imports)
+         ┌─────────┴──────────────┬────────────────┐
+         │                        │                │
+         ▼                        ▼                ▼
+    ┌────────────┐         ┌────────────┐    ┌──────────────┐
+    │@backgammon │         │@backgammon │    │ @backgammon  │
+    │  /viewer   │         │  /web-app  │    │ /mcp-server  │
+    │            │         │            │    │              │
+    │ React UI   │         │ Redux store│    │ MCP SDK, Zod │
+    │ components │         │ + app logic│    │              │
+    └────────────┘         └────────────┘    └──────────────┘
+         ▲                      │
+         └──────────────────────┘
+           (web-app imports viewer)
 ```
 
 ---
 
 ## Module Descriptions
 
-### `src/game/` - Core Game Logic
+### `@backgammon/game` - Core Game Logic
 
-Pure TypeScript module with no React or UI dependencies. Can be used by any consumer (browser app, MCP server, tests).
+**Package**: `packages/game/`
 
-#### `types.ts`
+Pure TypeScript module with no React or UI dependencies. Can be used by any consumer (browser app, MCP server, tests). Contains Redux Toolkit for state management (slice, actions, selectors).
+
+**Dependencies**: `@reduxjs/toolkit`
+
+#### `src/types.ts`
 
 Defines all game-related types using discriminated unions and string literals (no enums per coding standards):
 
@@ -89,9 +134,9 @@ Defines all game-related types using discriminated unions and string literals (n
 | `AvailableMoves` | Valid moves from a source: `{ from, destinations[] }` |
 | `GameResult` | Winner and victory type |
 
-#### `gameSlice.ts`
+#### `src/gameSlice.ts`
 
-Redux Toolkit slice managing game state transitions:
+Redux Toolkit slice managing game state transitions. Defines a local `RootState` type (`{ game: GameState }`) for selectors, allowing the slice to be used independently while apps configure their own store:
 
 **Actions:**
 - `startGame()` - Transition to `rolling_for_first` phase
@@ -107,7 +152,7 @@ Redux Toolkit slice managing game state transitions:
 - Direct: `selectBoard`, `selectCurrentPlayer`, `selectPhase`, `selectDiceRoll`, etc.
 - Derived: `selectCanRoll`, `selectCanMove`, `selectIsGameOver`, `selectIsDoubles`
 
-#### `rules.ts`
+#### `src/rules.ts`
 
 Core game rules engine with comprehensive validation:
 
@@ -128,11 +173,15 @@ Core game rules engine with comprehensive validation:
 
 ---
 
-### `src/viewer/` - Display Components
+### `@backgammon/viewer` - Display Components
+
+**Package**: `packages/viewer/`
 
 Pure React components that receive all state as props and emit actions via callbacks. No knowledge of Redux or game orchestration.
 
-#### `BoardView.tsx`
+**Dependencies**: `@backgammon/game` (types only), `react`
+
+#### `src/BoardView.tsx`
 
 Main component that composes the board display.
 
@@ -200,11 +249,15 @@ All styles in `BoardView.css` using BEM-like naming:
 
 ---
 
-### `src/app/` - Couch Play Mode
+### `@backgammon/web-app` - Couch Play Mode
 
-Browser application for two players on one device.
+**Package**: `packages/web-app/`
 
-#### `CouchGame.tsx`
+Browser application for two players on one device. Composes the Redux store and connects game logic to the viewer.
+
+**Dependencies**: `@backgammon/game`, `@backgammon/viewer`, `@reduxjs/toolkit`, `react`, `react-dom`, `react-redux`
+
+#### `src/CouchGame.tsx`
 
 Main game orchestration component.
 
@@ -231,29 +284,37 @@ Main game orchestration component.
 - Local React state holds selection (`selectedSource`, `validDestinations`)
 - `useEffect` hooks compute valid moves and check game over
 
-#### `store.ts`
+#### `src/store.ts`
+
+Configures the Redux store, importing `gameReducer` from `@backgammon/game`:
 
 ```typescript
-const store = configureStore({
+import { configureStore } from '@reduxjs/toolkit'
+import { gameReducer } from '@backgammon/game'
+
+export const store = configureStore({
   reducer: {
     game: gameReducer,
   },
 })
+
+export type RootState = ReturnType<typeof store.getState>
+export type AppDispatch = typeof store.dispatch
 ```
 
 ---
 
-### `src/mcp-server/` - MCP Server (LLM Tool-Only)
+### `@backgammon/mcp-server` - MCP Server (LLM Tool-Only)
+
+**Package**: `packages/mcp-server/`
 
 MCP server that exposes backgammon game tools for text-based LLM interaction. Uses stdio transport for communication with MCP hosts.
 
-#### `server.ts`
+**Dependencies**: `@backgammon/game`, `@modelcontextprotocol/sdk`, `zod`
+
+#### `src/server.ts`
 
 Main entry point that sets up the MCP server and registers all tools.
-
-**Dependencies:**
-- `@modelcontextprotocol/sdk` - Official MCP TypeScript SDK
-- `zod` - Schema validation for tool inputs
 
 **Tools Registered:**
 
@@ -268,7 +329,7 @@ Main entry point that sets up the MCP server and registers all tools.
 
 **Transport:** stdio (communicates via stdin/stdout)
 
-#### `gameManager.ts`
+#### `src/gameManager.ts`
 
 Singleton module that holds the current game state and provides methods to manipulate it.
 
@@ -296,7 +357,7 @@ Uses discriminated union for clear error handling without exceptions.
 - Uses `game/types.ts` for type definitions
 - Maintains game history for context
 
-#### `asciiBoard.ts`
+#### `src/asciiBoard.ts`
 
 Renders game state as ASCII text for display in LLM tool results.
 
@@ -443,7 +504,7 @@ Valid moves are computed once when dice are rolled and stored in state. This:
 
 ### Test Coverage
 
-54 tests in `src/game/__tests__/rules.test.ts` covering:
+54 tests in `packages/game/src/__tests__/rules.test.ts` covering:
 
 | Category | Tests |
 |----------|-------|
@@ -459,15 +520,15 @@ Valid moves are computed once when dice are rolled and stored in state. This:
 
 ### Test Utilities
 
-`testUtils.ts` provides:
+`packages/game/src/__tests__/testUtils.ts` provides:
 - `createGameState(overrides)` - Factory for test states
 - `createBoardWithCheckers(positions)` - Build specific board positions
 
 ### Running Tests
 
 ```bash
-npm test        # Watch mode
-npm test -- --run  # Single run
+pnpm test        # Watch mode
+pnpm test:run    # Single run
 ```
 
 ---
@@ -476,22 +537,38 @@ npm test -- --run  # Single run
 
 ### Stage 4: MCP App
 
+A new package `@backgammon/mcp-app` will be added:
+
 ```
-src/mcp-app/
-├── mcp-app.html        # Entry point
-├── mcp-app.ts          # Host communication
-├── McpBoardView.tsx    # Wrapper with tool calls
-└── vite.config.ts      # Single-file bundle
+packages/mcp-app/
+├── src/
+│   ├── mcp-app.html        # Entry point
+│   ├── mcp-app.ts          # Host communication
+│   └── McpBoardView.tsx    # Wrapper with tool calls
+├── vite.config.ts          # Single-file bundle
+├── package.json
+└── tsconfig.json
 ```
 
 ---
 
 ## Commands
 
+All commands use **pnpm** and are run from the workspace root:
+
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start Couch Play mode (Vite dev server) |
-| `npm run mcp` | Start MCP server (LLM Tool-Only mode, stdio transport) |
-| `npm run build` | Build for production |
-| `npm test` | Run tests in watch mode |
-| `npm run test:run` | Run tests once |
+| `pnpm dev` | Start Couch Play mode (Vite dev server) |
+| `pnpm mcp` | Start MCP server (LLM Tool-Only mode, stdio transport) |
+| `pnpm build` | Build all packages |
+| `pnpm test` | Run tests in watch mode |
+| `pnpm test:run` | Run tests once |
+
+### Package-Specific Commands
+
+```bash
+# Run commands in specific packages
+pnpm --filter @backgammon/game build
+pnpm --filter @backgammon/web-app dev
+pnpm --filter @backgammon/mcp-server start
+```

@@ -1,0 +1,20 @@
+{
+  "name": "@backgammon/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "start": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "@backgammon/game": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "zod": "^3.25.0"
+  }
+}

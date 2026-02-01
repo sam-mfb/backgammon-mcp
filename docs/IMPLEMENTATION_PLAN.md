@@ -4,7 +4,7 @@
 
 This document describes the architecture and staged implementation plan for a backgammon game that supports three play modes:
 
-1. **Couch Play**: Two humans play locally via `npm run dev` — pass the device back and forth
+1. **Couch Play**: Two humans play locally via `pnpm dev` — pass the device back and forth
 
 2. **LLM Tool-Only**: Human plays against an LLM using MCP tools, text-based interaction
    - LLM displays board state as ASCII art in chat
@@ -29,97 +29,126 @@ This document describes the architecture and staged implementation plan for a ba
 
 ### Directory Structure
 
+The project uses a **pnpm workspace monorepo** with separate packages:
+
 ```
 backgammon-mcp/
-├── src/
-│   ├── game/                    # Core game logic (shared)
-│   │   ├── types.ts             # Type definitions
-│   │   ├── gameSlice.ts         # State management (Redux-style)
-│   │   ├── rules.ts             # Move validation, legal moves
-│   │   └── index.ts
+├── packages/
+│   ├── game/                      # @backgammon/game - Core game logic
+│   │   ├── src/
+│   │   │   ├── types.ts           # Type definitions
+│   │   │   ├── gameSlice.ts       # State management (Redux slice)
+│   │   │   ├── rules.ts           # Move validation, legal moves
+│   │   │   ├── index.ts
+│   │   │   └── __tests__/         # Game logic tests
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   │
-│   ├── viewer/                  # Pure display components (shared)
-│   │   ├── BoardView.tsx        # Main board component
-│   │   ├── BoardView.css        # Styles
-│   │   ├── components/          # Sub-components
-│   │   └── index.ts
+│   ├── viewer/                    # @backgammon/viewer - React display components
+│   │   ├── src/
+│   │   │   ├── BoardView.tsx      # Main board component
+│   │   │   ├── BoardView.css      # Styles
+│   │   │   ├── components/        # Sub-components
+│   │   │   └── index.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   │
-│   ├── app/                     # Couch Play mode
-│   │   ├── main.tsx             # Entry point
-│   │   ├── App.tsx              # Redux provider
-│   │   ├── CouchGame.tsx        # Two-player local game
-│   │   ├── store.ts             # Redux store
-│   │   └── index.css
+│   ├── web-app/                   # @backgammon/web-app - Couch Play mode
+│   │   ├── src/
+│   │   │   ├── main.tsx           # Entry point
+│   │   │   ├── App.tsx            # Redux provider
+│   │   │   ├── CouchGame.tsx      # Two-player local game
+│   │   │   ├── store.ts           # Redux store configuration
+│   │   │   └── index.css
+│   │   ├── index.html
+│   │   ├── vite.config.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   │
-│   ├── mcp-server/              # MCP Server (tools + game state)
-│   │   ├── server.ts            # MCP server setup, tool registration
-│   │   ├── gameManager.ts       # Server-side game state management
-│   │   ├── tools/               # Individual tool implementations
-│   │   │   ├── startGame.ts
-│   │   │   ├── rollDice.ts
-│   │   │   ├── makeMove.ts
-│   │   │   ├── endTurn.ts
-│   │   │   ├── getGameState.ts
-│   │   │   └── getRules.ts      # Fetch rules for LLM reference
-│   │   └── index.ts
+│   ├── mcp-server/                # @backgammon/mcp-server - MCP Server
+│   │   ├── src/
+│   │   │   ├── server.ts          # MCP server setup, tool registration
+│   │   │   ├── gameManager.ts     # Server-side game state management
+│   │   │   ├── asciiBoard.ts      # Text board rendering
+│   │   │   └── index.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   │
-│   └── mcp-app/                 # MCP App UI (renders in MCP host)
-│       ├── mcp-app.html         # HTML entry point
-│       ├── mcp-app.ts           # App class integration
-│       ├── McpBoardView.tsx     # Board + interactive controls
-│       └── vite.config.ts       # Bundles to single HTML file
+│   └── mcp-app/                   # @backgammon/mcp-app - MCP App UI (future)
+│       ├── src/
+│       │   ├── mcp-app.html       # HTML entry point
+│       │   ├── mcp-app.ts         # App class integration
+│       │   └── McpBoardView.tsx   # Board + interactive controls
+│       ├── vite.config.ts         # Bundles to single HTML file
+│       ├── package.json
+│       └── tsconfig.json
 │
-├── vite.config.ts               # Config for couch play app
-├── package.json
-└── tsconfig.json
+├── docs/                          # Documentation
+├── tests/                         # Root test setup
+├── pnpm-workspace.yaml            # Workspace configuration
+├── vitest.config.ts               # Root test configuration
+├── tsconfig.json                  # Root TypeScript configuration
+└── package.json                   # Root workspace scripts
 ```
 
-### Dependency Flow
+### Dependency Flow (Workspace Packages)
 
 ```
-                    ┌─────────────────┐
-                    │     game/       │
-                    │  (types, rules, │
-                    │   state logic)  │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-              ▼              ▼              ▼
-      ┌───────────┐  ┌─────────────┐  ┌───────────┐
-      │  viewer/  │  │ mcp-server/ │  │           │
-      │  (React   │  │ (tools,     │  │           │
-      │   board)  │  │  game mgr)  │  │           │
-      └─────┬─────┘  └─────────────┘  │           │
-            │                         │           │
-     ┌──────┴──────┐                  │           │
-     │             │                  │           │
-     ▼             ▼                  │           │
-┌─────────┐  ┌──────────┐             │           │
-│  app/   │  │ mcp-app/ │◄────────────┘           │
-│ (couch) │  │ (claude) │                         │
-└─────────┘  └──────────┘                         │
-                  │                               │
-                  │     ┌─────────────────────────┘
-                  │     │
-                  ▼     ▼
-            ┌─────────────┐
-            │ MCP Server  │
-            │ (HTTP/MCP)  │
-            └─────────────┘
+                    ┌──────────────────────┐
+                    │   @backgammon/game   │
+                    │  (types, rules,      │
+                    │   gameSlice)         │
+                    │  @reduxjs/toolkit    │
+                    └──────────┬───────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+              ▼                ▼                ▼
+      ┌──────────────┐  ┌─────────────┐  ┌──────────────┐
+      │ @backgammon/ │  │ @backgammon/│  │ @backgammon/ │
+      │   viewer     │  │  mcp-server │  │   mcp-app    │
+      │  (React UI)  │  │ (MCP tools) │  │  (future)    │
+      └──────┬───────┘  └─────────────┘  └──────────────┘
+             │                                  │
+             ▼                                  │
+      ┌──────────────┐                          │
+      │ @backgammon/ │                          │
+      │   web-app    │◄─────────────────────────┘
+      │ (Redux store │    (mcp-app will also
+      │  + Couch UI) │     use viewer)
+      └──────────────┘
+```
+
+Each package declares its workspace dependencies in `package.json`:
+
+```json
+// packages/viewer/package.json
+{
+  "dependencies": {
+    "@backgammon/game": "workspace:*"
+  }
+}
+
+// packages/web-app/package.json
+{
+  "dependencies": {
+    "@backgammon/game": "workspace:*",
+    "@backgammon/viewer": "workspace:*"
+  }
+}
 ```
 
 ### Key Design Principles
 
-1. **`game/` is pure logic**: No React, no MCP, no side effects. Just types, state transitions, and rule validation.
+1. **`@backgammon/game` is pure logic**: No React, no MCP, no side effects. Just types, state transitions, rule validation, and Redux slice. Contains `@reduxjs/toolkit` as a dependency.
 
-2. **`viewer/` is pure display**: Receives `GameState` as props, renders board. No knowledge of how state is managed.
+2. **`@backgammon/viewer` is pure display**: Receives `GameState` as props, renders board. No knowledge of how state is managed. Only imports types from `game`.
 
-3. **`app/` owns couch-play orchestration**: Redux store, turn management for two local players, passes state to viewer.
+3. **`@backgammon/web-app` owns couch-play orchestration**: Configures Redux store, manages turn flow for two local players, composes viewer with game logic.
 
-4. **`mcp-server/` owns LLM-play orchestration**: Holds authoritative game state, exposes tools, validates moves.
+4. **`@backgammon/mcp-server` owns LLM-play orchestration**: Holds authoritative game state, exposes tools, validates moves. Imports rules and types from `game`.
 
-5. **`mcp-app/` is a thin UI shell**: Receives state from tool results, renders viewer, sends user actions as tool calls.
+5. **`@backgammon/mcp-app` (future) is a thin UI shell**: Receives state from tool results, renders viewer, sends user actions as tool calls.
 
 ### MCP Apps Specification Compliance
 
@@ -146,7 +175,7 @@ Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Browser (npm run dev)                                   │
+│  Browser (pnpm dev)                                      │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐  │
 │  │  App.tsx (Redux Provider)                          │  │
@@ -477,7 +506,7 @@ Create `src/game/__tests__/testUtils.ts`:
 
 **Verification:**
 
-- `npm test` runs all game logic tests
+- `pnpm test` runs all game logic tests
 - 100% coverage of `rules.ts`
 - All rule edge cases documented and tested
 - No UI code touched in this stage
@@ -486,7 +515,7 @@ Create `src/game/__tests__/testUtils.ts`:
 
 ### Stage 2: Interactive Viewer & Couch Play ✅ COMPLETED
 
-**Goal**: Two players can play a complete game locally via `npm run dev`, with full click-based interaction.
+**Goal**: Two players can play a complete game locally via `pnpm dev`, with full click-based interaction.
 
 **Changes to `viewer/`:**
 
@@ -539,7 +568,7 @@ Create `src/game/__tests__/testUtils.ts`:
 
 **Verification:**
 
-- Run `npm run dev`
+- Run `pnpm dev`
 - Two people can play a full game
 - Click checker to select, click destination to move
 - Invalid moves rejected (visual feedback)
@@ -640,8 +669,8 @@ Create `src/game/__tests__/testUtils.ts`:
 
 **Verification:**
 
-- Run `npm run serve:mcp:text`
-- Connect MCP host to `http://localhost:3001/mcp`
+- Run `pnpm mcp`
+- Connect MCP host to stdio server
 - Play a full game via chat commands
 - LLM can play its turns autonomously
 
@@ -697,20 +726,29 @@ Create `src/game/__tests__/testUtils.ts`:
    - Serve bundled HTML from `dist/mcp-app.html`
    - All game-modifying tools include `_meta.ui` (see "Hybrid Return Values" above)
 
-**Add npm scripts:**
+**Add workspace scripts:**
+
+The mcp-app package will have its own build configuration, and root scripts will orchestrate the build:
 
 ```json
+// packages/mcp-app/package.json
 {
   "scripts": {
-    "build:mcp-app": "INPUT=src/mcp-app/mcp-app.html vite build --config vite.config.mcp-app.ts",
-    "serve:mcp": "npm run build:mcp-app && tsx src/mcp-server/server.ts"
+    "build": "vite build --config vite.config.ts"
+  }
+}
+
+// Root package.json
+{
+  "scripts": {
+    "serve:mcp": "pnpm --filter @backgammon/mcp-app build && pnpm mcp"
   }
 }
 ```
 
 **Verification:**
 
-- Run `npm run serve:mcp`
+- Run `pnpm serve:mcp`
 - Connect MCP host to server
 - Say "Let's play backgammon"
 - Board renders in chat
@@ -732,16 +770,16 @@ Structure:
 2. **Quick Start** - Fastest way to get playing
 3. **Play Modes**
    - **Couch Play** - Two humans, one device
-     - `npm install && npm run dev`
+     - `pnpm install && pnpm dev`
      - Open browser, pass device back and forth
    - **LLM Tool-Only** - Play via chat with ASCII board
-     - `npm install && npm run serve:mcp:text`
+     - `pnpm install && pnpm mcp`
      - Add as MCP server in your host
      - Commands: "roll", "move 8 to 5", "end turn"
      - Works with any MCP client
      - Good for experimenting or clients without MCP App support
    - **LLM MCP App** - Interactive graphical board in chat
-     - `npm install && npm run serve:mcp`
+     - `pnpm install && pnpm serve:mcp`
      - Add as MCP server in your host
      - Board renders in chat, click to play
      - Requires MCP App-compatible host (Claude Desktop, claude.ai, VS Code Insiders, etc.)
@@ -750,12 +788,13 @@ Structure:
 6. **Development** - How to contribute, run tests
 7. **License**
 
-**Update `package.json`:**
+**Root `package.json` scripts:**
 
 ```json
 {
   "name": "backgammon-mcp",
   "version": "1.0.0",
+  "private": true,
   "description": "Play backgammon locally or against an LLM via MCP",
   "keywords": ["backgammon", "mcp", "claude", "game"],
   "license": "MIT",
@@ -764,19 +803,14 @@ Structure:
     "url": "https://github.com/USER/backgammon-mcp"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:mcp-app": "INPUT=src/mcp-app/mcp-app.html vite build --config vite.config.mcp-app.ts",
-    "serve:mcp": "npm run build:mcp-app && tsx src/mcp-server/server.ts",
-    "serve:mcp:text": "tsx src/mcp-server/server.ts",
+    "dev": "pnpm --filter @backgammon/web-app dev",
+    "build": "pnpm -r build",
+    "mcp": "pnpm --filter @backgammon/mcp-server start",
+    "serve:mcp": "pnpm --filter @backgammon/mcp-app build && pnpm mcp",
     "test": "vitest",
     "test:run": "vitest run",
-    "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
-  },
-  "files": ["dist/", "src/mcp-server/", "src/game/", "README.md"],
-  "bin": {
-    "backgammon-mcp": "./bin/serve.js"
+    "lint": "eslint packages/",
+    "typecheck": "pnpm -r build"
   }
 }
 ```
@@ -808,62 +842,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run test:run
-      - run: npm run build
-      - run: npm run build:mcp-app
+          cache: "pnpm"
+      - run: pnpm install
+      - run: pnpm build
+      - run: pnpm test:run
 ```
 
-**Create `.github/workflows/release.yml`:**
+**Final pnpm scripts summary:**
 
-```yaml
-name: Release
-
-on:
-  push:
-    tags:
-      - "v*"
-
-jobs:
-  publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-      - run: npm ci
-      - run: npm run build
-      - run: npm run build:mcp-app
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-```
-
-**Final npm scripts summary:**
-
-| Command                  | Description                         |
-| ------------------------ | ----------------------------------- |
-| `npm run dev`            | Couch play mode (local browser)     |
-| `npm run serve:mcp`      | MCP server with graphical app       |
-| `npm run serve:mcp:text` | MCP server text-only (no app build) |
-| `npm test`               | Run unit tests                      |
-| `npm run build`          | Build couch play for production     |
-| `npm run build:mcp-app`  | Build MCP App HTML bundle           |
+| Command            | Description                         |
+| ------------------ | ----------------------------------- |
+| `pnpm dev`         | Couch play mode (local browser)     |
+| `pnpm mcp`         | MCP server (stdio transport)        |
+| `pnpm serve:mcp`   | MCP server with graphical app       |
+| `pnpm test`        | Run unit tests (watch mode)         |
+| `pnpm test:run`    | Run unit tests (single run)         |
+| `pnpm build`       | Build all packages                  |
 
 **Verification:**
 
-- Clone fresh repo, `npm install`, each play mode works
-- `npm test` passes
+- Clone fresh repo, `pnpm install`, each play mode works
+- `pnpm test` passes
 - GitHub Actions CI passes on push
-- `npm publish` works (dry-run first)
 - README is clear and complete
 
 ---
@@ -872,16 +878,16 @@ jobs:
 
 | Stage | What's Built                    | How to Test                                 | Status    |
 | ----- | ------------------------------- | ------------------------------------------- | --------- |
-| 1     | Game rules + unit tests         | `npm test`                                  | ✅ Done   |
-| 2     | Interactive viewer + couch play | `npm run dev`, play a full game             | ✅ Done   |
-| 3     | MCP server (LLM tool-only)      | `npm run mcp`, connect MCP client           | ✅ Done   |
-| 4     | MCP App (LLM graphical)         | `npm run serve:mcp`, chat with UI           | ⬚ Pending |
+| 1     | Game rules + unit tests         | `pnpm test`                                 | ✅ Done   |
+| 2     | Interactive viewer + couch play | `pnpm dev`, play a full game                | ✅ Done   |
+| 3     | MCP server (LLM tool-only)      | `pnpm mcp`, connect MCP client              | ✅ Done   |
+| 4     | MCP App (LLM graphical)         | `pnpm serve:mcp`, chat with UI              | ⬚ Pending |
 | 5     | Packaging & deployment          | Fresh clone install, CI green, README clear | ⬚ Pending |
 
-Each stage builds on the previous. The core `game/` and `viewer/` modules remain decoupled and reusable across all three play modes:
+Each stage builds on the previous. The packages remain decoupled and reusable across all three play modes:
 
-| Mode          | Command                  | Description                            |
-| ------------- | ------------------------ | -------------------------------------- |
-| Couch Play    | `npm run dev`            | Two humans, one device, browser UI     |
-| LLM Tool-Only | `npm run serve:mcp:text` | Play vs LLM, ASCII board in chat       |
-| LLM MCP App   | `npm run serve:mcp`      | Play vs LLM, interactive board in chat |
+| Mode          | Command          | Description                            |
+| ------------- | ---------------- | -------------------------------------- |
+| Couch Play    | `pnpm dev`       | Two humans, one device, browser UI     |
+| LLM Tool-Only | `pnpm mcp`       | Play vs LLM, ASCII board in chat       |
+| LLM MCP App   | `pnpm serve:mcp` | Play vs LLM, interactive board in chat |

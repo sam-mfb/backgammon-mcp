@@ -17,16 +17,15 @@ import type {
   Player,
   PointIndex,
   Turn,
-} from '../game/types'
+} from '@backgammon/game'
 
 import {
   checkGameOver,
   createInitialBoard,
   getRequiredMoves,
   getValidMoves,
-  hasAnyLegalMoves,
   isValidMove,
-} from '../game/rules'
+} from '@backgammon/game'
 
 // =============================================================================
 // Types

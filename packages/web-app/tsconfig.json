@@ -16,6 +16,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vitest.config.ts", "tests/**/*"],
-  "exclude": ["node_modules", "packages"]
+  "include": ["src"]
 }
