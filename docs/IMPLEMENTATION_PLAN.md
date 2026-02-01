@@ -119,6 +119,22 @@ backgammon-mcp/
 
 5. **`mcp-app/` is a thin UI shell**: Receives state from tool results, renders viewer, sends user actions as tool calls.
 
+### MCP Apps Specification Compliance
+
+Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol/ui`):
+
+1. **No `app.updateContext()` method**: The LLM sees game state through **tool return values**, not a separate context push. All game-modifying tools must return ASCII board state in their `content` field.
+
+2. **Hybrid return values**: Every game tool returns both:
+   - Text content (ASCII board) for LLM visibility
+   - `_meta.ui` with resource URI for Host to refresh the App
+
+3. **MIME type**: UI resources must register with `mimeType: "text/html;profile=mcp-app"`
+
+4. **State sync for LLM-initiated calls**: When the LLM calls tools directly, the Host may not automatically push results to the App. The App should include a "Refresh" button that calls `get-state` as a fallback.
+
+5. **Official SDK**: Use `@modelcontextprotocol/ext-apps` for postMessage communication rather than implementing JSON-RPC manually.
+
 ---
 
 ## Part B: Communication Flows
@@ -254,9 +270,8 @@ backgammon-mcp/
 │  │  [Roll Dice]  [End Turn]                                        │ │
 │  │                                                                  │ │
 │  │  ─── Communication via postMessage ───                          │ │
-│  │  • ontoolresult: receives state updates                         │ │
-│  │  • callServerTool: sends user actions                           │ │
-│  │  • updateContext: pushes state for LLM to see                   │ │
+│  │  • ontoolresult: receives state updates from LLM tool calls     │ │
+│  │  • callServerTool: sends user actions to server                 │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 │                                                                       │
 │  User: "What's a good move here?"                                    │
@@ -307,8 +322,8 @@ User clicks point 5
 ```
 User says "your turn" or clicks [End Turn]
   → App: app.callServerTool({ name: "end-turn" })
-  → App: app.updateContext(gameState) // so LLM sees current position
-  → LLM: sees it's black's turn
+  → Tool returns ASCII board in content (LLM sees current position)
+  → LLM: sees it's black's turn from tool result
   → LLM: calls roll-dice → App updates (ontoolresult)
   → LLM: calls make-move → App updates (ontoolresult)
   → LLM: calls end-turn
@@ -319,7 +334,7 @@ User says "your turn" or clicks [End Turn]
 ```
 User types: "Should I hit or make a point?"
   → Normal chat, no tools
-  → LLM can see game state (from updateContext)
+  → LLM can see game state (from previous tool results which included ASCII board)
   → LLM responds with strategic advice
 ```
 
@@ -517,6 +532,20 @@ Create `src/game/__tests__/testUtils.ts`:
 
 **Create `src/mcp-server/`:**
 
+> **Important: Hybrid Return Values**
+>
+> All game-modifying tools (`startGame`, `rollDice`, `makeMove`, `endTurn`) MUST return both:
+> 1. **Text content**: ASCII board + game state summary (so LLM can see the position)
+> 2. **`_meta.ui`**: Resource URI pointing to `ui://backgammon/board` (to trigger UI refresh)
+>
+> This ensures the LLM always has visibility into game state regardless of whether the Host renders the MCP App UI. Example return structure:
+> ```typescript
+> return {
+>   content: [{ type: 'text', text: `${summary}\n\n${asciiBoard}` }],
+>   _meta: { ui: { uri: 'ui://backgammon/board' } }
+> }
+> ```
+
 1. `gameManager.ts`:
    - Singleton that holds current game state
    - Methods: `startGame()`, `rollDice()`, `makeMove()`, `endTurn()`, `getState()`
@@ -582,6 +611,10 @@ Create `src/game/__tests__/testUtils.ts`:
 
 **Use the `create-mcp-app` skill** to scaffold the MCP App structure.
 
+> **Important: Use Official SDK**
+>
+> Use `@modelcontextprotocol/ext-apps` (or equivalent official library) to handle the JSON-RPC communication over `postMessage`. Implementing this manually is error-prone. The SDK handles the exact `_meta.ui` structure expected by hosts.
+
 **Create `src/mcp-app/`:**
 
 1. `mcp-app.html`:
@@ -591,14 +624,16 @@ Create `src/game/__tests__/testUtils.ts`:
 2. `mcp-app.ts`:
    - Creates `App` instance from `@modelcontextprotocol/ext-apps`
    - Connects to host
-   - Sets up `ontoolresult` handler
+   - Sets up `ontoolresult` handler to update board state
    - Renders React app with state
+   - **Note**: `ontoolresult` fires for tool calls made by this App. For LLM-initiated tool calls, the Host may or may not push results to the App. The "Refresh" button (below) provides a fallback.
 
 3. `McpBoardView.tsx`:
    - Wraps `viewer/BoardView`
    - Manages selection state locally
    - On user actions, calls `app.callServerTool()`
    - Receives state updates via props (from ontoolresult)
+   - **Includes "Refresh" button**: Calls `get-state` tool as fallback if board appears stale (e.g., after LLM's turn doesn't auto-update)
 
 4. `vite.config.mcp-app.ts`:
    - Uses `vite-plugin-singlefile`
@@ -607,9 +642,18 @@ Create `src/game/__tests__/testUtils.ts`:
 **Update `src/mcp-server/`:**
 
 1. Update `server.ts`:
-   - Register UI resource: `ui://backgammon/board.html`
+   - Register UI resource with proper MIME type and metadata:
+     ```typescript
+     server.registerResource({
+       uri: 'ui://backgammon/board',
+       name: 'Backgammon Board',
+       description: 'Interactive backgammon game board',
+       mimeType: 'text/html;profile=mcp-app',
+       // ... handler returns bundled HTML
+     })
+     ```
    - Serve bundled HTML from `dist/mcp-app.html`
-   - Add `_meta.ui.resourceUri` to `start-game` tool
+   - All game-modifying tools include `_meta.ui` (see "Hybrid Return Values" above)
 
 **Add npm scripts:**
 ```json
