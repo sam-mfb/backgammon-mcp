@@ -2,10 +2,20 @@
 
 ## Overview
 
-This document describes the architecture and staged implementation plan for a backgammon game that supports two play modes:
+This document describes the architecture and staged implementation plan for a backgammon game that supports three play modes:
 
-1. **Couch Play**: Two humans play locally via `npm run dev`
-2. **LLM Play**: Human plays against Claude via MCP tools and an MCP App UI
+1. **Couch Play**: Two humans play locally via `npm run dev` — pass the device back and forth
+
+2. **LLM Tool-Only**: Human plays against an LLM using MCP tools, text-based interaction
+   - LLM displays board state as ASCII art in chat
+   - User types commands like "roll", "move 8 to 5"
+   - Works with any MCP client (no MCP App support required)
+   - Great for experimenting and clients that don't support MCP Apps yet
+
+3. **LLM MCP App**: Human plays against an LLM with an interactive graphical board
+   - Board renders directly in the chat as an MCP App
+   - User clicks to roll dice, select checkers, make moves
+   - Requires MCP App-compatible host (Claude Desktop, claude.ai, VS Code Insiders, etc.)
 
 ---
 
@@ -46,7 +56,7 @@ backgammon-mcp/
 │   │   │   └── getGameState.ts
 │   │   └── index.ts
 │   │
-│   └── mcp-app/                 # MCP App UI (renders in Claude)
+│   └── mcp-app/                 # MCP App UI (renders in MCP host)
 │       ├── mcp-app.html         # HTML entry point
 │       ├── mcp-app.ts           # App class integration
 │       ├── McpBoardView.tsx     # Board + interactive controls
@@ -151,14 +161,14 @@ backgammon-mcp/
 10. CouchGame dispatches `endTurn()`, switches to black
 11. Black player takes over (same device, different person)
 
-### Flow 2: LLM Play (Text-Only, No MCP App)
+### Flow 2: LLM Tool-Only (Text-Based, No MCP App)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Claude Desktop / claude.ai                                      │
+│  MCP Host (Claude Desktop, Cursor, etc.)                         │
 │                                                                  │
 │  User: "Let's play backgammon"                                  │
-│  Claude: "Starting a new game..." [calls start-game]            │
+│  LLM: "Starting a new game..." [calls start-game]               │
 │                                                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │  Tool Result (displayed as text/markdown)                 │  │
@@ -179,9 +189,9 @@ backgammon-mcp/
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  User: "roll"                                                   │
-│  Claude: [calls roll-dice] "You rolled 3-1."                   │
+│  LLM: [calls roll-dice] "You rolled 3-1."                      │
 │  User: "move 8 to 5"                                            │
-│  Claude: [calls make-move] "Moved. 1 remaining."               │
+│  LLM: [calls make-move] "Moved. 1 remaining."                  │
 │  ...                                                            │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -207,25 +217,25 @@ backgammon-mcp/
 ```
 
 **Turn Flow:**
-1. User says "roll" → Claude calls `roll-dice` tool
+1. User says "roll" → LLM calls `roll-dice` tool
 2. Tool returns dice values + valid moves in text
-3. User says "move 8 to 5" → Claude parses, calls `make-move`
+3. User says "move 8 to 5" → LLM parses, calls `make-move`
 4. Tool validates, applies move, returns updated board
-5. User says "done" → Claude calls `end-turn`
-6. Now it's Claude's turn (black)
-7. Claude autonomously calls `roll-dice`
-8. Claude reasons about position, calls `make-move` (possibly multiple)
-9. Claude calls `end-turn`
-10. Claude describes what it did, returns to user
+5. User says "done" → LLM calls `end-turn`
+6. Now it's the LLM's turn (black)
+7. LLM autonomously calls `roll-dice`
+8. LLM reasons about position, calls `make-move` (possibly multiple)
+9. LLM calls `end-turn`
+10. LLM describes what it did, returns to user
 
-### Flow 3: LLM Play with MCP App (Graphical)
+### Flow 3: LLM MCP App (Graphical)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Claude Desktop / claude.ai                                           │
+│  MCP Host (Claude Desktop, VS Code Insiders, etc.)                    │
 │                                                                       │
 │  User: "Let's play backgammon"                                       │
-│  Claude: [calls start-game tool]                                     │
+│  LLM: [calls start-game tool]                                        │
 │                                                                       │
 │  ┌─────────────────────────────────────────────────────────────────┐ │
 │  │  MCP App (sandboxed iframe)                                     │ │
@@ -241,17 +251,17 @@ backgammon-mcp/
 │  │  ─── Communication via postMessage ───                          │ │
 │  │  • ontoolresult: receives state updates                         │ │
 │  │  • callServerTool: sends user actions                           │ │
-│  │  • updateContext: pushes state for Claude to see                │ │
+│  │  • updateContext: pushes state for LLM to see                   │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 │                                                                       │
 │  User: "What's a good move here?"                                    │
-│  Claude: "With 3-1, you could make your 5-point..."                 │
+│  LLM: "With 3-1, you could make your 5-point..."                    │
 │                                                                       │
 │  [User clicks checker on point 8, then point 5 in the app]          │
 │  [Board updates automatically]                                       │
 │                                                                       │
 │  User: "Your turn"                                                   │
-│  Claude: [calls roll-dice] [calls make-move] "I rolled 6-4..."      │
+│  LLM: [calls roll-dice] [calls make-move] "I rolled 6-4..."         │
 │  [Board updates with each tool call via ontoolresult]               │
 └──────────────────────────────────────────────────────────────────────┘
                               │
@@ -288,24 +298,24 @@ User clicks point 5
   → App: ontoolresult fires, updates board
 ```
 
-**Claude takes turn:**
+**LLM takes turn:**
 ```
 User says "your turn" or clicks [End Turn]
   → App: app.callServerTool({ name: "end-turn" })
-  → App: app.updateContext(gameState) // so Claude sees current position
-  → Claude: sees it's black's turn
-  → Claude: calls roll-dice → App updates (ontoolresult)
-  → Claude: calls make-move → App updates (ontoolresult)
-  → Claude: calls end-turn
-  → Claude: describes its moves in chat
+  → App: app.updateContext(gameState) // so LLM sees current position
+  → LLM: sees it's black's turn
+  → LLM: calls roll-dice → App updates (ontoolresult)
+  → LLM: calls make-move → App updates (ontoolresult)
+  → LLM: calls end-turn
+  → LLM: describes its moves in chat
 ```
 
 **User asks strategy question:**
 ```
 User types: "Should I hit or make a point?"
   → Normal chat, no tools
-  → Claude can see game state (from updateContext)
-  → Claude responds with strategic advice
+  → LLM can see game state (from updateContext)
+  → LLM responds with strategic advice
 ```
 
 ---
@@ -481,9 +491,9 @@ Create `src/game/__tests__/testUtils.ts`:
 
 ---
 
-### Stage 3: MCP Server (Text-Only LLM Play)
+### Stage 3: MCP Server (LLM Tool-Only)
 
-**Goal**: Play backgammon with Claude via text, no graphical UI in chat.
+**Goal**: Play backgammon with an LLM via text, no graphical UI in chat.
 
 **Create `src/mcp-server/`:**
 
@@ -535,14 +545,14 @@ Create `src/game/__tests__/testUtils.ts`:
 ```
 
 **Verification:**
-- Run `npm run serve:mcp`
-- Connect Claude Desktop to `http://localhost:3001/mcp`
+- Run `npm run serve:mcp:text`
+- Connect MCP host to `http://localhost:3001/mcp`
 - Play a full game via chat commands
-- Claude can play its turns autonomously
+- LLM can play its turns autonomously
 
-### Stage 4: MCP App (Graphical LLM Play)
+### Stage 4: MCP App (LLM Graphical)
 
-**Goal**: Interactive board renders in Claude, user can click to play.
+**Goal**: Interactive board renders in MCP host, user can click to play.
 
 **Use the `create-mcp-app` skill** to scaffold the MCP App structure.
 
@@ -587,11 +597,11 @@ Create `src/game/__tests__/testUtils.ts`:
 
 **Verification:**
 - Run `npm run serve:mcp`
-- Connect Claude to server
+- Connect MCP host to server
 - Say "Let's play backgammon"
 - Board renders in chat
 - Can click to roll, move, end turn
-- Claude's moves update board in real-time
+- LLM's moves update board in real-time
 - Can ask strategy questions mid-game
 
 ---
@@ -609,13 +619,17 @@ Structure:
    - **Couch Play** - Two humans, one device
      - `npm install && npm run dev`
      - Open browser, pass device back and forth
-   - **Text-Only LLM Play** - Play via Claude chat (no graphics)
-     - `npm install && npm run serve:mcp`
-     - Add as custom connector in Claude
+   - **LLM Tool-Only** - Play via chat with ASCII board
+     - `npm install && npm run serve:mcp:text`
+     - Add as MCP server in your host
      - Commands: "roll", "move 8 to 5", "end turn"
-   - **Graphical LLM Play** - Interactive board in Claude
-     - Same setup as text-only
-     - Board renders automatically, click to play
+     - Works with any MCP client
+     - Good for experimenting or clients without MCP App support
+   - **LLM MCP App** - Interactive graphical board in chat
+     - `npm install && npm run serve:mcp`
+     - Add as MCP server in your host
+     - Board renders in chat, click to play
+     - Requires MCP App-compatible host (Claude Desktop, claude.ai, VS Code Insiders, etc.)
 4. **Rules Reference** - Link to USBGF rules
 5. **Development** - How to contribute, run tests
 6. **License**
@@ -626,7 +640,7 @@ Structure:
 {
   "name": "backgammon-mcp",
   "version": "1.0.0",
-  "description": "Play backgammon locally or against Claude via MCP",
+  "description": "Play backgammon locally or against an LLM via MCP",
   "keywords": ["backgammon", "mcp", "claude", "game"],
   "license": "MIT",
   "repository": {
@@ -747,8 +761,14 @@ jobs:
 |-------|--------------|-------------|
 | 1 | Game rules + unit tests | `npm test` |
 | 2 | Interactive viewer + couch play | `npm run dev`, play a full game |
-| 3 | MCP server (text-only LLM play) | `npm run serve:mcp:text`, Claude chat |
-| 4 | MCP App (graphical LLM play) | `npm run serve:mcp`, Claude chat with UI |
+| 3 | MCP server (LLM tool-only) | `npm run serve:mcp:text`, chat with LLM |
+| 4 | MCP App (LLM graphical) | `npm run serve:mcp`, chat with UI |
 | 5 | Packaging & deployment | Fresh clone install, CI green, README clear |
 
-Each stage builds on the previous. The core `game/` and `viewer/` modules remain decoupled and reusable across all three play modes.
+Each stage builds on the previous. The core `game/` and `viewer/` modules remain decoupled and reusable across all three play modes:
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| Couch Play | `npm run dev` | Two humans, one device, browser UI |
+| LLM Tool-Only | `npm run serve:mcp:text` | Play vs LLM, ASCII board in chat |
+| LLM MCP App | `npm run serve:mcp` | Play vs LLM, interactive board in chat |
