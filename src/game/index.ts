@@ -30,3 +30,18 @@ export {
   selectCanMove,
   selectIsDoubles,
 } from './gameSlice'
+
+// Rules engine exports
+export {
+  getMoveDirection,
+  canBearOff,
+  isValidMove,
+  getValidMoves,
+  checkGameOver,
+  hasAnyLegalMoves,
+  createInitialBoard,
+  countTotalCheckers,
+  filterMovesByDie,
+  getRequiredMoves,
+  getLegalMoveSequences,
+} from './rules'
