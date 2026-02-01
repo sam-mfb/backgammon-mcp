@@ -5,6 +5,9 @@ interface PointProps {
   pointIndex: PointIndex
   checkerCount: number
   position: 'top' | 'bottom'
+  isSelected?: boolean
+  isValidDestination?: boolean
+  onClick?: (pointIndex: PointIndex) => void
 }
 
 function getCheckerPlayer(checkerCount: number): Player | null {
@@ -13,7 +16,14 @@ function getCheckerPlayer(checkerCount: number): Player | null {
   return null
 }
 
-export function Point({ pointIndex, checkerCount, position }: PointProps) {
+export function Point({
+  pointIndex,
+  checkerCount,
+  position,
+  isSelected = false,
+  isValidDestination = false,
+  onClick,
+}: PointProps) {
   const player = getCheckerPlayer(checkerCount)
   const count = Math.abs(checkerCount)
   const isOdd = pointIndex % 2 === 1
@@ -24,10 +34,33 @@ export function Point({ pointIndex, checkerCount, position }: PointProps) {
       ))
     : null
 
+  const handleClick = () => {
+    onClick?.(pointIndex)
+  }
+
+  const classNames = [
+    'point',
+    `point--${position}`,
+    `point--${isOdd ? 'odd' : 'even'}`,
+    isSelected && 'point--selected',
+    isValidDestination && 'point--valid-destination',
+    onClick && 'point--clickable',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div
-      className={`point point--${position} point--${isOdd ? 'odd' : 'even'}`}
+      className={classNames}
       data-point={pointIndex}
+      onClick={handleClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          handleClick()
+        }
+      }}
     >
       <div className="point__triangle" />
       <div className="point__checkers">{checkers}</div>

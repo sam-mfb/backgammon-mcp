@@ -1,21 +1,14 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '@/app/store'
 import type {
+  AvailableMoves,
   BoardState,
   DiceRoll,
   GameResult,
   GameState,
   Move,
-  MoveDestination,
-  MoveFrom,
   Player,
 } from './types'
-
-/** Mutable version of AvailableMoves for Immer compatibility in reducers */
-interface MutableAvailableMoves {
-  from: MoveFrom
-  destinations: MoveDestination[]
-}
 
 /**
  * Standard backgammon starting position
@@ -184,8 +177,16 @@ export const gameSlice = createSlice({
     },
 
     /** Update precomputed available moves for UI */
-    setAvailableMoves(state, action: PayloadAction<MutableAvailableMoves[]>) {
-      state.availableMoves = action.payload
+    setAvailableMoves(
+      state,
+      action: PayloadAction<readonly AvailableMoves[]>
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Use 'any' to bypass Immer's WritableDraft type requirements.
+      // This is safe: Immer doesn't mutate inputs, it creates its own draft.
+      // The readonly input is assigned directly and becomes part of the
+      // immutable state that Immer produces.
+      ;(state as any).availableMoves = action.payload
     },
 
     /** Set result and transition to game_over */
