@@ -15,6 +15,8 @@ interface BoardViewProps {
   validDestinations?: readonly MoveTo[]
   /** Whether ending turn is allowed (according to backgammon rules) */
   canEndTurn?: boolean
+  /** Valid moves available for the current player */
+  validMoves?: readonly unknown[]
   /** Callback when a point is clicked */
   onPointClick?: (pointIndex: PointIndex) => void
   /** Callback when the bar is clicked for a player */
@@ -32,6 +34,7 @@ export function BoardView({
   selectedSource = null,
   validDestinations = [],
   canEndTurn: canEndTurnProp,
+  validMoves,
   onPointClick,
   onBarClick,
   onBorneOffClick,
@@ -52,6 +55,10 @@ export function BoardView({
   // Use provided canEndTurn prop if available, otherwise fall back to simple phase check
   const canEndTurn = canEndTurnProp ?? phase === 'moving'
   const isGameOver = phase === 'game_over'
+  const noMovesAvailable =
+    phase === 'moving' &&
+    remainingMoves.length > 0 &&
+    (validMoves?.length ?? 0) === 0
 
   return (
     <div className="board-view">
@@ -76,6 +83,7 @@ export function BoardView({
         canRoll={canRoll}
         canEndTurn={canEndTurn}
         isGameOver={isGameOver}
+        noMovesAvailable={noMovesAvailable}
         onRollClick={onRollClick}
         onEndTurnClick={onEndTurnClick}
       />

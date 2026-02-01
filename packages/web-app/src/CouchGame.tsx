@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import type { MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
 import { useAppDispatch, useAppSelector } from './hooks'
 import {
@@ -8,7 +8,6 @@ import {
   selectPhase,
   selectCurrentPlayer,
   selectBoard,
-  selectRemainingMoves,
   performStartGame,
   performRollDice,
   performMove,
@@ -30,30 +29,10 @@ export function CouchGame() {
   const phase = useAppSelector(selectPhase)
   const currentPlayer = useAppSelector(selectCurrentPlayer)
   const board = useAppSelector(selectBoard)
-  const remainingMoves = useAppSelector(selectRemainingMoves)
 
   // Use memoized selectors for expensive computations
   const availableMoves = useAppSelector(selectValidMoves)
   const canEndTurnNow = useAppSelector(selectCanEndTurn)
-
-  // Auto-end turn if no moves available
-  useEffect(() => {
-    if (
-      phase === 'moving' &&
-      availableMoves.length === 0 &&
-      remainingMoves.length > 0
-    ) {
-      // No moves possible but still have dice - auto end turn
-      const action = dispatch(performEndTurn())
-      const result = action.meta.result
-      if (!result || !result.ok) {
-        console.error(
-          'Auto end turn failed:',
-          result?.ok === false ? result.error.message : 'unknown error'
-        )
-      }
-    }
-  }, [phase, availableMoves, remainingMoves, dispatch])
 
   // Handle starting the game using the new operation
   const handleStartGame = useCallback(() => {
@@ -265,6 +244,7 @@ export function CouchGame() {
           selectedSource={selectedSource}
           validDestinations={validDestinations}
           canEndTurn={canEndTurnNow}
+          validMoves={availableMoves}
           onPointClick={handlePointClick}
           onBarClick={handleBarClick}
           onBorneOffClick={handleBorneOffClick}
