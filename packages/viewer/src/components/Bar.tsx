@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { CheckerCounts, Player } from '@backgammon/game'
 import { Checker } from './Checker'
 
@@ -8,24 +9,24 @@ interface BarProps {
   onBarClick?: (player: Player) => void
 }
 
-export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps) {
-  const handleWhiteClick = () => {
+export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps): React.JSX.Element {
+  const handleWhiteClick = (): void => {
     if (bar.white > 0) {
       onBarClick?.('white')
     }
   }
 
-  const handleBlackClick = () => {
+  const handleBlackClick = (): void => {
     if (bar.black > 0) {
       onBarClick?.('black')
     }
   }
 
   const whiteCheckers = Array.from({ length: bar.white }, (_, i) => (
-    <Checker key={`white-${i}`} player="white" />
+    <Checker key={`white-${String(i)}`} player="white" />
   ))
   const blackCheckers = Array.from({ length: bar.black }, (_, i) => (
-    <Checker key={`black-${i}`} player="black" />
+    <Checker key={`black-${String(i)}`} player="black" />
   ))
 
   const whiteClickable =

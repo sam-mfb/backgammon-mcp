@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { GameState, Player, PointIndex, MoveTo } from '@backgammon/game'
 import { GameInfo } from './components/GameInfo'
 import { BoardSurface } from './components/BoardSurface'
@@ -40,7 +41,7 @@ export function BoardView({
   onBorneOffClick,
   onRollClick,
   onEndTurnClick
-}: BoardViewProps) {
+}: BoardViewProps): React.JSX.Element {
   const {
     board,
     currentPlayer,

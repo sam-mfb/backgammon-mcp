@@ -15,8 +15,7 @@ import type {
   Move,
   MoveFrom,
   MoveTo,
-  Player,
-  PointIndex
+  Player
 } from './types'
 import { getOpponent, isValidDieValue, isValidPointIndex } from './types'
 import { buildCreateSyncThunk, type SyncThunkAction } from './syncThunk'
@@ -141,7 +140,7 @@ export interface MakeMoveInput {
 // Sync Thunk Factory
 // =============================================================================
 
-const createSyncThunk = buildCreateSyncThunk<RootState, undefined>()
+const createSyncThunk = buildCreateSyncThunk<RootState>()
 
 // =============================================================================
 // Operations
@@ -267,7 +266,7 @@ export const performMove = createSyncThunk<
     return err({
       type: 'invalid_input',
       field: 'from',
-      message: `Invalid 'from' value: ${input.from}. Must be 'bar' or a number 1-24.`
+      message: `Invalid 'from' value: ${String(input.from)}. Must be 'bar' or a number 1-24.`
     })
   }
 
@@ -275,7 +274,7 @@ export const performMove = createSyncThunk<
     return err({
       type: 'invalid_input',
       field: 'to',
-      message: `Invalid 'to' value: ${input.to}. Must be 'off' or a number 1-24.`
+      message: `Invalid 'to' value: ${String(input.to)}. Must be 'off' or a number 1-24.`
     })
   }
 
@@ -283,13 +282,12 @@ export const performMove = createSyncThunk<
     return err({
       type: 'invalid_input',
       field: 'dieUsed',
-      message: `Invalid 'dieUsed' value: ${input.dieUsed}. Must be 1-6.`
+      message: `Invalid 'dieUsed' value: ${String(input.dieUsed)}. Must be 1-6.`
     })
   }
 
-  const from: MoveFrom =
-    input.from === 'bar' ? 'bar' : (input.from as PointIndex)
-  const to: MoveTo = input.to === 'off' ? 'off' : (input.to as PointIndex)
+  const from: MoveFrom = input.from === 'bar' ? 'bar' : input.from
+  const to: MoveTo = input.to === 'off' ? 'off' : input.to
   const move: Move = { from, to, dieUsed: input.dieUsed }
 
   // Check if move is in the valid moves list
@@ -303,14 +301,14 @@ export const performMove = createSyncThunk<
   if (!isValid) {
     const validMovesStr = validMoves
       .flatMap(vm =>
-        vm.destinations.map(d => `${vm.from} -> ${d.to} (die: ${d.dieValue})`)
+        vm.destinations.map(d => `${String(vm.from)} -> ${String(d.to)} (die: ${String(d.dieValue)})`)
       )
       .join(', ')
 
     return err({
       type: 'invalid_move',
       validMoves,
-      message: `Invalid move: ${from} -> ${to} with die ${input.dieUsed}. Valid moves: ${validMovesStr || 'none'}`
+      message: `Invalid move: ${String(from)} -> ${String(to)} with die ${String(input.dieUsed)}. Valid moves: ${validMovesStr || 'none'}`
     })
   }
 
@@ -320,7 +318,7 @@ export const performMove = createSyncThunk<
     return err({
       type: 'must_play_required',
       requiredDie: requirements.requiredDie,
-      message: `Must play the ${requirements.requiredDie} (${
+      message: `Must play the ${String(requirements.requiredDie)} (${
         requirements.mustPlayHigherDie ? 'higher die rule' : 'only legal die'
       }).`
     })
@@ -420,15 +418,13 @@ export const performEndTurn = createSyncThunk<
 export type StartGameAction = SyncThunkAction<
   RootState,
   undefined,
-  Result<StartGameResult, StartGameError>,
-  void
+  Result<StartGameResult, StartGameError>
 >
 
 export type RollDiceAction = SyncThunkAction<
   RootState,
   undefined,
-  Result<RollDiceResult, RollError>,
-  void
+  Result<RollDiceResult, RollError>
 >
 
 export type MakeMoveAction = SyncThunkAction<
@@ -441,6 +437,5 @@ export type MakeMoveAction = SyncThunkAction<
 export type EndTurnAction = SyncThunkAction<
   RootState,
   undefined,
-  Result<EndTurnResult, EndTurnError>,
-  void
+  Result<EndTurnResult, EndTurnError>
 >

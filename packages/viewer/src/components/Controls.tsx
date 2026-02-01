@@ -1,3 +1,5 @@
+import type React from 'react'
+
 interface ControlsProps {
   canRoll: boolean
   canEndTurn: boolean
@@ -14,7 +16,7 @@ export function Controls({
   noMovesAvailable = false,
   onRollClick,
   onEndTurnClick
-}: ControlsProps) {
+}: ControlsProps): React.JSX.Element {
   if (isGameOver) {
     return (
       <div className="controls">

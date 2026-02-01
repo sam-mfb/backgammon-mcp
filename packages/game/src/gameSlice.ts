@@ -95,7 +95,8 @@ export const gameSlice = createSlice({
     /** Execute a move, update board/bar/borneOff, consume die from remainingMoves */
     makeMove(state, action: PayloadAction<Move>) {
       const { from, to, dieUsed } = action.payload
-      const player = state.currentPlayer!
+      const player = state.currentPlayer
+      if (!player) return
 
       // Remove checker from source
       if (from === 'bar') {
@@ -209,11 +210,11 @@ export const gameSlice = createSlice({
         if (result?.ok) {
           const { diceRoll, turnForfeited } = result.value
 
-          if (turnForfeited) {
+          if (turnForfeited && state.currentPlayer) {
             // Auto-forfeit: switch to opponent
-            const opponent = getOpponent(state.currentPlayer!)
+            const opponent = getOpponent(state.currentPlayer)
             state.history.push({
-              player: state.currentPlayer!,
+              player: state.currentPlayer,
               diceRoll,
               moves: []
             })
@@ -236,9 +237,9 @@ export const gameSlice = createSlice({
     // Handle performMove
     builder.addMatcher(performMove.match, (state, action: MakeMoveAction) => {
       const result = action.meta.result
-      if (result?.ok) {
+      if (result?.ok && state.currentPlayer) {
         const { move, gameOver, remainingMoves } = result.value
-        const player = state.currentPlayer!
+        const player = state.currentPlayer
         const { from, to } = move
 
         // Remove checker from source
@@ -325,29 +326,37 @@ export const {
 // Selectors
 // =============================================================================
 
-export const selectBoard = (state: RootState) => state.game.board
-export const selectCurrentPlayer = (state: RootState) =>
+export const selectBoard = (state: RootState): BoardState => state.game.board
+export const selectCurrentPlayer = (state: RootState): Player | null =>
   state.game.currentPlayer
-export const selectPhase = (state: RootState) => state.game.phase
-export const selectDiceRoll = (state: RootState) => state.game.diceRoll
-export const selectRemainingMoves = (state: RootState) =>
-  state.game.remainingMoves
-export const selectTurnNumber = (state: RootState) => state.game.turnNumber
-export const selectMovesThisTurn = (state: RootState) =>
+export const selectPhase = (state: RootState): GameState['phase'] =>
+  state.game.phase
+export const selectDiceRoll = (state: RootState): DiceRoll | null =>
+  state.game.diceRoll
+export const selectRemainingMoves = (
+  state: RootState
+): GameState['remainingMoves'] => state.game.remainingMoves
+export const selectTurnNumber = (state: RootState): number =>
+  state.game.turnNumber
+export const selectMovesThisTurn = (state: RootState): readonly Move[] =>
   state.game.movesThisTurn
-export const selectResult = (state: RootState) => state.game.result
-export const selectHistory = (state: RootState) => state.game.history
-export const selectBar = (state: RootState) => state.game.board.bar
-export const selectBorneOff = (state: RootState) => state.game.board.borneOff
-export const selectIsGameOver = (state: RootState) =>
+export const selectResult = (state: RootState): GameResult | null =>
+  state.game.result
+export const selectHistory = (state: RootState): GameState['history'] =>
+  state.game.history
+export const selectBar = (state: RootState): BoardState['bar'] =>
+  state.game.board.bar
+export const selectBorneOff = (state: RootState): BoardState['borneOff'] =>
+  state.game.board.borneOff
+export const selectIsGameOver = (state: RootState): boolean =>
   state.game.phase === 'game_over'
-export const selectCanRoll = (state: RootState) =>
+export const selectCanRoll = (state: RootState): boolean =>
   state.game.phase === 'rolling'
-export const selectCanMove = (state: RootState) =>
+export const selectCanMove = (state: RootState): boolean =>
   state.game.phase === 'moving' && state.game.remainingMoves.length > 0
-export const selectIsDoubles = (state: RootState) =>
+export const selectIsDoubles = (state: RootState): boolean =>
   state.game.diceRoll?.die1 === state.game.diceRoll?.die2
-export const selectGameState = (state: RootState) => state.game
+export const selectGameState = (state: RootState): GameState => state.game
 
 export const selectValidMoves = createSelector([selectGameState], gameState => {
   if (gameState.phase !== 'moving' || gameState.remainingMoves.length === 0) {

@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { Player, PointIndex } from '@backgammon/game'
 import { Checker } from './Checker'
 
@@ -23,7 +24,7 @@ export function Point({
   isSelected = false,
   isValidDestination = false,
   onClick
-}: PointProps) {
+}: PointProps): React.JSX.Element {
   const player = getCheckerPlayer(checkerCount)
   const count = Math.abs(checkerCount)
   const isOdd = pointIndex % 2 === 1
@@ -34,7 +35,7 @@ export function Point({
       ))
     : null
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     onClick?.(pointIndex)
   }
 

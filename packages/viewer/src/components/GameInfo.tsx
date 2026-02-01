@@ -1,3 +1,4 @@
+import type React from 'react'
 import type {
   DiceRoll,
   DieValue,
@@ -49,7 +50,7 @@ export function GameInfo({
   diceRoll,
   remainingMoves,
   result
-}: GameInfoProps) {
+}: GameInfoProps): React.JSX.Element {
   return (
     <div className="game-info">
       {result ? (

@@ -1,3 +1,4 @@
+import type React from 'react'
 import { useState } from 'react'
 import type { MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
 import { useAppDispatch, useAppSelector } from './hooks'
@@ -15,7 +16,7 @@ import {
 } from '@backgammon/game'
 import { BoardView } from '@backgammon/viewer'
 
-export function CouchGame() {
+export function CouchGame(): React.JSX.Element {
   const dispatch = useAppDispatch()
   const gameState = useAppSelector(state => state.game)
 
@@ -35,16 +36,16 @@ export function CouchGame() {
   const canEndTurnNow = useAppSelector(selectCanEndTurn)
 
   // Handle starting the game using the new operation
-  const handleStartGame = () => {
+  const handleStartGame = (): void => {
     dispatch(performStartGame())
   }
 
   // Handle rolling dice
-  const handleRollClick = () => {
+  const handleRollClick = (): void => {
     if (phase !== 'rolling') return
     const action = dispatch(performRollDice())
     const result = action.meta.result
-    if (!result || !result.ok) {
+    if (result?.ok !== true) {
       console.error(
         'Roll failed:',
         result?.ok === false ? result.error.message : 'unknown error'
@@ -56,11 +57,11 @@ export function CouchGame() {
   }
 
   // Handle end turn
-  const handleEndTurnClick = () => {
+  const handleEndTurnClick = (): void => {
     if (phase !== 'moving') return
     const action = dispatch(performEndTurn())
     const result = action.meta.result
-    if (!result || !result.ok) {
+    if (result?.ok !== true) {
       console.error(
         'End turn failed:',
         result?.ok === false ? result.error.message : 'unknown error'
@@ -72,7 +73,7 @@ export function CouchGame() {
   }
 
   // Handle reset/new game
-  const handleNewGame = () => {
+  const handleNewGame = (): void => {
     dispatch(resetGame())
     setSelectedSource(null)
     setValidDestinations([])
@@ -87,14 +88,14 @@ export function CouchGame() {
   }
 
   // Handle point click
-  const handlePointClick = (pointIndex: PointIndex) => {
+  const handlePointClick = (pointIndex: PointIndex): void => {
     if (phase !== 'moving' || !currentPlayer) return
 
     // Check if this point is a valid destination for the selected source
     if (selectedSource !== null && validDestinations.includes(pointIndex)) {
       // Make the move
       const source = selectedSource
-      const availableMove = availableMoves?.find(am => am.from === source)
+      const availableMove = availableMoves.find(am => am.from === source)
       const destination = availableMove?.destinations.find(
         d => d.to === pointIndex
       )
@@ -108,7 +109,7 @@ export function CouchGame() {
           })
         )
         const result = action.meta.result
-        if (!result || !result.ok) {
+        if (result?.ok !== true) {
           console.error(
             'Move failed:',
             result?.ok === false ? result.error.message : 'unknown error'
@@ -154,7 +155,7 @@ export function CouchGame() {
   }
 
   // Handle bar click
-  const handleBarClick = (player: Player) => {
+  const handleBarClick = (player: Player): void => {
     if (phase !== 'moving' || player !== currentPlayer) return
 
     if (board.bar[player] > 0) {
@@ -167,7 +168,7 @@ export function CouchGame() {
   }
 
   // Handle borne-off area click (for bearing off moves)
-  const handleBorneOffClick = (_player: Player) => {
+  const handleBorneOffClick = (_player: Player): void => {
     if (
       phase !== 'moving' ||
       selectedSource === null ||
@@ -176,7 +177,7 @@ export function CouchGame() {
       return
 
     // Make bearing off move
-    const availableMove = availableMoves?.find(am => am.from === selectedSource)
+    const availableMove = availableMoves.find(am => am.from === selectedSource)
     const destination = availableMove?.destinations.find(d => d.to === 'off')
 
     if (destination) {
@@ -188,7 +189,7 @@ export function CouchGame() {
         })
       )
       const result = action.meta.result
-      if (!result || !result.ok) {
+      if (result?.ok !== true) {
         console.error(
           'Bear off failed:',
           result?.ok === false ? result.error.message : 'unknown error'

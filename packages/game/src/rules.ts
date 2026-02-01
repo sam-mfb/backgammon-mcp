@@ -694,7 +694,10 @@ export function applyMoveToBoard({
   move: Move
 }): BoardState {
   const { from, to } = move
-  const player = state.currentPlayer!
+  const player = state.currentPlayer
+  if (!player) {
+    throw new Error('Cannot apply move: no current player')
+  }
   const board = state.board
 
   // Create mutable copies

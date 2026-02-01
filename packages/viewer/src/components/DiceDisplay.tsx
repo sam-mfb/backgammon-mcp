@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { DiceRoll, DieValue } from '@backgammon/game'
 
 interface DiceDisplayProps {
@@ -10,15 +11,15 @@ interface DieProps {
   used: boolean
 }
 
-function Die({ value, used }: DieProps) {
+function Die({ value, used }: DieProps): React.JSX.Element {
   return (
-    <div className={`die die--${value} ${used ? 'die--used' : ''}`}>
+    <div className={`die die--${String(value)} ${used ? 'die--used' : ''}`}>
       <span className="die__value">{value}</span>
     </div>
   )
 }
 
-export function DiceDisplay({ diceRoll, remainingMoves }: DiceDisplayProps) {
+export function DiceDisplay({ diceRoll, remainingMoves }: DiceDisplayProps): React.JSX.Element {
   if (!diceRoll) {
     return (
       <div className="dice-display dice-display--empty">

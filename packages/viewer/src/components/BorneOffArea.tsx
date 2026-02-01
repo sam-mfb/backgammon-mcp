@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { Player } from '@backgammon/game'
 import { Checker } from './Checker'
 
@@ -13,12 +14,12 @@ export function BorneOffArea({
   count,
   isValidDestination = false,
   onClick
-}: BorneOffAreaProps) {
+}: BorneOffAreaProps): React.JSX.Element {
   const checkers = Array.from({ length: count }, (_, i) => (
     <Checker key={i} player={player} />
   ))
 
-  const handleClick = () => {
+  const handleClick = (): void => {
     onClick?.(player)
   }
 

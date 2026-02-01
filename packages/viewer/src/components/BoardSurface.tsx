@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { BoardState, Player, PointIndex, MoveTo } from '@backgammon/game'
 import type { SelectedSource } from '../BoardView'
 import { Quadrant } from './Quadrant'
@@ -22,7 +23,7 @@ export function BoardSurface({
   onPointClick,
   onBarClick,
   onBorneOffClick
-}: BoardSurfaceProps) {
+}: BoardSurfaceProps): React.JSX.Element {
   const { points, bar, borneOff } = board
 
   // Determine if bearing off is a valid destination
