@@ -538,6 +538,28 @@ export function hasAnyLegalMoves({ state }: { state: GameState }): boolean {
 }
 
 /**
+ * Check if the current player can end their turn.
+ * According to backgammon rules, a player must use as many dice as legally possible.
+ * Turn can only end when:
+ * 1. All dice have been used (remainingMoves is empty), OR
+ * 2. No legal moves are available
+ */
+export function canEndTurn({ state }: { state: GameState }): boolean {
+  // If not in moving phase, turn cannot be ended this way
+  if (state.phase !== 'moving') {
+    return false
+  }
+
+  // All dice used - can end turn
+  if (state.remainingMoves.length === 0) {
+    return true
+  }
+
+  // Still have dice remaining - can only end if no legal moves
+  return !hasAnyLegalMoves({ state })
+}
+
+/**
  * Get the initial board state for a new game.
  */
 export function createInitialBoard(): BoardState {

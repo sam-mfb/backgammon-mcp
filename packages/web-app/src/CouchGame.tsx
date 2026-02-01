@@ -10,6 +10,7 @@ import {
   endTurn,
   resetGame,
   getValidMoves,
+  canEndTurn,
 } from '@backgammon/game'
 import { BoardView, type SelectedSource } from '@backgammon/viewer'
 
@@ -34,6 +35,12 @@ export function CouchGame() {
     }
     return null
   }, [phase, remainingMoves, board, currentPlayer])
+
+  // Check if player can end their turn (must use all legal moves)
+  const canEndTurnNow = useMemo(
+    () => canEndTurn({ state: gameState }),
+    [gameState]
+  )
 
   // Auto-end turn if no moves available
   useEffect(() => {
@@ -232,6 +239,7 @@ export function CouchGame() {
           gameState={gameState}
           selectedSource={selectedSource}
           validDestinations={validDestinations}
+          canEndTurn={canEndTurnNow}
           onPointClick={handlePointClick}
           onBarClick={handleBarClick}
           onBorneOffClick={handleBorneOffClick}

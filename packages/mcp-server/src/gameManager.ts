@@ -195,16 +195,9 @@ function createGameManager() {
       movesThisTurn: [],
       result: null,
       history: [],
-      availableMoves: null,
     }
 
-    // Compute available moves
-    const availableMoves = getValidMoves({ state: initialState })
-
-    gameState = {
-      ...initialState,
-      availableMoves,
-    }
+    gameState = initialState
 
     return {
       success: true,
@@ -243,7 +236,6 @@ function createGameManager() {
       diceRoll,
       remainingMoves,
       movesThisTurn: [],
-      availableMoves: null,
     }
 
     // Check if player has any legal moves
@@ -262,7 +254,6 @@ function createGameManager() {
         remainingMoves: [],
         movesThisTurn: [],
         turnNumber: gameState.turnNumber + 1,
-        availableMoves: null,
         history: [
           ...gameState.history,
           {
@@ -275,7 +266,6 @@ function createGameManager() {
     } else {
       gameState = {
         ...newState,
-        availableMoves: validMoves,
       }
     }
 
@@ -402,7 +392,6 @@ function createGameManager() {
       board: newBoard,
       remainingMoves: newRemainingMoves,
       movesThisTurn: [...gameState.movesThisTurn, move],
-      availableMoves: null,
     }
 
     // Check for game over
@@ -413,7 +402,6 @@ function createGameManager() {
         ...newState,
         phase: 'game_over',
         result: gameOver,
-        availableMoves: null,
       }
 
       return {
@@ -434,7 +422,6 @@ function createGameManager() {
     // If no more moves available, stay in moving phase but with empty valid moves
     gameState = {
       ...newState,
-      availableMoves: validMoves,
     }
 
     return {
@@ -495,7 +482,6 @@ function createGameManager() {
       remainingMoves: [],
       movesThisTurn: [],
       turnNumber: gameState.turnNumber + 1,
-      availableMoves: null,
       history: [...gameState.history, completedTurn],
     }
 

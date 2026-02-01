@@ -37,6 +37,7 @@ export {
   getValidMoves,
   checkGameOver,
   hasAnyLegalMoves,
+  canEndTurn,
   createInitialBoard,
   countTotalCheckers,
   filterMovesByDie,

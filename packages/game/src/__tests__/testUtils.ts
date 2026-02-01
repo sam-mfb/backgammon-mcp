@@ -171,7 +171,6 @@ export function createNewGameState(): GameState {
     movesThisTurn: [],
     result: null,
     history: [],
-    availableMoves: null,
   }
 }
 

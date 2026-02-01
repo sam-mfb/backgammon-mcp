@@ -12,13 +12,14 @@ import {
   getValidMoves,
   checkGameOver,
   hasAnyLegalMoves,
+  canEndTurn,
   createInitialBoard,
   countTotalCheckers,
   getRequiredMoves,
   getLegalMoveSequences,
   filterMovesByDie,
 } from '../rules'
-import type { PointIndex } from '../types'
+import type { PointIndex, DieValue } from '../types'
 import {
   createBoardWithCheckers,
   createGameState,
@@ -1222,5 +1223,189 @@ describe('Utility Functions', () => {
     const requirements = getRequiredMoves({ state })
     expect(requirements.mustPlayBothDice).toBe(true)
     expect(requirements.maxMovesUsable).toBe(2)
+  })
+})
+
+// =============================================================================
+// 9. Turn Ending Rules
+// =============================================================================
+
+describe('Turn Ending Rules', () => {
+  it('cannot end turn when dice remain and legal moves exist', () => {
+    const board = createBoardWithCheckers({
+      white: [{ point: 10 as PointIndex, count: 2 }],
+      black: [{ point: 19 as PointIndex, count: 15 }],
+    })
+
+    const state = createMovingState({
+      player: 'white',
+      board,
+      dice: rollSpecificDice(4, 2),
+    })
+
+    // Both dice remain, legal moves exist
+    expect(state.remainingMoves).toHaveLength(2)
+    expect(hasAnyLegalMoves({ state })).toBe(true)
+    expect(canEndTurn({ state })).toBe(false)
+  })
+
+  it('can end turn when all dice have been used', () => {
+    const board = createBoardWithCheckers({
+      white: [{ point: 10 as PointIndex, count: 2 }],
+      black: [{ point: 19 as PointIndex, count: 15 }],
+    })
+
+    const state = createMovingState({
+      player: 'white',
+      board,
+      dice: rollSpecificDice(4, 2),
+    })
+
+    // Simulate all dice being used
+    const stateAfterMoves = {
+      ...state,
+      remainingMoves: [],
+    }
+
+    expect(canEndTurn({ state: stateAfterMoves })).toBe(true)
+  })
+
+  it('can end turn when no legal moves are available', () => {
+    // Create a blocked position where white cannot move
+    const board = createBoardWithCheckers({
+      white: [{ point: 1 as PointIndex, count: 1 }],
+      black: [
+        { point: 2 as PointIndex, count: 2 },
+        { point: 3 as PointIndex, count: 2 },
+        { point: 4 as PointIndex, count: 2 },
+        { point: 5 as PointIndex, count: 2 },
+        { point: 6 as PointIndex, count: 2 },
+        { point: 7 as PointIndex, count: 2 },
+      ],
+    })
+
+    const state = createMovingState({
+      player: 'white',
+      board,
+      dice: rollSpecificDice(2, 3),
+    })
+
+    // Verify no moves available
+    expect(hasAnyLegalMoves({ state })).toBe(false)
+    expect(canEndTurn({ state })).toBe(true)
+  })
+
+  it('cannot end turn when only one die used but legal moves remain', () => {
+    const board = createBoardWithCheckers({
+      white: [{ point: 10 as PointIndex, count: 2 }],
+      black: [{ point: 19 as PointIndex, count: 15 }],
+    })
+
+    const state = createMovingState({
+      player: 'white',
+      board,
+      dice: rollSpecificDice(4, 2),
+    })
+
+    // Simulate one die being used
+    const stateAfterOneMove = {
+      ...state,
+      remainingMoves: [2] as DieValue[],
+    }
+
+    expect(hasAnyLegalMoves({ state: stateAfterOneMove })).toBe(true)
+    expect(canEndTurn({ state: stateAfterOneMove })).toBe(false)
+  })
+
+  it('cannot end turn when not in moving phase', () => {
+    const state = createGameState({
+      phase: 'rolling',
+      currentPlayer: 'white',
+    })
+
+    expect(canEndTurn({ state })).toBe(false)
+  })
+
+  it('can end turn with doubles when all four moves used', () => {
+    const board = createBoardWithCheckers({
+      white: [{ point: 10 as PointIndex, count: 5 }],
+      black: [{ point: 19 as PointIndex, count: 15 }],
+    })
+
+    const state = createMovingState({
+      player: 'white',
+      board,
+      dice: rollSpecificDice(3, 3),
+    })
+
+    // Verify doubles give 4 moves
+    expect(state.remainingMoves).toEqual([3, 3, 3, 3])
+
+    // All four moves used
+    const stateAfterMoves = {
+      ...state,
+      remainingMoves: [],
+    }
+
+    expect(canEndTurn({ state: stateAfterMoves })).toBe(true)
+  })
+
+  it('cannot end turn with doubles when fewer than maximum moves used and legal moves exist', () => {
+    const board = createBoardWithCheckers({
+      white: [{ point: 10 as PointIndex, count: 5 }],
+      black: [{ point: 19 as PointIndex, count: 15 }],
+    })
+
+    const state = createMovingState({
+      player: 'white',
+      board,
+      dice: rollSpecificDice(3, 3),
+    })
+
+    // Only 2 of 4 moves used, but more are possible
+    const stateAfterTwoMoves = {
+      ...state,
+      remainingMoves: [3, 3] as DieValue[],
+    }
+
+    expect(hasAnyLegalMoves({ state: stateAfterTwoMoves })).toBe(true)
+    expect(canEndTurn({ state: stateAfterTwoMoves })).toBe(false)
+  })
+
+  it('can end turn with doubles when only some moves possible and all possible moves used', () => {
+    // Create position where only 2 of 4 doubles moves are possible
+    const board = createBoardWithCheckers({
+      white: [{ point: 3 as PointIndex, count: 2 }],
+      black: [
+        { point: 1 as PointIndex, count: 2 },
+        { point: 2 as PointIndex, count: 2 },
+        { point: 19 as PointIndex, count: 11 },
+      ],
+    })
+
+    const state = createMovingState({
+      player: 'white',
+      board,
+      dice: rollSpecificDice(2, 2),
+    })
+
+    // Simulate using 2 moves, then no more legal moves
+    // (checkers moved to point 1 which is blocked, can't move further)
+    const stateAfterTwoMoves = {
+      ...state,
+      board: createBoardWithCheckers({
+        white: [{ point: 1 as PointIndex, count: 2 }],
+        black: [
+          { point: 2 as PointIndex, count: 2 },
+          { point: 3 as PointIndex, count: 2 },
+          { point: 19 as PointIndex, count: 11 },
+        ],
+      }),
+      remainingMoves: [2, 2] as DieValue[],
+    }
+
+    // No legal moves with remaining dice
+    expect(hasAnyLegalMoves({ state: stateAfterTwoMoves })).toBe(false)
+    expect(canEndTurn({ state: stateAfterTwoMoves })).toBe(true)
   })
 })
