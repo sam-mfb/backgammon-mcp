@@ -19,6 +19,8 @@ This document describes the architecture and staged implementation plan for a ba
 
 **Rules Reference**: See [docs/BACKGAMMON_RULES.md](./BACKGAMMON_RULES.md) for complete backgammon rules.
 
+**MCP Apps Specification**: See [docs/MCP_APPS_SPEC.md](./MCP_APPS_SPEC.md) for the official MCP Apps spec (SEP-1865). This is a local copy for offline reference; check the [source](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx) for updates.
+
 **Scope**: This implementation covers standard backgammon rules for single games. It does NOT include the doubling cube, match play, or optional gambling rules. See [Out of Scope](#out-of-scope-do-not-implement) in Stage 1.
 
 ---
@@ -121,7 +123,7 @@ backgammon-mcp/
 
 ### MCP Apps Specification Compliance
 
-Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol/ui`):
+Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol/ui`). For full details, see [docs/MCP_APPS_SPEC.md](./MCP_APPS_SPEC.md).
 
 1. **No `app.updateContext()` method**: The LLM sees game state through **tool return values**, not a separate context push. All game-modifying tools must return ASCII board state in their `content` field.
 
@@ -170,6 +172,7 @@ Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol
 ```
 
 **User Interaction Flow:**
+
 1. White player clicks "Roll Dice" button
 2. CouchGame dispatches `rollDice()` action
 3. Redux updates state with dice values
@@ -184,7 +187,7 @@ Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol
 
 ### Flow 2: LLM Tool-Only (Text-Based, No MCP App)
 
-```
+````
 ┌─────────────────────────────────────────────────────────────────┐
 │  MCP Host (Claude Desktop, Cursor, etc.)                         │
 │                                                                  │
@@ -235,9 +238,10 @@ Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol
 │  - end-turn: End current player's turn                          │
 │  - get-state: Return current game state                         │
 └─────────────────────────────────────────────────────────────────┘
-```
+````
 
 **Turn Flow:**
+
 1. User says "roll" → LLM calls `roll-dice` tool
 2. Tool returns dice values + valid moves in text
 3. User says "move 8 to 5" → LLM parses, calls `make-move`
@@ -299,6 +303,7 @@ Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol
 **Key Interaction Patterns:**
 
 **User clicks in app:**
+
 ```
 User clicks [Roll Dice]
   → App: app.callServerTool({ name: "roll-dice" })
@@ -309,6 +314,7 @@ User clicks [Roll Dice]
 ```
 
 **User clicks checker to move:**
+
 ```
 User clicks checker on point 8
   → App: highlights point 8, shows valid destinations
@@ -319,6 +325,7 @@ User clicks point 5
 ```
 
 **LLM takes turn:**
+
 ```
 User says "your turn" or clicks [End Turn]
   → App: app.callServerTool({ name: "end-turn" })
@@ -331,6 +338,7 @@ User says "your turn" or clicks [End Turn]
 ```
 
 **User asks strategy question:**
+
 ```
 User types: "Should I hit or make a point?"
   → Normal chat, no tools
@@ -352,20 +360,21 @@ User types: "Should I hit or make a point?"
 
 The following features are intentionally excluded from this implementation:
 
-| Feature | Reason |
-|---------|--------|
-| **Doubling Cube** | Gambling/stakes mechanism, not needed for casual play |
-| **Automatic Doubles** | Optional gambling rule |
-| **Beavers** | Optional gambling rule (immediate redouble) |
-| **Jacoby Rule** | Optional rule affecting gammon/backgammon scoring |
-| **Crawford Rule** | Match play rule, we only support single games |
-| **Match Play** | Playing to N points, only single games supported |
+| Feature               | Reason                                                |
+| --------------------- | ----------------------------------------------------- |
+| **Doubling Cube**     | Gambling/stakes mechanism, not needed for casual play |
+| **Automatic Doubles** | Optional gambling rule                                |
+| **Beavers**           | Optional gambling rule (immediate redouble)           |
+| **Jacoby Rule**       | Optional rule affecting gammon/backgammon scoring     |
+| **Crawford Rule**     | Match play rule, we only support single games         |
+| **Match Play**        | Playing to N points, only single games supported      |
 
 We DO implement gammon/backgammon victory types (for display purposes) but without stake multipliers.
 
 **Create `src/game/rules.ts`:**
 
 Core validation functions:
+
 - `getValidMoves(state: GameState): AvailableMoves[]`
 - `isValidMove(state: GameState, move: Move): boolean`
 - `canBearOff(state: GameState, player: Player): boolean`
@@ -377,22 +386,26 @@ Core validation functions:
 Test categories:
 
 **1. Initial Setup**
+
 - Board has correct starting position (2 on 24-pt, 5 on 13-pt, 3 on 8-pt, 5 on 6-pt for white; mirrored for black)
 - Each player has exactly 15 checkers
 - Bar and borne-off areas start empty
 
 **2. Movement Direction**
+
 - White moves from high points to low (24 → 1)
 - Black moves from low points to high (1 → 24)
 - Movement distance matches die value exactly
 
 **3. Legal Move Conditions**
+
 - Can move to an empty point
 - Can move to a point occupied by own checkers (any number)
 - Can move to a point with exactly 1 opponent checker (hit)
 - Cannot move to a point with 2+ opponent checkers (blocked)
 
 **4. Dice Usage**
+
 - Each die can move a separate checker
 - One checker can use both dice if intermediate point is open
 - Doubles allow 4 moves of that value
@@ -402,6 +415,7 @@ Test categories:
 - If no moves possible, turn is forfeit
 
 **5. Bar Entry (Re-entering hit checkers)**
+
 - Checker on bar MUST re-enter before any other move
 - Entry point = opponent's home board (white enters on 24-19, black on 1-6)
 - Entry point number = die value (roll 3 → enter on point 3 for black, point 22 for white)
@@ -410,11 +424,13 @@ Test categories:
 - Multiple checkers on bar must all enter before moving others
 
 **6. Hitting**
+
 - Landing on a single opponent checker (blot) sends it to bar
 - Hit checker must re-enter from bar
 - Can hit during bear-off phase
 
 **7. Bearing Off**
+
 - Can only bear off when ALL 15 checkers are in home board
 - Home board = points 1-6 for white, points 19-24 for black
 - Exact roll removes checker from that point
@@ -423,12 +439,14 @@ Test categories:
 - If a checker is hit during bearing off, must re-enter and return to home before continuing
 
 **8. Winning Conditions**
+
 - First player to bear off all 15 checkers wins
 - Single game: opponent has borne off at least 1 checker
 - Gammon: opponent has not borne off any checkers (2x value)
 - Backgammon: opponent has checker on bar or in winner's home board (3x value)
 
 **9. Edge Cases**
+
 - Empty turn (no legal moves after roll)
 - Partial turn (only some dice playable)
 - Forced moves (only one legal sequence)
@@ -437,6 +455,7 @@ Test categories:
 **Test Helpers:**
 
 Create `src/game/__tests__/testUtils.ts`:
+
 - `createGameState(overrides)` - factory for test states
 - `createBoardWithCheckers(positions)` - build specific board positions
 - `rollSpecificDice(die1, die2)` - deterministic dice for testing
@@ -456,6 +475,7 @@ Create `src/game/__tests__/testUtils.ts`:
 ```
 
 **Verification:**
+
 - `npm test` runs all game logic tests
 - 100% coverage of `rules.ts`
 - All rule edge cases documented and tested
@@ -517,6 +537,7 @@ Create `src/game/__tests__/testUtils.ts`:
 4. Remove `DemoControls.tsx` and `presetMoves.ts`
 
 **Verification:**
+
 - Run `npm run dev`
 - Two people can play a full game
 - Click checker to select, click destination to move
@@ -535,15 +556,17 @@ Create `src/game/__tests__/testUtils.ts`:
 > **Important: Hybrid Return Values**
 >
 > All game-modifying tools (`startGame`, `rollDice`, `makeMove`, `endTurn`) MUST return both:
+>
 > 1. **Text content**: ASCII board + game state summary (so LLM can see the position)
 > 2. **`_meta.ui`**: Resource URI pointing to `ui://backgammon/board` (to trigger UI refresh)
 >
 > This ensures the LLM always has visibility into game state regardless of whether the Host renders the MCP App UI. Example return structure:
+>
 > ```typescript
 > return {
->   content: [{ type: 'text', text: `${summary}\n\n${asciiBoard}` }],
->   _meta: { ui: { uri: 'ui://backgammon/board' } }
-> }
+>   content: [{ type: "text", text: `${summary}\n\n${asciiBoard}` }],
+>   _meta: { ui: { uri: "ui://backgammon/board" } },
+> };
 > ```
 
 1. `gameManager.ts`:
@@ -590,6 +613,7 @@ Create `src/game/__tests__/testUtils.ts`:
    - Runs on port 3001
 
 **Add npm scripts:**
+
 ```json
 {
   "scripts": {
@@ -600,6 +624,7 @@ Create `src/game/__tests__/testUtils.ts`:
 ```
 
 **Verification:**
+
 - Run `npm run serve:mcp:text`
 - Connect MCP host to `http://localhost:3001/mcp`
 - Play a full game via chat commands
@@ -645,17 +670,18 @@ Create `src/game/__tests__/testUtils.ts`:
    - Register UI resource with proper MIME type and metadata:
      ```typescript
      server.registerResource({
-       uri: 'ui://backgammon/board',
-       name: 'Backgammon Board',
-       description: 'Interactive backgammon game board',
-       mimeType: 'text/html;profile=mcp-app',
+       uri: "ui://backgammon/board",
+       name: "Backgammon Board",
+       description: "Interactive backgammon game board",
+       mimeType: "text/html;profile=mcp-app",
        // ... handler returns bundled HTML
-     })
+     });
      ```
    - Serve bundled HTML from `dist/mcp-app.html`
    - All game-modifying tools include `_meta.ui` (see "Hybrid Return Values" above)
 
 **Add npm scripts:**
+
 ```json
 {
   "scripts": {
@@ -666,6 +692,7 @@ Create `src/game/__tests__/testUtils.ts`:
 ```
 
 **Verification:**
+
 - Run `npm run serve:mcp`
 - Connect MCP host to server
 - Say "Let's play backgammon"
@@ -683,6 +710,7 @@ Create `src/game/__tests__/testUtils.ts`:
 **Create `README.md`:**
 
 Structure:
+
 1. **Overview** - What is backgammon-mcp, the three play modes
 2. **Quick Start** - Fastest way to get playing
 3. **Play Modes**
@@ -729,12 +757,7 @@ Structure:
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit"
   },
-  "files": [
-    "dist/",
-    "src/mcp-server/",
-    "src/game/",
-    "README.md"
-  ],
+  "files": ["dist/", "src/mcp-server/", "src/game/", "README.md"],
   "bin": {
     "backgammon-mcp": "./bin/serve.js"
   }
@@ -744,6 +767,7 @@ Structure:
 **Create `bin/serve.js`:**
 
 CLI entry point for running the MCP server:
+
 ```javascript
 #!/usr/bin/env node
 // Starts the MCP server with optional flags
@@ -769,8 +793,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -787,7 +811,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   publish:
@@ -796,8 +820,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - run: npm run build
       - run: npm run build:mcp-app
@@ -808,16 +832,17 @@ jobs:
 
 **Final npm scripts summary:**
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Couch play mode (local browser) |
-| `npm run serve:mcp` | MCP server with graphical app |
+| Command                  | Description                         |
+| ------------------------ | ----------------------------------- |
+| `npm run dev`            | Couch play mode (local browser)     |
+| `npm run serve:mcp`      | MCP server with graphical app       |
 | `npm run serve:mcp:text` | MCP server text-only (no app build) |
-| `npm test` | Run unit tests |
-| `npm run build` | Build couch play for production |
-| `npm run build:mcp-app` | Build MCP App HTML bundle |
+| `npm test`               | Run unit tests                      |
+| `npm run build`          | Build couch play for production     |
+| `npm run build:mcp-app`  | Build MCP App HTML bundle           |
 
 **Verification:**
+
 - Clone fresh repo, `npm install`, each play mode works
 - `npm test` passes
 - GitHub Actions CI passes on push
@@ -828,18 +853,18 @@ jobs:
 
 ## Summary
 
-| Stage | What's Built | How to Test | Status |
-|-------|--------------|-------------|--------|
-| 1 | Game rules + unit tests | `npm test` | ✅ Done |
-| 2 | Interactive viewer + couch play | `npm run dev`, play a full game | ✅ Done |
-| 3 | MCP server (LLM tool-only) | `npm run serve:mcp:text`, chat with LLM | ⬚ Pending |
-| 4 | MCP App (LLM graphical) | `npm run serve:mcp`, chat with UI | ⬚ Pending |
-| 5 | Packaging & deployment | Fresh clone install, CI green, README clear | ⬚ Pending |
+| Stage | What's Built                    | How to Test                                 | Status    |
+| ----- | ------------------------------- | ------------------------------------------- | --------- |
+| 1     | Game rules + unit tests         | `npm test`                                  | ✅ Done   |
+| 2     | Interactive viewer + couch play | `npm run dev`, play a full game             | ✅ Done   |
+| 3     | MCP server (LLM tool-only)      | `npm run serve:mcp:text`, chat with LLM     | ⬚ Pending |
+| 4     | MCP App (LLM graphical)         | `npm run serve:mcp`, chat with UI           | ⬚ Pending |
+| 5     | Packaging & deployment          | Fresh clone install, CI green, README clear | ⬚ Pending |
 
 Each stage builds on the previous. The core `game/` and `viewer/` modules remain decoupled and reusable across all three play modes:
 
-| Mode | Command | Description |
-|------|---------|-------------|
-| Couch Play | `npm run dev` | Two humans, one device, browser UI |
-| LLM Tool-Only | `npm run serve:mcp:text` | Play vs LLM, ASCII board in chat |
-| LLM MCP App | `npm run serve:mcp` | Play vs LLM, interactive board in chat |
+| Mode          | Command                  | Description                            |
+| ------------- | ------------------------ | -------------------------------------- |
+| Couch Play    | `npm run dev`            | Two humans, one device, browser UI     |
+| LLM Tool-Only | `npm run serve:mcp:text` | Play vs LLM, ASCII board in chat       |
+| LLM MCP App   | `npm run serve:mcp`      | Play vs LLM, interactive board in chat |
