@@ -1,4 +1,42 @@
+// =============================================================================
+// Types
+// =============================================================================
+
 export * from './types'
+
+// =============================================================================
+// Result Type
+// =============================================================================
+
+export { type Result, ok, err, isOk, isErr, mapResult, mapError, unwrap, unwrapOr } from './result'
+
+// =============================================================================
+// Dice Utilities
+// =============================================================================
+
+export { rollDie, createDiceRoll, getRemainingMovesFromDice, rollForFirstPlayer } from './dice'
+
+// =============================================================================
+// Sync Thunk Infrastructure
+// =============================================================================
+
+export {
+  buildCreateSyncThunk,
+  isSyncThunkAction,
+  type SyncThunkAPI,
+  type PayloadCreator,
+  type SyncThunkMeta,
+  type SyncThunkAction,
+  type SyncThunkActionCreator,
+  type CreateSyncThunk,
+} from './syncThunk'
+
+export { createSyncThunkMiddleware, gameSyncThunkMiddleware } from './syncThunkMiddleware'
+
+// =============================================================================
+// Game Slice
+// =============================================================================
+
 export {
   gameSlice,
   default as gameReducer,
@@ -8,7 +46,6 @@ export {
   rollDice,
   makeMove,
   endTurn,
-  setAvailableMoves,
   endGame,
   resetGame,
   // Direct selectors
@@ -21,7 +58,6 @@ export {
   selectMovesThisTurn,
   selectResult,
   selectHistory,
-  selectAvailableMoves,
   // Derived selectors
   selectBar,
   selectBorneOff,
@@ -29,9 +65,54 @@ export {
   selectCanRoll,
   selectCanMove,
   selectIsDoubles,
+  selectGameState,
+  // Memoized selectors
+  selectValidMoves,
+  selectCanEndTurn,
+  // Types
+  type RootState,
 } from './gameSlice'
 
-// Rules engine exports
+// =============================================================================
+// Operations (sync thunks)
+// =============================================================================
+
+export {
+  // Operations
+  performStartGame,
+  performRollDice,
+  performMove,
+  performEndTurn,
+  // Error types
+  type NoGameError,
+  type WrongPhaseError,
+  type InvalidMoveError,
+  type MustPlayRequiredError,
+  type InvalidInputError,
+  type MovesRemainingError,
+  type GameOverError,
+  type StartGameError,
+  type RollError,
+  type MoveError,
+  type EndTurnError,
+  // Result types
+  type StartGameResult,
+  type RollDiceResult,
+  type MakeMoveResult,
+  type EndTurnResult,
+  // Input types
+  type MakeMoveInput,
+  // Action types
+  type StartGameAction,
+  type RollDiceAction,
+  type MakeMoveAction,
+  type EndTurnAction,
+} from './operations'
+
+// =============================================================================
+// Rules Engine
+// =============================================================================
+
 export {
   getMoveDirection,
   canBearOff,
@@ -39,9 +120,11 @@ export {
   getValidMoves,
   checkGameOver,
   hasAnyLegalMoves,
+  canEndTurn,
   createInitialBoard,
   countTotalCheckers,
   filterMovesByDie,
   getRequiredMoves,
   getLegalMoveSequences,
+  applyMoveToBoard,
 } from './rules'

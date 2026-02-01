@@ -142,9 +142,8 @@ Redux Toolkit slice managing game state transitions. Defines a local `RootState`
 - `startGame()` - Transition to `rolling_for_first` phase
 - `setFirstPlayer(player)` - Set first player, transition to `rolling`
 - `rollDice({ die1, die2 })` - Set dice, compute remaining moves, transition to `moving`
-- `makeMove({ from, to, dieUsed })` - Execute move, update board/bar/borneOff, consume die
+- `makeMove({ from, to, dieUsed })` - Execute move, update board/bar/borneOff, consume die, check for game over
 - `endTurn()` - Archive turn to history, switch player, transition to `rolling`
-- `setAvailableMoves(moves)` - Update computed valid moves (for UI highlighting)
 - `endGame(result)` - Set result, transition to `game_over`
 - `resetGame()` - Return to initial state
 
@@ -263,25 +262,26 @@ Main game orchestration component.
 
 **Responsibilities:**
 - Manages selection state (`selectedSource`, `validDestinations`)
-- Computes valid moves using `getValidMoves()` when dice are rolled
+- Computes valid moves on-demand using `useMemo` and `getValidMoves()` (derived state)
 - Handles all user interactions via callbacks
-- Auto-detects game over conditions
+- Game over is detected in the reducer after each move
 - Auto-ends turn when no moves available
 
 **Turn Flow:**
 1. Game starts → `startGame()` → Roll for first player
 2. Player clicks "Roll Dice" → `rollDice()` with random values
-3. Valid moves computed → `setAvailableMoves()`
+3. Valid moves computed on-demand via `useMemo`
 4. Player clicks checker → Sets `selectedSource`, shows `validDestinations`
-5. Player clicks valid destination → `makeMove()`
+5. Player clicks valid destination → `makeMove()` (checks for game over in reducer)
 6. Repeat 4-5 until no moves remain
 7. Player clicks "End Turn" → `endTurn()` → Switch player
 8. Repeat 2-7 until game over
 9. Winner displayed → "New Game" button available
 
 **State Management:**
-- Redux store holds `GameState`
+- Redux store holds `GameState` (without `availableMoves` - computed on-demand)
 - Local React state holds selection (`selectedSource`, `validDestinations`)
+- `availableMoves` computed via `useMemo` based on `phase`, `remainingMoves`, `board`, `currentPlayer`
 - `useEffect` hooks compute valid moves and check game over
 
 #### `src/store.ts`

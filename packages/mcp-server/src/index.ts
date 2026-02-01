@@ -4,5 +4,5 @@
  * Exports for the backgammon MCP server.
  */
 
-export { gameManager } from './gameManager'
+export { store } from './store'
 export { renderAsciiBoard, renderFullGameState, renderGameSummary, renderAvailableMoves } from './asciiBoard'

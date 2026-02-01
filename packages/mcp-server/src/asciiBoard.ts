@@ -5,6 +5,7 @@
  */
 
 import type { GameState } from '@backgammon/game'
+import { getValidMoves } from '@backgammon/game'
 
 // =============================================================================
 // Constants
@@ -176,13 +177,15 @@ export function renderFullGameState({ state }: { state: GameState }): string {
  * Render available moves in a readable format
  */
 export function renderAvailableMoves({ state }: { state: GameState }): string {
-  if (!state.availableMoves || state.availableMoves.length === 0) {
+  const availableMoves = getValidMoves({ state })
+
+  if (!availableMoves || availableMoves.length === 0) {
     return 'No legal moves available.'
   }
 
   const lines: string[] = ['Available moves:']
 
-  for (const am of state.availableMoves) {
+  for (const am of availableMoves) {
     for (const dest of am.destinations) {
       const hitIndicator = dest.wouldHit ? ' (hit!)' : ''
       lines.push(`  ${am.from} -> ${dest.to} using ${dest.dieValue}${hitIndicator}`)

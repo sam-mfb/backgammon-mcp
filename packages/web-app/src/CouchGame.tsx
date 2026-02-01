@@ -1,25 +1,22 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import type { RootState, AppDispatch } from './store'
-import type { DieValue, MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
+import type { MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
 import {
-  startGame,
-  setFirstPlayer,
   rollDice,
   makeMove,
   endTurn,
-  setAvailableMoves,
-  endGame,
   resetGame,
-  getValidMoves,
-  checkGameOver,
+  selectValidMoves,
+  selectCanEndTurn,
+  selectPhase,
+  selectCurrentPlayer,
+  selectBoard,
+  selectRemainingMoves,
+  rollDie,
+  performStartGame,
 } from '@backgammon/game'
 import { BoardView, type SelectedSource } from '@backgammon/viewer'
-
-/** Generate a random die roll (1-6) */
-function rollDie(): DieValue {
-  return (Math.floor(Math.random() * 6) + 1) as DieValue
-}
 
 export function CouchGame() {
   const dispatch = useDispatch<AppDispatch>()
@@ -28,47 +25,26 @@ export function CouchGame() {
   const [selectedSource, setSelectedSource] = useState<SelectedSource>(null)
   const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>([])
 
-  const { phase, currentPlayer, availableMoves, board, remainingMoves } = gameState
+  const phase = useSelector(selectPhase)
+  const currentPlayer = useSelector(selectCurrentPlayer)
+  const board = useSelector(selectBoard)
+  const remainingMoves = useSelector(selectRemainingMoves)
 
-  // Compute and update available moves whenever relevant state changes
-  useEffect(() => {
-    if (phase === 'moving' && remainingMoves.length > 0) {
-      const moves = getValidMoves({ state: gameState })
-      dispatch(setAvailableMoves(moves))
-    }
-  }, [phase, remainingMoves, board, currentPlayer, dispatch, gameState])
-
-  // Check for game over after each move
-  useEffect(() => {
-    if (phase === 'moving') {
-      const result = checkGameOver({ state: gameState })
-      if (result) {
-        dispatch(endGame(result))
-      }
-    }
-  }, [phase, board, dispatch, gameState])
+  // Use memoized selectors for expensive computations
+  const availableMoves = useSelector(selectValidMoves)
+  const canEndTurnNow = useSelector(selectCanEndTurn)
 
   // Auto-end turn if no moves available
   useEffect(() => {
-    if (phase === 'moving' && availableMoves && availableMoves.length === 0) {
-      // No moves possible - auto end turn
+    if (phase === 'moving' && availableMoves.length === 0 && remainingMoves.length > 0) {
+      // No moves possible but still have dice - auto end turn
       dispatch(endTurn())
     }
-  }, [phase, availableMoves, dispatch])
+  }, [phase, availableMoves, remainingMoves, dispatch])
 
-  // Handle starting the game
+  // Handle starting the game using the new operation
   const handleStartGame = useCallback(() => {
-    dispatch(startGame())
-    // Roll to determine first player
-    let whiteDie = rollDie()
-    let blackDie = rollDie()
-    // Re-roll if tied
-    while (whiteDie === blackDie) {
-      whiteDie = rollDie()
-      blackDie = rollDie()
-    }
-    const firstPlayer: Player = whiteDie > blackDie ? 'white' : 'black'
-    dispatch(setFirstPlayer(firstPlayer))
+    dispatch(performStartGame())
   }, [dispatch])
 
   // Handle rolling dice
@@ -99,7 +75,7 @@ export function CouchGame() {
   // Get valid destinations for a source position
   const getDestinationsForSource = useCallback(
     (source: MoveFrom): MoveTo[] => {
-      if (!availableMoves) return []
+      if (availableMoves.length === 0) return []
       const available = availableMoves.find((am) => am.from === source)
       if (!available) return []
       return available.destinations.map((d) => d.to)
@@ -245,6 +221,7 @@ export function CouchGame() {
           gameState={gameState}
           selectedSource={selectedSource}
           validDestinations={validDestinations}
+          canEndTurn={canEndTurnNow}
           onPointClick={handlePointClick}
           onBarClick={handleBarClick}
           onBorneOffClick={handleBorneOffClick}
