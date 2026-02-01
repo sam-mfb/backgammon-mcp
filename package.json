@@ -7,8 +7,7 @@
     "dev": "pnpm --filter @backgammon/web-app dev",
     "build": "pnpm -r build",
     "preview": "pnpm --filter @backgammon/web-app preview",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest run",
     "mcp": "pnpm --filter @backgammon/mcp-server start"
   },
   "devDependencies": {
