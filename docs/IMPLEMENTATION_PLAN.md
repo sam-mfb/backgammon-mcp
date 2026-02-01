@@ -125,15 +125,16 @@ backgammon-mcp/
 
 Key points to ensure compliance with the MCP Apps spec (`io.modelcontextprotocol/ui`). For full details, see [docs/MCP_APPS_SPEC.md](./MCP_APPS_SPEC.md).
 
-1. **No `app.updateContext()` method**: The LLM sees game state through **tool return values**, not a separate context push. All game-modifying tools must return ASCII board state in their `content` field.
+1. **Data flows via `ui/notifications/tool-result`**: The MCP App receives game state through tool results, not a separate context push. The Host sends `ui/notifications/tool-result` containing the full `CallToolResult` after each tool call.
 
-2. **Hybrid return values**: Every game tool returns both:
-   - Text content (ASCII board) for LLM visibility
-   - `_meta.ui` with resource URI for Host to refresh the App
+2. **Three-part tool returns** (per spec's "Data Passing" best practices):
+   - `content`: ASCII board text (added to model context, LLM sees this)
+   - `structuredContent`: Full `GameState` object (NOT added to model context, UI uses this)
+   - `_meta.ui`: Resource URI for Host to know which UI renders this result
 
 3. **MIME type**: UI resources must register with `mimeType: "text/html;profile=mcp-app"`
 
-4. **State sync for LLM-initiated calls**: When the LLM calls tools directly, the Host may not automatically push results to the App. The App should include a "Refresh" button that calls `get-state` as a fallback.
+4. **State sync for LLM-initiated calls**: When the LLM calls tools directly, the Host pushes `ui/notifications/tool-result` to the App. The App uses `structuredContent` from these notifications to stay in sync. Include a "Refresh" button as fallback.
 
 5. **Official SDK**: Use `@modelcontextprotocol/ext-apps` for postMessage communication rather than implementing JSON-RPC manually.
 
@@ -553,18 +554,24 @@ Create `src/game/__tests__/testUtils.ts`:
 
 **Create `src/mcp-server/`:**
 
-> **Important: Hybrid Return Values**
+> **Important: Tool Return Values (Three Components)**
 >
-> All game-modifying tools (`startGame`, `rollDice`, `makeMove`, `endTurn`) MUST return both:
+> All game-modifying tools (`startGame`, `rollDice`, `makeMove`, `endTurn`) MUST return three components per the MCP Apps spec:
 >
-> 1. **Text content**: ASCII board + game state summary (so LLM can see the position)
-> 2. **`_meta.ui`**: Resource URI pointing to `ui://backgammon/board` (to trigger UI refresh)
+> 1. **`content`**: ASCII board + text summary (for LLM visibility - this IS added to model context)
+> 2. **`structuredContent`**: Full `GameState` object (for MCP App UI - NOT added to model context)
+> 3. **`_meta.ui`**: Resource URI pointing to `ui://backgammon/board` (tells Host which UI to render)
 >
-> This ensures the LLM always has visibility into game state regardless of whether the Host renders the MCP App UI. Example return structure:
+> The MCP App receives the full `CallToolResult` via `ui/notifications/tool-result` and uses `structuredContent` to update its state. Example return structure:
 >
 > ```typescript
 > return {
 >   content: [{ type: "text", text: `${summary}\n\n${asciiBoard}` }],
+>   structuredContent: {
+>     gameState,           // Full GameState for UI
+>     validMoves,          // Pre-computed valid moves
+>     lastAction: "roll",  // What just happened
+>   },
 >   _meta: { ui: { uri: "ui://backgammon/board" } },
 > };
 > ```
@@ -608,9 +615,17 @@ Create `src/game/__tests__/testUtils.ts`:
    - Allows LLM to verify rules during gameplay disputes or questions
 
 9. `server.ts`:
-   - Sets up MCP server with StreamableHTTPServerTransport
-   - Registers all tools
-   - Runs on port 3001
+   - Uses `McpServer` class from `@modelcontextprotocol/sdk/server/mcp.js`
+   - Registers tools using fluent API with **Zod schemas** for input validation:
+     ```typescript
+     server.tool(
+       "make-move",
+       "Move a checker from one point to another",
+       { from: z.union([z.number(), z.literal("bar")]), to: z.union([z.number(), z.literal("off")]), dieUsed: z.number() },
+       async ({ from, to, dieUsed }) => { /* ... */ }
+     );
+     ```
+   - Runs on port 3001 with StreamableHTTPServerTransport
 
 **Add npm scripts:**
 
@@ -647,18 +662,20 @@ Create `src/game/__tests__/testUtils.ts`:
    - Loads bundled React app
 
 2. `mcp-app.ts`:
-   - Creates `App` instance from `@modelcontextprotocol/ext-apps`
-   - Connects to host
-   - Sets up `ontoolresult` handler to update board state
-   - Renders React app with state
-   - **Note**: `ontoolresult` fires for tool calls made by this App. For LLM-initiated tool calls, the Host may or may not push results to the App. The "Refresh" button (below) provides a fallback.
+   - Creates `Client` instance from `@modelcontextprotocol/ext-apps`
+   - Calls `client.connect()` after window ready
+   - Listens to `ui/notifications/tool-result` via SDK's notification handler
+   - Extracts `structuredContent.gameState` from each tool result to update React state
+   - Renders React app with current `GameState`
+   - **Note**: Host pushes `ui/notifications/tool-result` for both App-initiated AND LLM-initiated tool calls, keeping the App in sync automatically.
 
 3. `McpBoardView.tsx`:
    - Wraps `viewer/BoardView`
-   - Manages selection state locally
-   - On user actions, calls `app.callServerTool()`
-   - Receives state updates via props (from ontoolresult)
-   - **Includes "Refresh" button**: Calls `get-state` tool as fallback if board appears stale (e.g., after LLM's turn doesn't auto-update)
+   - Receives `GameState` from `structuredContent` via props
+   - Manages selection state locally (which checker is selected)
+   - On user actions, calls `client.callTool()` (e.g., `roll-dice`, `make-move`)
+   - Uses `structuredContent.validMoves` to highlight legal destinations
+   - **Includes "Refresh" button**: Calls `get-state` tool as fallback if state appears stale
 
 4. `vite.config.mcp-app.ts`:
    - Uses `vite-plugin-singlefile`
