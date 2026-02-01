@@ -17,6 +17,10 @@ This document describes the architecture and staged implementation plan for a ba
    - User clicks to roll dice, select checkers, make moves
    - Requires MCP App-compatible host (Claude Desktop, claude.ai, VS Code Insiders, etc.)
 
+**Rules Reference**: See [docs/BACKGAMMON_RULES.md](./BACKGAMMON_RULES.md) for complete backgammon rules.
+
+**Scope**: This implementation covers standard backgammon rules for single games. It does NOT include the doubling cube, match play, or optional gambling rules. See [Out of Scope](#out-of-scope-do-not-implement) in Stage 1.
+
 ---
 
 ## Part A: Final System Architecture
@@ -53,7 +57,8 @@ backgammon-mcp/
 │   │   │   ├── rollDice.ts
 │   │   │   ├── makeMove.ts
 │   │   │   ├── endTurn.ts
-│   │   │   └── getGameState.ts
+│   │   │   ├── getGameState.ts
+│   │   │   └── getRules.ts      # Fetch rules for LLM reference
 │   │   └── index.ts
 │   │
 │   └── mcp-app/                 # MCP App UI (renders in MCP host)
@@ -326,7 +331,22 @@ User types: "Should I hit or make a point?"
 
 **Goal**: Implement and thoroughly test backgammon rules in `game/rules.ts` before building any UI.
 
-**Reference**: [USBGF Backgammon Rules](https://usbgf.org/backgammon-basics-how-to-play/)
+**Reference**: [docs/BACKGAMMON_RULES.md](./BACKGAMMON_RULES.md) (offline reference based on [USBGF Rules](https://usbgf.org/backgammon-basics-how-to-play/))
+
+#### Out of Scope (Do NOT Implement)
+
+The following features are intentionally excluded from this implementation:
+
+| Feature | Reason |
+|---------|--------|
+| **Doubling Cube** | Gambling/stakes mechanism, not needed for casual play |
+| **Automatic Doubles** | Optional gambling rule |
+| **Beavers** | Optional gambling rule (immediate redouble) |
+| **Jacoby Rule** | Optional rule affecting gammon/backgammon scoring |
+| **Crawford Rule** | Match play rule, we only support single games |
+| **Match Play** | Playing to N points, only single games supported |
+
+We DO implement gammon/backgammon victory types (for display purposes) but without stake multipliers.
 
 **Create `src/game/rules.ts`:**
 
@@ -529,7 +549,13 @@ Create `src/game/__tests__/testUtils.ts`:
 7. `tools/getGameState.ts`:
    - Returns full state for context
 
-8. `server.ts`:
+8. `tools/getRules.ts`:
+   - Input: `{ section?: string }` (optional filter)
+   - Returns backgammon rules from local `docs/BACKGAMMON_RULES.md`
+   - Sections: "movement", "hitting", "bar", "bearing-off", "winning", or full rules
+   - Allows LLM to verify rules during gameplay disputes or questions
+
+9. `server.ts`:
    - Sets up MCP server with StreamableHTTPServerTransport
    - Registers all tools
    - Runs on port 3001
@@ -630,9 +656,10 @@ Structure:
      - Add as MCP server in your host
      - Board renders in chat, click to play
      - Requires MCP App-compatible host (Claude Desktop, claude.ai, VS Code Insiders, etc.)
-4. **Rules Reference** - Link to USBGF rules
-5. **Development** - How to contribute, run tests
-6. **License**
+4. **Rules Reference** - Link to docs/BACKGAMMON_RULES.md
+5. **Scope & Limitations** - No doubling cube, no match play, single games only
+6. **Development** - How to contribute, run tests
+7. **License**
 
 **Update `package.json`:**
 
