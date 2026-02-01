@@ -8,7 +8,6 @@ export {
   rollDice,
   makeMove,
   endTurn,
-  setAvailableMoves,
   endGame,
   resetGame,
   // Direct selectors
@@ -21,7 +20,6 @@ export {
   selectMovesThisTurn,
   selectResult,
   selectHistory,
-  selectAvailableMoves,
   // Derived selectors
   selectBar,
   selectBorneOff,

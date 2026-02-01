@@ -256,7 +256,4 @@ export interface GameState {
 
   /** History of all completed turns */
   readonly history: readonly Turn[]
-
-  /** Precomputed available moves for UI (null when not in moving phase) */
-  readonly availableMoves: readonly AvailableMoves[] | null
 }

@@ -1,6 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type {
-  AvailableMoves,
   BoardState,
   DiceRoll,
   GameResult,
@@ -8,6 +7,7 @@ import type {
   Move,
   Player,
 } from './types'
+import { checkGameOver } from './rules'
 
 /** State shape expected by selectors - apps must configure their store with { game: GameState } */
 type RootState = { game: GameState }
@@ -68,7 +68,6 @@ const initialState: GameState = {
   movesThisTurn: [],
   result: null,
   history: [],
-  availableMoves: null,
 }
 
 export const gameSlice = createSlice({
@@ -153,6 +152,13 @@ export const gameSlice = createSlice({
 
       // Record the move
       state.movesThisTurn.push(action.payload)
+
+      // Check if the game is over after this move
+      const gameResult = checkGameOver({ state: state as GameState })
+      if (gameResult) {
+        state.result = gameResult
+        state.phase = 'game_over'
+      }
     },
 
     /** Archive turn to history, switch player, transition to rolling */
@@ -173,22 +179,8 @@ export const gameSlice = createSlice({
       state.diceRoll = null
       state.remainingMoves = []
       state.movesThisTurn = []
-      state.availableMoves = null
       state.turnNumber++
       state.phase = 'rolling'
-    },
-
-    /** Update precomputed available moves for UI */
-    setAvailableMoves(
-      state,
-      action: PayloadAction<readonly AvailableMoves[]>
-    ) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      // Use 'any' to bypass Immer's WritableDraft type requirements.
-      // This is safe: Immer doesn't mutate inputs, it creates its own draft.
-      // The readonly input is assigned directly and becomes part of the
-      // immutable state that Immer produces.
-      ;(state as any).availableMoves = action.payload
     },
 
     /** Set result and transition to game_over */
@@ -210,7 +202,6 @@ export const {
   rollDice,
   makeMove,
   endTurn,
-  setAvailableMoves,
   endGame,
   resetGame,
 } = gameSlice.actions
@@ -229,7 +220,6 @@ export const selectTurnNumber = (state: RootState) => state.game.turnNumber
 export const selectMovesThisTurn = (state: RootState) => state.game.movesThisTurn
 export const selectResult = (state: RootState) => state.game.result
 export const selectHistory = (state: RootState) => state.game.history
-export const selectAvailableMoves = (state: RootState) => state.game.availableMoves
 
 // Derived selectors
 export const selectBar = (state: RootState) => state.game.board.bar

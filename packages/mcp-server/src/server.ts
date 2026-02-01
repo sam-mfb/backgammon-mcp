@@ -239,7 +239,7 @@ server.tool(
 
     let text = boardText
 
-    if (state.phase === 'moving' && state.availableMoves) {
+    if (state.phase === 'moving') {
       text += '\n\n' + renderAvailableMoves({ state })
     }
 

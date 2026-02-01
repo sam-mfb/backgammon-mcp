@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import type { RootState, AppDispatch } from './store'
 import type { DieValue, MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
@@ -8,11 +8,8 @@ import {
   rollDice,
   makeMove,
   endTurn,
-  setAvailableMoves,
-  endGame,
   resetGame,
   getValidMoves,
-  checkGameOver,
 } from '@backgammon/game'
 import { BoardView, type SelectedSource } from '@backgammon/viewer'
 
@@ -28,25 +25,15 @@ export function CouchGame() {
   const [selectedSource, setSelectedSource] = useState<SelectedSource>(null)
   const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>([])
 
-  const { phase, currentPlayer, availableMoves, board, remainingMoves } = gameState
+  const { phase, currentPlayer, board, remainingMoves } = gameState
 
-  // Compute and update available moves whenever relevant state changes
-  useEffect(() => {
+  // Compute available moves on-demand (derived state)
+  const availableMoves = useMemo(() => {
     if (phase === 'moving' && remainingMoves.length > 0) {
-      const moves = getValidMoves({ state: gameState })
-      dispatch(setAvailableMoves(moves))
+      return getValidMoves({ state: gameState })
     }
-  }, [phase, remainingMoves, board, currentPlayer, dispatch, gameState])
-
-  // Check for game over after each move
-  useEffect(() => {
-    if (phase === 'moving') {
-      const result = checkGameOver({ state: gameState })
-      if (result) {
-        dispatch(endGame(result))
-      }
-    }
-  }, [phase, board, dispatch, gameState])
+    return null
+  }, [phase, remainingMoves, board, currentPlayer])
 
   // Auto-end turn if no moves available
   useEffect(() => {
