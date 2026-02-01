@@ -1,11 +1,11 @@
 import { Provider } from 'react-redux'
 import { store } from './store'
-import { DemoApp } from './DemoApp'
+import { CouchGame } from './CouchGame'
 
 export function App() {
   return (
     <Provider store={store}>
-      <DemoApp />
+      <CouchGame />
     </Provider>
   )
 }
