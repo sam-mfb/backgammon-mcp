@@ -1,1 +1,1 @@
-export { Board } from './Board'
+export { BoardView } from './BoardView'
