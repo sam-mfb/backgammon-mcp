@@ -14,6 +14,134 @@ Transform `packages/mcp-server/` into an MCP App that provides an interactive ba
 
 ---
 
+## Phase 0: Action History (packages/game/, packages/viewer/, packages/web-app/)
+
+### Goal
+Add a flat history of atomic game actions to GameState. This enables:
+- Deriving "last action" for UI highlighting
+- Future undo/replay functionality
+- Complete game recreation from history (captures all non-determinism: dice + decisions)
+
+### File: `packages/game/src/types.ts`
+
+Add new discriminated union type for atomic actions:
+
+```typescript
+/**
+ * Atomic game action - captures all non-deterministic events
+ * (dice rolls and player decisions)
+ */
+export type GameAction =
+  | {
+      readonly type: 'game_start'
+      readonly firstPlayer: Player
+      readonly whiteRoll: DieValue
+      readonly blackRoll: DieValue
+    }
+  | {
+      readonly type: 'dice_roll'
+      readonly player: Player
+      readonly roll: DiceRoll
+      readonly turnForfeited: boolean  // True if no legal moves available
+    }
+  | {
+      readonly type: 'piece_move'
+      readonly player: Player
+      readonly from: MoveFrom
+      readonly to: MoveTo
+      readonly dieUsed: DieValue
+      readonly hit: boolean
+    }
+  | {
+      readonly type: 'turn_end'
+      readonly player: Player
+    }
+```
+
+Update `GameState` interface:
+```typescript
+export interface GameState {
+  // ... existing fields ...
+
+  /** Chronological history of all game actions (for replay/undo) */
+  readonly actionHistory: readonly GameAction[]
+}
+```
+
+### File: `packages/game/src/reducer.ts`
+
+Update reducer to append actions to `actionHistory`:
+- `performStartGame` → append `game_start` action
+- `performRollDice` → append `dice_roll` action
+- `performMove` → append `piece_move` action
+- `performEndTurn` → append `turn_end` action
+
+### File: `packages/game/src/selectors.ts`
+
+Add selector for last action:
+```typescript
+export function selectLastAction(state: GameState): GameAction | null {
+  const { actionHistory } = state
+  return actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null
+}
+```
+
+### File: `packages/viewer/src/BoardView.tsx`
+
+Add optional prop for highlighting last action:
+```typescript
+interface BoardViewProps {
+  // ... existing props ...
+  /** Last action for highlighting (optional) */
+  lastAction?: GameAction | null
+}
+```
+
+Pass to child components for visual highlighting:
+- `piece_move` → highlight source and destination points
+- `dice_roll` → could animate dice (future)
+
+### File: `packages/viewer/src/components/Point.tsx` (or similar)
+
+Add CSS classes for last-move highlighting:
+- `.point--last-move-source`
+- `.point--last-move-destination`
+
+### File: `packages/viewer/src/BoardView.css`
+
+Add styles for last-move highlighting:
+```css
+.point--last-move-source .point__triangle,
+.point--last-move-destination .point__triangle {
+  filter: brightness(1.2);
+  box-shadow: inset 0 0 10px var(--bgv-last-move-highlight, rgba(255, 200, 0, 0.4));
+}
+```
+
+### File: `packages/web-app/src/CouchGame.tsx`
+
+Use the new selector and pass to BoardView:
+```typescript
+const lastAction = selectLastAction(gameState)
+
+<BoardView
+  gameState={gameState}
+  lastAction={lastAction}
+  // ... other props
+/>
+```
+
+### Deliverables
+- [ ] `GameAction` discriminated union type in `types.ts`
+- [ ] `actionHistory` field added to `GameState`
+- [ ] Reducer appends actions to history
+- [ ] `selectLastAction` selector
+- [ ] `lastAction` prop on BoardView
+- [ ] Last-move highlighting CSS
+- [ ] web-app uses lastAction for highlighting
+
+---
+
 ## Phase 1: CSS Variables (packages/viewer/)
 
 ### Goal
@@ -150,12 +278,14 @@ Tools return both text `content` (for model context / non-App hosts) and `struct
 Define structured content type:
 ```typescript
 interface BackgammonStructuredContent {
-  gameState: GameState
+  gameState: GameState  // Includes actionHistory, from which lastAction is derived
   validMoves?: AvailableMoves[]  // Included when in moving phase
 }
 ```
 
-Note: `config` (player control settings) is only returned by `backgammon_start_game`. The shim stores it locally.
+Note:
+- `config` (player control settings) is only returned by `backgammon_start_game` and `backgammon_get_game_state`. The shim stores it locally.
+- `lastAction` is derived from `gameState.actionHistory` using `selectLastAction` - no need to send it separately.
 
 Create helper:
 ```typescript
@@ -201,7 +331,7 @@ function gameResponse(
 - [ ] `backgammon_roll_dice` - concise text, no ASCII board
 - [ ] `backgammon_make_move` - concise text, no ASCII board
 - [ ] `backgammon_end_turn` - concise text, no ASCII board
-- [ ] `backgammon_get_game_state` - keep ASCII board (explicit inspection tool)
+- [ ] `backgammon_get_game_state` - keep ASCII board, include config (recovery mechanism)
 - [ ] `backgammon_reset_game` - concise text
 
 ### Deliverables
@@ -343,7 +473,14 @@ import {
   applyHostFonts
 } from '@modelcontextprotocol/ext-apps'
 import { BoardView } from '@backgammon/viewer'
-import type { GameState, Player, PointIndex, MoveTo, AvailableMoves } from '@backgammon/game'
+import {
+  selectLastAction,
+  type GameState,
+  type Player,
+  type PointIndex,
+  type MoveTo,
+  type AvailableMoves
+} from '@backgammon/game'
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 type GameConfig = { whiteControl: 'human' | 'ai'; blackControl: 'human' | 'ai' }
@@ -351,19 +488,20 @@ type GameConfig = { whiteControl: 'human' | 'ai'; blackControl: 'human' | 'ai' }
 interface BackgammonStructuredContent {
   gameState: GameState
   validMoves?: AvailableMoves[]
-  config?: GameConfig  // Only present in start_game response
+  config?: GameConfig  // Present in start_game and get_game_state responses
 }
 
 export function McpAppShim(): React.JSX.Element {
-  const { app, toolResult, hostContext } = useApp<BackgammonStructuredContent>({
+  const { app, toolResult, hostContext, error } = useApp<BackgammonStructuredContent>({
     appInfo: { name: 'Backgammon', version: '1.0.0' },
     capabilities: {}
   })
 
   const [selectedSource, setSelectedSource] = useState<PointIndex | 'bar' | null>(null)
   const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>([])
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  // Store config from start_game, persists across subsequent tool results
+  // Store config from start_game/get_game_state, persists across subsequent tool results
   const configRef = useRef<GameConfig>({ whiteControl: 'human', blackControl: 'ai' })
 
   // Apply host styling when context changes
@@ -373,14 +511,24 @@ export function McpAppShim(): React.JSX.Element {
     if (hostContext?.styles?.css?.fonts) applyHostFonts(hostContext.styles.css.fonts)
   }, [hostContext])
 
-  const structuredContent = toolResult?.structuredContent
-
-  // Capture config when start_game returns it
+  // Capture config when start_game or get_game_state returns it
   useEffect(() => {
     if (structuredContent?.config) {
       configRef.current = structuredContent.config
     }
   }, [structuredContent?.config])
+
+  // Handle errors from tool calls
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error.message)
+      // Clear error after 3 seconds
+      const timer = setTimeout(() => setErrorMessage(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
+
+  const structuredContent = toolResult?.structuredContent
 
   if (!structuredContent?.gameState) {
     return <div className="waiting">Waiting for game to start...</div>
@@ -388,6 +536,7 @@ export function McpAppShim(): React.JSX.Element {
 
   const { gameState, validMoves } = structuredContent
   const humanControlled = deriveHumanControlled(configRef.current)
+  const lastAction = selectLastAction(gameState)
 
   // Wire button clicks to MCP tool calls
   const handleRollClick = useCallback(() => {
@@ -402,18 +551,22 @@ export function McpAppShim(): React.JSX.Element {
   // ... point/bar/borne-off click handlers that call backgammon_make_move
 
   return (
-    <BoardView
-      gameState={gameState}
-      selectedSource={selectedSource}
-      validDestinations={validDestinations}
-      validMoves={validMoves}
-      humanControlled={humanControlled}
-      onPointClick={handlePointClick}
-      onBarClick={handleBarClick}
-      onBorneOffClick={handleBorneOffClick}
-      onRollClick={handleRollClick}
-      onEndTurnClick={handleEndTurnClick}
-    />
+    <>
+      {errorMessage && <div className="error-toast">{errorMessage}</div>}
+      <BoardView
+        gameState={gameState}
+        selectedSource={selectedSource}
+        validDestinations={validDestinations}
+        validMoves={validMoves}
+        humanControlled={humanControlled}
+        lastAction={lastAction}
+        onPointClick={handlePointClick}
+        onBarClick={handleBarClick}
+        onBorneOffClick={handleBorneOffClick}
+        onRollClick={handleRollClick}
+        onEndTurnClick={handleEndTurnClick}
+      />
+    </>
   )
 }
 
@@ -533,9 +686,13 @@ server.tool(
 
 | File | Phase | Changes |
 |------|-------|---------|
-| `packages/viewer/src/BoardView.css` | 1 | CSS custom properties with fallbacks |
-| `packages/viewer/src/BoardView.tsx` | 2 | `humanControlled` prop |
+| `packages/game/src/types.ts` | 0 | `GameAction` union, `actionHistory` in GameState |
+| `packages/game/src/reducer.ts` | 0 | Append actions to history |
+| `packages/game/src/selectors.ts` | 0 | `selectLastAction` selector |
+| `packages/viewer/src/BoardView.css` | 0, 1 | Last-move highlighting, CSS custom properties |
+| `packages/viewer/src/BoardView.tsx` | 0, 2 | `lastAction` prop, `humanControlled` prop |
 | `packages/viewer/src/components/Controls.tsx` | 2 | `disabled` prop |
+| `packages/web-app/src/CouchGame.tsx` | 0 | Use `selectLastAction`, pass to BoardView |
 | `packages/mcp-server/src/server.ts` | 3, 4, 6 | structuredContent, player config, resource registration |
 | `packages/mcp-server/src/store.ts` | 4 | GameConfig state |
 | `packages/mcp-server/package.json` | 6 | Dependencies and build scripts |
@@ -553,6 +710,19 @@ server.tool(
 
 ## Verification
 
+### Phase 0 Verification
+```bash
+# Run game tests
+pnpm --filter @backgammon/game test
+
+# Verify actionHistory is populated
+# Start web-app, play a few moves, check Redux DevTools for actionHistory
+
+# Verify last-move highlighting in web-app
+pnpm --filter @backgammon/web-app dev
+# Make moves and verify source/destination highlighting
+```
+
 ### Build Test
 ```bash
 cd packages/mcp-server
@@ -563,9 +733,11 @@ pnpm build
 ```
 
 ### Unit Tests
+- Existing game tests pass with new actionHistory field
+- Add test for `selectLastAction` selector
 - Existing viewer tests pass (CSS variables are transparent)
 - Add test for Controls with `disabled={true}`
-- Add test for BoardView with `humanControlled` prop
+- Add test for BoardView with `humanControlled` and `lastAction` props
 
 ### Integration Test
 1. Start server: `pnpm --filter @backgammon/mcp-server start`
