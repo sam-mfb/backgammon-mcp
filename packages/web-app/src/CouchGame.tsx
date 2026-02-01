@@ -3,9 +3,6 @@ import { useSelector, useDispatch } from 'react-redux'
 import type { RootState, AppDispatch } from './store'
 import type { MoveFrom, MoveTo, PointIndex, Player } from '@backgammon/game'
 import {
-  rollDice,
-  makeMove,
-  endTurn,
   resetGame,
   selectValidMoves,
   selectCanEndTurn,
@@ -13,8 +10,10 @@ import {
   selectCurrentPlayer,
   selectBoard,
   selectRemainingMoves,
-  rollDie,
   performStartGame,
+  performRollDice,
+  performMove,
+  performEndTurn,
 } from '@backgammon/game'
 import { BoardView, type SelectedSource } from '@backgammon/viewer'
 
@@ -38,7 +37,11 @@ export function CouchGame() {
   useEffect(() => {
     if (phase === 'moving' && availableMoves.length === 0 && remainingMoves.length > 0) {
       // No moves possible but still have dice - auto end turn
-      dispatch(endTurn())
+      const action = dispatch(performEndTurn())
+      const result = action.meta.result
+      if (!result || !result.ok) {
+        console.error('Auto end turn failed:', result?.ok === false ? result.error.message : 'unknown error')
+      }
     }
   }, [phase, availableMoves, remainingMoves, dispatch])
 
@@ -50,9 +53,12 @@ export function CouchGame() {
   // Handle rolling dice
   const handleRollClick = useCallback(() => {
     if (phase !== 'rolling') return
-    const die1 = rollDie()
-    const die2 = rollDie()
-    dispatch(rollDice({ die1, die2 }))
+    const action = dispatch(performRollDice())
+    const result = action.meta.result
+    if (!result || !result.ok) {
+      console.error('Roll failed:', result?.ok === false ? result.error.message : 'unknown error')
+      return
+    }
     setSelectedSource(null)
     setValidDestinations([])
   }, [phase, dispatch])
@@ -60,7 +66,12 @@ export function CouchGame() {
   // Handle end turn
   const handleEndTurnClick = useCallback(() => {
     if (phase !== 'moving') return
-    dispatch(endTurn())
+    const action = dispatch(performEndTurn())
+    const result = action.meta.result
+    if (!result || !result.ok) {
+      console.error('End turn failed:', result?.ok === false ? result.error.message : 'unknown error')
+      return
+    }
     setSelectedSource(null)
     setValidDestinations([])
   }, [phase, dispatch])
@@ -98,13 +109,18 @@ export function CouchGame() {
         )
 
         if (destination) {
-          dispatch(
-            makeMove({
+          const action = dispatch(
+            performMove({
               from: source,
               to: pointIndex,
               dieUsed: destination.dieValue,
             })
           )
+          const result = action.meta.result
+          if (!result || !result.ok) {
+            console.error('Move failed:', result?.ok === false ? result.error.message : 'unknown error')
+            return
+          }
           setSelectedSource(null)
           setValidDestinations([])
         }
@@ -187,13 +203,18 @@ export function CouchGame() {
       const destination = availableMove?.destinations.find((d) => d.to === 'off')
 
       if (destination) {
-        dispatch(
-          makeMove({
+        const action = dispatch(
+          performMove({
             from: selectedSource,
             to: 'off',
             dieUsed: destination.dieValue,
           })
         )
+        const result = action.meta.result
+        if (!result || !result.ok) {
+          console.error('Bear off failed:', result?.ok === false ? result.error.message : 'unknown error')
+          return
+        }
         setSelectedSource(null)
         setValidDestinations([])
       }

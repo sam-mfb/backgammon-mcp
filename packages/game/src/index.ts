@@ -35,9 +35,6 @@ export { gameSyncThunkMiddleware } from './syncThunkMiddleware'
 export {
   default as gameReducer,
   // Actions
-  rollDice,
-  makeMove,
-  endTurn,
   resetGame,
   // Selectors
   selectBoard,
