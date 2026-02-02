@@ -14,7 +14,8 @@ export type {
   GamePhase,
   GameResult,
   GameState,
-  GameAction
+  GameAction,
+  AvailableMoves
 } from './types'
 
 // =============================================================================
