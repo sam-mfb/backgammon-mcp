@@ -12,6 +12,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import {
+  registerAppTool,
   registerAppResource,
   RESOURCE_MIME_TYPE
 } from '@modelcontextprotocol/ext-apps/server'
@@ -131,20 +132,25 @@ registerAppResource(
 // Tool: Start Game
 // =============================================================================
 
-server.tool(
+registerAppTool(
+  server,
   'backgammon_start_game',
-  'Start a new backgammon game. Initializes the board with standard starting positions, rolls dice to determine who goes first, and begins the first turn.',
   {
-    whiteControl: z
-      .enum(['human', 'ai'])
-      .optional()
-      .default('human')
-      .describe("Who controls white: 'human' (UI) or 'ai' (model)"),
-    blackControl: z
-      .enum(['human', 'ai'])
-      .optional()
-      .default('ai')
-      .describe("Who controls black: 'human' (UI) or 'ai' (model)")
+    description:
+      'Start a new backgammon game. Initializes the board with standard starting positions, rolls dice to determine who goes first, and begins the first turn.',
+    inputSchema: {
+      whiteControl: z
+        .enum(['human', 'ai'])
+        .optional()
+        .default('human')
+        .describe("Who controls white: 'human' (UI) or 'ai' (model)"),
+      blackControl: z
+        .enum(['human', 'ai'])
+        .optional()
+        .default('ai')
+        .describe("Who controls black: 'human' (UI) or 'ai' (model)")
+    },
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   ({ whiteControl, blackControl }) => {
     const config: GameConfig = { whiteControl, blackControl }
@@ -176,10 +182,14 @@ server.tool(
 // Tool: Roll Dice
 // =============================================================================
 
-server.tool(
+registerAppTool(
+  server,
   'backgammon_roll_dice',
-  "Roll the dice for the current player's turn. Use at the beginning of each turn (except the first turn after start_game where dice are already rolled).",
-  {},
+  {
+    description:
+      "Roll the dice for the current player's turn. Use at the beginning of each turn (except the first turn after start_game where dice are already rolled).",
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
+  },
   () => {
     const action = store.dispatch(performRollDice())
     const result = action.meta.result
@@ -211,22 +221,27 @@ server.tool(
 // Tool: Make Move
 // =============================================================================
 
-server.tool(
+registerAppTool(
+  server,
   'backgammon_make_move',
-  "Make a single checker move. 'from' is the starting point (1-24) or 'bar'. 'to' is the destination (1-24) or 'off' to bear off. 'dieUsed' is which die value (1-6) you're using.",
   {
-    from: z
-      .union([z.number().int().min(1).max(24), z.literal('bar')])
-      .describe("Starting point (1-24) or 'bar'"),
-    to: z
-      .union([z.number().int().min(1).max(24), z.literal('off')])
-      .describe("Destination point (1-24) or 'off' to bear off"),
-    dieUsed: z
-      .number()
-      .int()
-      .min(1)
-      .max(6)
-      .describe('The die value being used for this move (1-6)')
+    description:
+      "Make a single checker move. 'from' is the starting point (1-24) or 'bar'. 'to' is the destination (1-24) or 'off' to bear off. 'dieUsed' is which die value (1-6) you're using.",
+    inputSchema: {
+      from: z
+        .union([z.number().int().min(1).max(24), z.literal('bar')])
+        .describe("Starting point (1-24) or 'bar'"),
+      to: z
+        .union([z.number().int().min(1).max(24), z.literal('off')])
+        .describe("Destination point (1-24) or 'off' to bear off"),
+      dieUsed: z
+        .number()
+        .int()
+        .min(1)
+        .max(6)
+        .describe('The die value being used for this move (1-6)')
+    },
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   ({ from, to, dieUsed }) => {
     const action = store.dispatch(performMove({ from, to, dieUsed }))
@@ -272,10 +287,14 @@ server.tool(
 // Tool: End Turn
 // =============================================================================
 
-server.tool(
+registerAppTool(
+  server,
   'backgammon_end_turn',
-  "End the current player's turn after all moves are made. Control passes to opponent who must use backgammon_roll_dice.",
-  {},
+  {
+    description:
+      "End the current player's turn after all moves are made. Control passes to opponent who must use backgammon_roll_dice.",
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
+  },
   () => {
     const action = store.dispatch(performEndTurn())
     const result = action.meta.result
@@ -305,10 +324,14 @@ server.tool(
 // Tool: Get Game State
 // =============================================================================
 
-server.tool(
+registerAppTool(
+  server,
   'backgammon_get_game_state',
-  'Get the current state of the game including board position, current player, dice, and available moves.',
-  {},
+  {
+    description:
+      'Get the current state of the game including board position, current player, dice, and available moves.',
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
+  },
   () => {
     const state = store.getState().game
     const config = store.getState().config
@@ -343,10 +366,13 @@ server.tool(
 // Tool: Reset Game
 // =============================================================================
 
-server.tool(
+registerAppTool(
+  server,
   'backgammon_reset_game',
-  'Reset the game to its initial state. Use this to start fresh.',
-  {},
+  {
+    description: 'Reset the game to its initial state. Use this to start fresh.',
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
+  },
   () => {
     store.dispatch(resetGame())
     const state = store.getState().game
