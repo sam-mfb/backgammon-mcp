@@ -15,8 +15,27 @@ import {
   performRollDice,
   performMove,
   performEndTurn,
-  resetGame
+  resetGame,
+  getValidMoves,
+  type GameState,
+  type AvailableMoves
 } from '@backgammon/game'
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * Structured content returned by game tools for UI rendering.
+ * Contains the full game state and available moves for the current position.
+ *
+ * The index signature is required by the MCP SDK's structuredContent type.
+ */
+interface BackgammonStructuredContent {
+  [key: string]: unknown
+  gameState: GameState
+  validMoves?: readonly AvailableMoves[]
+}
 
 // =============================================================================
 // Helpers
@@ -37,6 +56,23 @@ function textResponse(text: string): {
 } {
   return {
     content: [{ type: 'text' as const, text }]
+  }
+}
+
+/**
+ * Create a response with both text content (for non-App hosts) and
+ * structured content (for UI rendering).
+ */
+function gameResponse(
+  text: string,
+  structured: BackgammonStructuredContent
+): {
+  content: { type: 'text'; text: string }[]
+  structuredContent: BackgammonStructuredContent
+} {
+  return {
+    content: [{ type: 'text' as const, text }],
+    structuredContent: structured
   }
 }
 
@@ -67,24 +103,15 @@ server.tool(
 
     const { firstPlayer, diceRoll, validMoves } = result.value
     const state = store.getState().game
-    const boardText = renderFullGameState({ state })
 
-    const movesText =
-      validMoves.length > 0
-        ? renderAvailableMoves({ state })
-        : 'No legal moves available.'
+    const playerName =
+      firstPlayer.charAt(0).toUpperCase() + firstPlayer.slice(1)
+    const text = `Game started. ${playerName} goes first with ${String(diceRoll.die1)}-${String(diceRoll.die2)}.`
 
-    const text = `Game started!
-
-${firstPlayer.charAt(0).toUpperCase() + firstPlayer.slice(1)} goes first with a roll of ${String(diceRoll.die1)}-${String(diceRoll.die2)}.
-
-${boardText}
-
-${movesText}
-
-Use backgammon_make_move to move checkers, then backgammon_end_turn when done.`
-
-    return textResponse(text)
+    return gameResponse(text, {
+      gameState: state,
+      validMoves
+    })
   }
 )
 
@@ -108,29 +135,18 @@ server.tool(
       return errorResponse(result.error.message)
     }
 
-    const { diceRoll, turnForfeited } = result.value
+    const { diceRoll, validMoves, turnForfeited } = result.value
     const state = store.getState().game
 
-    if (turnForfeited) {
-      const text = `Rolled ${String(diceRoll.die1)}-${String(diceRoll.die2)}. No legal moves available - turn forfeited!
+    const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
+    const text = turnForfeited
+      ? `Rolled ${diceText}. No legal moves - turn forfeited.`
+      : `Rolled ${diceText}.`
 
-${renderFullGameState({ state })}
-
-It's now ${state.currentPlayer ?? 'unknown'}'s turn. Use backgammon_roll_dice to roll.`
-
-      return textResponse(text)
-    }
-
-    const boardText = renderFullGameState({ state })
-    const movesText = renderAvailableMoves({ state })
-
-    const text = `Rolled ${String(diceRoll.die1)}-${String(diceRoll.die2)}${diceRoll.die1 === diceRoll.die2 ? ' (doubles!)' : ''}.
-
-${boardText}
-
-${movesText}`
-
-    return textResponse(text)
+    return gameResponse(text, {
+      gameState: state,
+      validMoves
+    })
   }
 )
 
@@ -167,34 +183,31 @@ server.tool(
       return errorResponse(result.error.message)
     }
 
-    const { move, hit, gameOver, remainingMoves, validMoves } = result.value
+    const { move, hit, gameOver, validMoves } = result.value
     const state = store.getState().game
-    const boardText = renderFullGameState({ state })
 
-    let text = `Moved ${String(move.from)} -> ${String(move.to)} using ${String(move.dieUsed)}`
-    if (hit) {
-      text += ' (HIT!)'
+    // Build concise text response
+    let text: string
+    if (move.to === 'off') {
+      text = `Bore off from ${String(move.from)} using ${String(move.dieUsed)}.`
+    } else {
+      text = `Moved ${String(move.from)} → ${String(move.to)} using ${String(move.dieUsed)}`
+      if (hit) {
+        text += ' (hit!)'
+      }
+      text += '.'
     }
-    text += '\n\n' + boardText
 
     if (gameOver) {
-      text += `\n\nGame over! ${gameOver.winner} wins with a ${gameOver.victoryType}!`
-      return textResponse(text)
+      const winnerName =
+        gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
+      text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
     }
 
-    if (remainingMoves.length > 0) {
-      text += `\n\nRemaining dice: ${remainingMoves.join(', ')}`
-      if (validMoves.length > 0) {
-        text += '\n' + renderAvailableMoves({ state })
-      } else {
-        text +=
-          '\nNo more legal moves. Use backgammon_end_turn to end your turn.'
-      }
-    } else {
-      text += '\n\nAll dice used. Use backgammon_end_turn to end your turn.'
-    }
-
-    return textResponse(text)
+    return gameResponse(text, {
+      gameState: state,
+      validMoves
+    })
   }
 )
 
@@ -218,17 +231,16 @@ server.tool(
       return errorResponse(result.error.message)
     }
 
-    const { nextPlayer, turnNumber } = result.value
+    const { nextPlayer } = result.value
     const state = store.getState().game
-    const boardText = renderFullGameState({ state })
 
-    const text = `Turn ended.
+    const playerName =
+      nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
+    const text = `Turn ended. ${playerName} to roll.`
 
-${boardText}
-
-It's now ${nextPlayer}'s turn (turn ${String(turnNumber)}). Use backgammon_roll_dice to roll.`
-
-    return textResponse(text)
+    return gameResponse(text, {
+      gameState: state
+    })
   }
 )
 
@@ -249,15 +261,22 @@ server.tool(
       )
     }
 
+    // Keep ASCII board in text for get_game_state (explicit "show me the board" tool)
     const boardText = renderFullGameState({ state })
-
     let text = boardText
 
-    if (state.phase === 'moving') {
+    // Get valid moves if in moving phase
+    const validMoves =
+      state.phase === 'moving' ? getValidMoves({ state }) : undefined
+
+    if (validMoves && validMoves.length > 0) {
       text += '\n\n' + renderAvailableMoves({ state })
     }
 
-    return textResponse(text)
+    return gameResponse(text, {
+      gameState: state,
+      validMoves
+    })
   }
 )
 
@@ -271,9 +290,11 @@ server.tool(
   {},
   () => {
     store.dispatch(resetGame())
-    return textResponse(
-      'Game reset. Use backgammon_start_game to begin a new game.'
-    )
+    const state = store.getState().game
+
+    return gameResponse('Game reset.', {
+      gameState: state
+    })
   }
 )
 
