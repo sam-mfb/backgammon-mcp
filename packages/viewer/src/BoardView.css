@@ -4,6 +4,12 @@
    ============================================================================= */
 
 :root {
+  /* Safe area insets - set by McpAppShim when host provides them */
+  --safe-area-top: 0px;
+  --safe-area-right: 0px;
+  --safe-area-bottom: 0px;
+  --safe-area-left: 0px;
+
   /* UI chrome - map to host variables */
   --bgv-bg-primary: var(--color-background-primary, #2d2d2d);
   --bgv-bg-secondary: var(--color-background-secondary, #3d3d3d);
@@ -63,7 +69,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
+  padding: calc(16px + var(--safe-area-top)) calc(16px + var(--safe-area-right))
+    calc(16px + var(--safe-area-bottom)) calc(16px + var(--safe-area-left));
   background: var(--bgv-bg-primary);
   border-radius: 8px;
   max-width: 900px;

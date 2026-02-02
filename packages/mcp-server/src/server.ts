@@ -16,7 +16,8 @@ import {
   registerAppResource,
   RESOURCE_MIME_TYPE
 } from '@modelcontextprotocol/ext-apps/server'
-import { store, setGameConfig, type GameConfig } from './store'
+import { store, setGameConfig } from './store'
+import type { BackgammonStructuredContent, GameConfig } from './types'
 import { renderAvailableMoves, renderFullGameState } from './asciiBoard'
 import {
   performStartGame,
@@ -24,9 +25,7 @@ import {
   performMove,
   performEndTurn,
   resetGame,
-  getValidMoves,
-  type GameState,
-  type AvailableMoves
+  getValidMoves
 } from '@backgammon/game'
 
 // =============================================================================
@@ -35,23 +34,6 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RESOURCE_URI = 'ui://backgammon/board'
-
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Structured content returned by game tools for UI rendering.
- * Contains the full game state and available moves for the current position.
- *
- * The index signature is required by the MCP SDK's structuredContent type.
- */
-interface BackgammonStructuredContent {
-  [key: string]: unknown
-  gameState: GameState
-  validMoves?: readonly AvailableMoves[]
-  config?: GameConfig
-}
 
 // =============================================================================
 // Helpers

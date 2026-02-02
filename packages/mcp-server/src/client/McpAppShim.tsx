@@ -1,38 +1,14 @@
-import { useApp } from '@modelcontextprotocol/ext-apps/react'
-import {
-  applyHostStyleVariables,
-  applyDocumentTheme,
-  applyHostFonts
-} from '@modelcontextprotocol/ext-apps'
+import { useApp, useHostStyles } from '@modelcontextprotocol/ext-apps/react'
 import { BoardView } from '@backgammon/viewer'
 import {
   selectLastAction,
-  type GameState,
   type Player,
   type PointIndex,
   type MoveTo,
-  type MoveFrom,
-  type AvailableMoves
+  type MoveFrom
 } from '@backgammon/game'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-
-// =============================================================================
-// Types
-// =============================================================================
-
-type PlayerControl = 'human' | 'ai'
-
-interface GameConfig {
-  readonly whiteControl: PlayerControl
-  readonly blackControl: PlayerControl
-}
-
-interface BackgammonStructuredContent {
-  [key: string]: unknown
-  gameState: GameState
-  validMoves?: readonly AvailableMoves[]
-  config?: GameConfig
-}
+import type { BackgammonStructuredContent, GameConfig } from '../types'
 
 const DEFAULT_CONFIG: GameConfig = {
   whiteControl: 'human',
@@ -85,18 +61,25 @@ export function McpAppShim(): React.JSX.Element {
   const board = gameState?.board
   const phase = gameState?.phase
 
-  // Apply host styling when context changes
+  // Automatically applies theme, variables, and fonts from host context
+  useHostStyles(hostContext)
+
+  // Apply safe area insets for devices with notches or system UI
   useEffect(() => {
-    if (hostContext?.theme) {
-      applyDocumentTheme(hostContext.theme)
+    if (hostContext?.safeAreaInsets) {
+      const { top, right, bottom, left } = hostContext.safeAreaInsets
+      document.documentElement.style.setProperty('--safe-area-top', `${top}px`)
+      document.documentElement.style.setProperty(
+        '--safe-area-right',
+        `${right}px`
+      )
+      document.documentElement.style.setProperty(
+        '--safe-area-bottom',
+        `${bottom}px`
+      )
+      document.documentElement.style.setProperty('--safe-area-left', `${left}px`)
     }
-    if (hostContext?.styles?.variables) {
-      applyHostStyleVariables(hostContext.styles.variables)
-    }
-    if (hostContext?.styles?.css?.fonts) {
-      applyHostFonts(hostContext.styles.css.fonts)
-    }
-  }, [hostContext])
+  }, [hostContext?.safeAreaInsets])
 
   // Capture config when start_game or get_game_state returns it
   useEffect(() => {
