@@ -116,12 +116,15 @@ export function McpAppShim(): React.JSX.Element {
   const { currentPlayer, board, phase } = gameState
 
   // Get valid destinations for a source position
-  const getDestinationsForSource = (source: MoveFrom): MoveTo[] => {
-    if (validMoves.length === 0) return []
-    const available = validMoves.find(am => am.from === source)
-    if (!available) return []
-    return available.destinations.map(d => d.to)
-  }
+  const getDestinationsForSource = useCallback(
+    (source: MoveFrom): MoveTo[] => {
+      if (validMoves.length === 0) return []
+      const available = validMoves.find(am => am.from === source)
+      if (!available) return []
+      return available.destinations.map(d => d.to)
+    },
+    [validMoves]
+  )
 
   // Wire button clicks to MCP tool calls
   const handleRollClick = useCallback(() => {
@@ -196,7 +199,8 @@ export function McpAppShim(): React.JSX.Element {
       selectedSource,
       validDestinations,
       validMoves,
-      app
+      app,
+      getDestinationsForSource
     ]
   )
 
@@ -213,7 +217,7 @@ export function McpAppShim(): React.JSX.Element {
         }
       }
     },
-    [phase, currentPlayer, board, validMoves]
+    [phase, currentPlayer, board, getDestinationsForSource]
   )
 
   // Handle borne-off area click (for bearing off moves)
