@@ -11,6 +11,11 @@ import { fileURLToPath } from 'url'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
+import {
+  registerAppTool,
+  registerAppResource,
+  RESOURCE_MIME_TYPE
+} from '@modelcontextprotocol/ext-apps/server'
 import { store, setGameConfig, type GameConfig } from './store'
 import { renderAvailableMoves, renderFullGameState } from './asciiBoard'
 import {
@@ -102,11 +107,12 @@ const server = new McpServer({
 // Resource: UI
 // =============================================================================
 
-server.resource(
+registerAppResource(
+  server,
   'Interactive backgammon board',
   RESOURCE_URI,
-  { mimeType: 'text/html;profile=mcp-app' },
-  () => {
+  { description: 'Interactive backgammon game board' },
+  async () => {
     // Path resolves relative to src/ where this file lives, going up to package root then into dist/
     const htmlPath = join(__dirname, '../dist/client/index.html')
     const html = readFileSync(htmlPath, 'utf-8')
@@ -114,7 +120,7 @@ server.resource(
       contents: [
         {
           uri: RESOURCE_URI,
-          mimeType: 'text/html;profile=mcp-app',
+          mimeType: RESOURCE_MIME_TYPE,
           text: html
         }
       ]
