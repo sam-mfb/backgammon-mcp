@@ -39,11 +39,23 @@
 
   /* Interactive states */
   --bgv-selection-color: var(--color-selection, #4a90d9);
+  --bgv-selection-shadow: var(--color-selection-shadow, rgba(74, 144, 217, 0.6));
+  --bgv-selection-bg: var(--color-selection-background, rgba(74, 144, 217, 0.3));
   --bgv-valid-move-color: var(--color-valid-move, rgba(74, 200, 100, 0.6));
+  --bgv-valid-move-hover-color: var(
+    --color-valid-move-hover,
+    rgba(74, 200, 100, 0.9)
+  );
+  --bgv-valid-move-bg: var(--color-valid-move-background, rgba(74, 200, 100, 0.3));
 
   /* Buttons */
   --bgv-button-bg: var(--color-button-background, #555);
   --bgv-button-hover-bg: var(--color-button-hover-background, #666);
+  --bgv-accent-shadow: var(--color-accent-shadow, rgba(74, 144, 217, 0.4));
+  --bgv-accent-shadow-hover: var(
+    --color-accent-shadow-hover,
+    rgba(74, 144, 217, 0.5)
+  );
 }
 
 /* Board View Container */
@@ -494,12 +506,12 @@
 .controls__button--roll {
   background: var(--bgv-accent);
   color: var(--bgv-text-primary);
-  box-shadow: 0 2px 8px rgba(74, 144, 217, 0.4);
+  box-shadow: 0 2px 8px var(--bgv-accent-shadow);
 }
 
 .controls__button--roll:hover:not(:disabled) {
   background: var(--bgv-accent-hover);
-  box-shadow: 0 4px 12px rgba(74, 144, 217, 0.5);
+  box-shadow: 0 4px 12px var(--bgv-accent-shadow-hover);
 }
 
 .controls__button--end-turn {
@@ -532,7 +544,7 @@
 .point--selected .checker {
   box-shadow:
     0 0 0 3px var(--bgv-selection-color),
-    0 2px 8px rgba(74, 144, 217, 0.6);
+    0 2px 8px var(--bgv-selection-shadow);
 }
 
 .point--valid-destination {
@@ -567,7 +579,7 @@
 }
 
 .point--valid-destination:hover::before {
-  background: rgba(74, 200, 100, 0.9);
+  background: var(--bgv-valid-move-hover-color);
 }
 
 /* Bar - Clickable & Selected States */
@@ -582,13 +594,13 @@
 }
 
 .bar__section--selected {
-  background: rgba(74, 144, 217, 0.3);
+  background: var(--bgv-selection-bg);
 }
 
 .bar__section--selected .checker {
   box-shadow:
     0 0 0 3px var(--bgv-selection-color),
-    0 2px 8px rgba(74, 144, 217, 0.6);
+    0 2px 8px var(--bgv-selection-shadow);
 }
 
 /* Borne Off - Clickable & Valid Destination States */
@@ -615,7 +627,7 @@
 }
 
 .borne-off--clickable:hover {
-  background: rgba(74, 200, 100, 0.3);
+  background: var(--bgv-valid-move-bg);
 }
 
 /* =============================================================================
