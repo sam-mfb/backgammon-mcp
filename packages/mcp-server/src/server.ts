@@ -102,7 +102,7 @@ const server = new McpServer({
 // Resource: UI
 // =============================================================================
 
-server.resource(RESOURCE_URI, 'Interactive backgammon board', () => {
+server.resource('Interactive backgammon board', RESOURCE_URI, () => {
   // Path resolves relative to src/ where this file lives, going up to package root then into dist/
   const htmlPath = join(__dirname, '../dist/client/index.html')
   const html = readFileSync(htmlPath, 'utf-8')
