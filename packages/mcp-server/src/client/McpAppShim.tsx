@@ -79,7 +79,7 @@ export function McpAppShim(): React.JSX.Element {
       )
       document.documentElement.style.setProperty('--safe-area-left', `${left}px`)
     }
-  }, [hostContext?.safeAreaInsets])
+  }, [hostContext])
 
   // Capture config when start_game or get_game_state returns it
   useEffect(() => {
