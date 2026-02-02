@@ -65,6 +65,13 @@ export function McpAppShim(): React.JSX.Element {
     }
   })
 
+  // Seed initial host context after connection
+  useEffect(() => {
+    if (app) {
+      setHostContext(app.getHostContext())
+    }
+  }, [app])
+
   const [selectedSource, setSelectedSource] = useState<
     PointIndex | 'bar' | null
   >(null)
