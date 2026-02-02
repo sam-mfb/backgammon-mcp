@@ -13,7 +13,8 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       'eslint.config.js',
-      '**/vite.config.ts'
+      '**/vite.config.ts',
+      '**/vite.config.*.ts'
     ]
   },
 
@@ -61,9 +62,13 @@ export default tseslint.config(
     }
   },
 
-  // React packages (viewer, web-app)
+  // React packages (viewer, web-app, mcp-server client)
   {
-    files: ['packages/viewer/**/*.{ts,tsx}', 'packages/web-app/**/*.{ts,tsx}'],
+    files: [
+      'packages/viewer/**/*.{ts,tsx}',
+      'packages/web-app/**/*.{ts,tsx}',
+      'packages/mcp-server/src/client/**/*.{ts,tsx}'
+    ],
     plugins: { react, 'react-hooks': reactHooks },
     languageOptions: { globals: { ...globals.browser } },
     settings: { react: { version: 'detect' } },
@@ -95,6 +100,35 @@ export default tseslint.config(
           allowExpressions: true
         }
       ]
+    }
+  },
+
+  // MCP server client files - use client tsconfig
+  // Relax some rules due to MCP SDK types being incomplete
+  {
+    files: ['packages/mcp-server/src/client/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        project: './packages/mcp-server/tsconfig.client.json',
+        projectService: false
+      }
+    },
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true
+        }
+      ],
+      // MCP ext-apps SDK has incomplete types
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
+      // Effects that sync external MCP SDK state need setState
+      'react-hooks/set-state-in-effect': 'off'
     }
   },
 

@@ -9,13 +9,26 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "pnpm build:client && pnpm build:server",
+    "build:client": "vite build --config vite.config.client.ts",
+    "build:server": "tsc --noEmit",
     "start": "tsx src/server.ts"
   },
   "dependencies": {
     "@backgammon/game": "workspace:*",
+    "@backgammon/viewer": "workspace:*",
+    "@modelcontextprotocol/ext-apps": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.11.0",
     "@reduxjs/toolkit": "^2.8.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.1.0",
+    "vite-plugin-singlefile": "^2.0.3"
   }
 }
