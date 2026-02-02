@@ -8,7 +8,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { store } from './store'
+import { store, setGameConfig, type GameConfig } from './store'
 import { renderAvailableMoves, renderFullGameState } from './asciiBoard'
 import {
   performStartGame,
@@ -35,6 +35,7 @@ interface BackgammonStructuredContent {
   [key: string]: unknown
   gameState: GameState
   validMoves?: readonly AvailableMoves[]
+  config?: GameConfig
 }
 
 // =============================================================================
@@ -92,8 +93,22 @@ const server = new McpServer({
 server.tool(
   'backgammon_start_game',
   'Start a new backgammon game. Initializes the board with standard starting positions, rolls dice to determine who goes first, and begins the first turn.',
-  {},
-  () => {
+  {
+    whiteControl: z
+      .enum(['human', 'ai'])
+      .optional()
+      .default('human')
+      .describe("Who controls white: 'human' (UI) or 'ai' (model)"),
+    blackControl: z
+      .enum(['human', 'ai'])
+      .optional()
+      .default('ai')
+      .describe("Who controls black: 'human' (UI) or 'ai' (model)")
+  },
+  ({ whiteControl, blackControl }) => {
+    const config: GameConfig = { whiteControl, blackControl }
+    store.dispatch(setGameConfig(config))
+
     const action = store.dispatch(performStartGame())
     const result = action.meta.result
 
@@ -110,7 +125,8 @@ server.tool(
 
     return gameResponse(text, {
       gameState: state,
-      validMoves
+      validMoves,
+      config
     })
   }
 )
@@ -254,6 +270,7 @@ server.tool(
   {},
   () => {
     const state = store.getState().game
+    const config = store.getState().config
 
     if (state.phase === 'not_started') {
       return errorResponse(
@@ -275,7 +292,8 @@ server.tool(
 
     return gameResponse(text, {
       gameState: state,
-      validMoves
+      validMoves,
+      config
     })
   }
 )
