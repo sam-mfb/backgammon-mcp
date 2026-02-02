@@ -46,10 +46,14 @@ Play backgammon with Claude as your opponent, or watch Claude play against itsel
 
 #### 1. Build the MCP App
 
+The MCP server requires a built client UI bundle. This must be done before first use and after any changes to the viewer or client code.
+
 ```bash
-# Build the client UI bundle
+# Build the client UI bundle (required)
 pnpm --filter @backgammon/mcp-server build:client
 ```
+
+This creates `packages/mcp-server/dist/client/index.html` - a single-file bundle containing the interactive board UI.
 
 #### 2. Configure Claude Desktop
 
