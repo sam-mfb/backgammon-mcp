@@ -68,19 +68,14 @@ Add the backgammon server:
 {
   "mcpServers": {
     "backgammon": {
-      "command": "/opt/homebrew/bin/npx",
-      "args": ["tsx", "/ABSOLUTE/PATH/TO/backgammon-mcp/packages/mcp-server/src/server.ts"],
-      "cwd": "/ABSOLUTE/PATH/TO/backgammon-mcp"
+      "command": "npx",
+      "args": ["tsx", "/ABSOLUTE/PATH/TO/backgammon-mcp/packages/mcp-server/src/server.ts"]
     }
   }
 }
 ```
 
 **Important**: Replace `/ABSOLUTE/PATH/TO/backgammon-mcp` with the actual full path to this repository.
-
-**Note for different systems**:
-- On macOS with Homebrew: `/opt/homebrew/bin/npx`
-- On Linux or other setups: Use `which npx` to find your npx path, or just use `"npx"` if it's in your PATH
 
 #### 3. Restart Claude Desktop
 

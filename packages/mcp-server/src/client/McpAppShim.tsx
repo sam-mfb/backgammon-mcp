@@ -1,4 +1,9 @@
-import { useApp, useHostStyles } from '@modelcontextprotocol/ext-apps/react'
+import {
+  useApp,
+  useHostStyles,
+  type McpUiHostContext,
+  type McpUiToolResultNotification
+} from '@modelcontextprotocol/ext-apps/react'
 import { BoardView } from '@backgammon/viewer'
 import {
   selectLastAction,
@@ -32,11 +37,33 @@ function deriveHumanControlled(config: GameConfig): Player | 'both' | null {
 // =============================================================================
 
 export function McpAppShim(): React.JSX.Element {
-  const { app, toolResult, hostContext, error } =
-    useApp<BackgammonStructuredContent>({
-      appInfo: { name: 'Backgammon', version: '1.0.0' },
-      capabilities: {}
-    })
+  // State for tool results and host context - populated via callbacks
+  const [toolResult, setToolResult] = useState<{
+    structuredContent?: BackgammonStructuredContent
+  } | null>(null)
+  const [hostContext, setHostContext] = useState<McpUiHostContext | undefined>(
+    undefined
+  )
+
+  const { app, error } = useApp({
+    appInfo: { name: 'Backgammon', version: '1.0.0' },
+    capabilities: {},
+    onAppCreated: createdApp => {
+      // Register handler for tool results
+      createdApp.ontoolresult = (
+        params: McpUiToolResultNotification['params']
+      ) => {
+        setToolResult({
+          structuredContent:
+            params.structuredContent as BackgammonStructuredContent
+        })
+      }
+      // Register handler for host context changes
+      createdApp.onhostcontextchanged = params => {
+        setHostContext(prev => ({ ...prev, ...params }))
+      }
+    }
+  })
 
   const [selectedSource, setSelectedSource] = useState<
     PointIndex | 'bar' | null
