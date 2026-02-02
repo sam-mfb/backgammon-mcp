@@ -19,7 +19,10 @@ function Die({ value, used }: DieProps): React.JSX.Element {
   )
 }
 
-export function DiceDisplay({ diceRoll, remainingMoves }: DiceDisplayProps): React.JSX.Element {
+export function DiceDisplay({
+  diceRoll,
+  remainingMoves
+}: DiceDisplayProps): React.JSX.Element {
   if (!diceRoll) {
     return (
       <div className="dice-display dice-display--empty">

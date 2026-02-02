@@ -164,7 +164,9 @@ export function renderGameSummary({ state }: { state: GameState }): string {
   lines.push(`Phase: ${state.phase}`)
 
   if (state.diceRoll) {
-    lines.push(`Dice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`)
+    lines.push(
+      `Dice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`
+    )
     if (state.remainingMoves.length > 0) {
       lines.push(`Remaining moves: ${state.remainingMoves.join(', ')}`)
     }

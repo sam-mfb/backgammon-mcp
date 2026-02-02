@@ -9,6 +9,7 @@ import {
   selectPhase,
   selectCurrentPlayer,
   selectBoard,
+  selectLastAction,
   performStartGame,
   performRollDice,
   performMove,
@@ -34,6 +35,7 @@ export function CouchGame(): React.JSX.Element {
   // Use memoized selectors for expensive computations
   const availableMoves = useAppSelector(selectValidMoves)
   const canEndTurnNow = useAppSelector(selectCanEndTurn)
+  const lastAction = useAppSelector(selectLastAction)
 
   // Handle starting the game using the new operation
   const handleStartGame = (): void => {
@@ -223,6 +225,7 @@ export function CouchGame(): React.JSX.Element {
           validDestinations={validDestinations}
           canEndTurn={canEndTurnNow}
           validMoves={availableMoves}
+          lastAction={lastAction}
           onPointClick={handlePointClick}
           onBarClick={handleBarClick}
           onBorneOffClick={handleBorneOffClick}

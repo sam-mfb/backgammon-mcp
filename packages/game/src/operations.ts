@@ -166,7 +166,8 @@ export const performStartGame = createSyncThunk<
     turnNumber: 1,
     movesThisTurn: [],
     result: null,
-    history: []
+    history: [],
+    actionHistory: []
   }
 
   const validMoves = getValidMoves({ state: initialState })
@@ -301,7 +302,10 @@ export const performMove = createSyncThunk<
   if (!isValid) {
     const validMovesStr = validMoves
       .flatMap(vm =>
-        vm.destinations.map(d => `${String(vm.from)} -> ${String(d.to)} (die: ${String(d.dieValue)})`)
+        vm.destinations.map(
+          d =>
+            `${String(vm.from)} -> ${String(d.to)} (die: ${String(d.dieValue)})`
+        )
       )
       .join(', ')
 

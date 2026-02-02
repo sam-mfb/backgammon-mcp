@@ -9,7 +9,12 @@ interface BarProps {
   onBarClick?: (player: Player) => void
 }
 
-export function Bar({ bar, currentPlayer, isSelected, onBarClick }: BarProps): React.JSX.Element {
+export function Bar({
+  bar,
+  currentPlayer,
+  isSelected,
+  onBarClick
+}: BarProps): React.JSX.Element {
   const handleWhiteClick = (): void => {
     if (bar.white > 0) {
       onBarClick?.('white')

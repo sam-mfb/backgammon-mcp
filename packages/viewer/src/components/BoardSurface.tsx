@@ -1,5 +1,11 @@
 import type React from 'react'
-import type { BoardState, Player, PointIndex, MoveTo } from '@backgammon/game'
+import type {
+  BoardState,
+  GameAction,
+  Player,
+  PointIndex,
+  MoveTo
+} from '@backgammon/game'
 import type { SelectedSource } from '../BoardView'
 import { Quadrant } from './Quadrant'
 import { Bar } from './Bar'
@@ -10,6 +16,7 @@ interface BoardSurfaceProps {
   currentPlayer: Player | null
   selectedSource: SelectedSource
   validDestinations: readonly MoveTo[]
+  lastAction?: GameAction | null
   onPointClick?: (pointIndex: PointIndex) => void
   onBarClick?: (player: Player) => void
   onBorneOffClick?: (player: Player) => void
@@ -20,6 +27,7 @@ export function BoardSurface({
   currentPlayer,
   selectedSource,
   validDestinations,
+  lastAction,
   onPointClick,
   onBarClick,
   onBorneOffClick
@@ -48,6 +56,7 @@ export function BoardSurface({
           points={points}
           selectedSource={selectedSource}
           validDestinations={validDestinations}
+          lastAction={lastAction}
           onPointClick={onPointClick}
         />
         <Bar
@@ -63,6 +72,7 @@ export function BoardSurface({
           points={points}
           selectedSource={selectedSource}
           validDestinations={validDestinations}
+          lastAction={lastAction}
           onPointClick={onPointClick}
         />
       </div>
@@ -76,6 +86,7 @@ export function BoardSurface({
           points={points}
           selectedSource={selectedSource}
           validDestinations={validDestinations}
+          lastAction={lastAction}
           onPointClick={onPointClick}
         />
         <div className="bar-placeholder" />
@@ -86,6 +97,7 @@ export function BoardSurface({
           points={points}
           selectedSource={selectedSource}
           validDestinations={validDestinations}
+          lastAction={lastAction}
           onPointClick={onPointClick}
         />
       </div>

@@ -7,7 +7,15 @@ import globals from 'globals'
 
 export default tseslint.config(
   // Ignores
-  { ignores: ['**/node_modules/**', '**/dist/**', '**/coverage/**', 'eslint.config.js', '**/vite.config.ts'] },
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/coverage/**',
+      'eslint.config.js',
+      '**/vite.config.ts'
+    ]
+  },
 
   // Base configs
   js.configs.recommended,
@@ -37,8 +45,14 @@ export default tseslint.config(
       '@typescript-eslint/explicit-module-boundary-types': 'error',
 
       // Additional strict rules
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' }
+      ],
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports' }
+      ],
 
       // Disable stylistic rules we don't want
       '@typescript-eslint/consistent-type-definitions': 'off',
@@ -75,9 +89,12 @@ export default tseslint.config(
     files: ['packages/mcp-server/**/*.ts'],
     rules: {
       '@typescript-eslint/no-deprecated': 'off',
-      '@typescript-eslint/explicit-function-return-type': ['error', {
-        allowExpressions: true
-      }]
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true
+        }
+      ]
     }
   },
 

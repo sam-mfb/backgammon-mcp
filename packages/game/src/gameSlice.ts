@@ -14,6 +14,7 @@ import {
 import type {
   BoardState,
   DiceRoll,
+  GameAction,
   GameResult,
   GameState,
   Move,
@@ -61,7 +62,8 @@ const initialState: GameState = {
   turnNumber: 0,
   movesThisTurn: [],
   result: null,
-  history: []
+  history: [],
+  actionHistory: []
 }
 
 export const gameSlice = createSlice({
@@ -198,6 +200,16 @@ export const gameSlice = createSlice({
           state.movesThisTurn = []
           state.result = null
           state.history = []
+
+          // Append game_start action to history
+          // diceRoll is arranged so die1 is the first player's (higher) roll
+          const gameStartAction: GameAction = {
+            type: 'game_start',
+            firstPlayer,
+            whiteRoll: firstPlayer === 'white' ? diceRoll.die1 : diceRoll.die2,
+            blackRoll: firstPlayer === 'black' ? diceRoll.die1 : diceRoll.die2
+          }
+          state.actionHistory = [gameStartAction]
         }
       }
     )
@@ -207,14 +219,32 @@ export const gameSlice = createSlice({
       performRollDice.match,
       (state, action: RollDiceAction) => {
         const result = action.meta.result
-        if (result?.ok) {
+        if (result?.ok && state.currentPlayer) {
           const { diceRoll, turnForfeited } = result.value
+          const player = state.currentPlayer
 
-          if (turnForfeited && state.currentPlayer) {
+          // Append dice_roll action to history
+          const diceRollAction: GameAction = {
+            type: 'dice_roll',
+            player,
+            roll: diceRoll,
+            turnForfeited
+          }
+          state.actionHistory.push(diceRollAction)
+
+          if (turnForfeited) {
             // Auto-forfeit: switch to opponent
-            const opponent = getOpponent(state.currentPlayer)
+            const opponent = getOpponent(player)
+
+            // Append turn_end action for the forfeited turn
+            const turnEndAction: GameAction = {
+              type: 'turn_end',
+              player
+            }
+            state.actionHistory.push(turnEndAction)
+
             state.history.push({
-              player: state.currentPlayer,
+              player,
               diceRoll,
               moves: []
             })
@@ -238,9 +268,20 @@ export const gameSlice = createSlice({
     builder.addMatcher(performMove.match, (state, action: MakeMoveAction) => {
       const result = action.meta.result
       if (result?.ok && state.currentPlayer) {
-        const { move, gameOver, remainingMoves } = result.value
+        const { move, hit, gameOver, remainingMoves } = result.value
         const player = state.currentPlayer
-        const { from, to } = move
+        const { from, to, dieUsed } = move
+
+        // Append piece_move action to history
+        const pieceMoveAction: GameAction = {
+          type: 'piece_move',
+          player,
+          from,
+          to,
+          dieUsed,
+          hit
+        }
+        state.actionHistory.push(pieceMoveAction)
 
         // Remove checker from source
         if (from === 'bar') {
@@ -290,10 +331,17 @@ export const gameSlice = createSlice({
     // Handle performEndTurn
     builder.addMatcher(performEndTurn.match, (state, action: EndTurnAction) => {
       const result = action.meta.result
-      if (result?.ok) {
+      if (result?.ok && state.currentPlayer) {
         const { nextPlayer, turnNumber } = result.value
 
-        if (state.currentPlayer && state.diceRoll) {
+        // Append turn_end action to history
+        const turnEndAction: GameAction = {
+          type: 'turn_end',
+          player: state.currentPlayer
+        }
+        state.actionHistory.push(turnEndAction)
+
+        if (state.diceRoll) {
           state.history.push({
             player: state.currentPlayer,
             diceRoll: state.diceRoll,
@@ -344,6 +392,15 @@ export const selectResult = (state: RootState): GameResult | null =>
   state.game.result
 export const selectHistory = (state: RootState): GameState['history'] =>
   state.game.history
+export const selectActionHistory = (
+  state: RootState
+): GameState['actionHistory'] => state.game.actionHistory
+export const selectLastAction = (state: RootState): GameAction | null => {
+  const { actionHistory } = state.game
+  return actionHistory.length > 0
+    ? actionHistory[actionHistory.length - 1]
+    : null
+}
 export const selectBar = (state: RootState): BoardState['bar'] =>
   state.game.board.bar
 export const selectBorneOff = (state: RootState): BoardState['borneOff'] =>
