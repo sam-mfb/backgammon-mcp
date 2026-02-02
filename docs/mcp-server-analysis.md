@@ -22,11 +22,13 @@ The implementation is **solid and follows most core MCP patterns correctly**. Ho
 - ✅ Error handling and user feedback
 
 ### Areas for Improvement
-- ⚠️ Missing tool visibility controls
+- ⚠️ Missing tool visibility controls (UX and security)
+- ⚠️ No loading state management for async tool calls
+- ⚠️ Not using model context management (sendMessage/updateModelContext)
+- ⚠️ Data flow security not fully leveraged
 - ⚠️ Not using `useHostStyles` React hook (using manual approach instead)
 - ⚠️ No safe area inset handling
 - ⚠️ Mixed tool registration approaches
-- ⚠️ Missing lifecycle optimizations
 
 ---
 
@@ -36,12 +38,18 @@ The implementation is **solid and follows most core MCP patterns correctly**. Ho
 
 **Current State:** All tools use default visibility `["model", "app"]`, making them accessible to both the AI model and the UI.
 
-**Issue:** UI-triggered actions like `backgammon_roll_dice` and `backgammon_end_turn` should be restricted to UI-only access.
+**Issue:** UI-triggered actions like `backgammon_roll_dice` and `backgammon_end_turn` should be restricted to UI-only access for both **UX and security** reasons.
+
+**Why This Matters:**
+
+1. **UX/Organizational**: The model should use higher-level tools like `backgammon_make_move`. Having the model call `roll_dice` leads to confusion and unnecessary turn management complexity.
+
+2. **Security/Safety**: Prevents the model from accidentally triggering destructive or state-changing actions. For example, `backgammon_reset_game` should require explicit user confirmation, not be callable by the model during conversation.
 
 **Recommendation:**
 
 ```typescript
-// Tools that should be UI-only (buttons in the interface)
+// UI-only tools (buttons in the interface)
 registerAppTool(
   server,
   'backgammon_roll_dice',
@@ -71,15 +79,362 @@ registerAppTool(
   },
   // ... handler
 )
+
+// Destructive actions should also be UI-only
+registerAppTool(
+  server,
+  'backgammon_reset_game',
+  {
+    description: 'Reset the game to its initial state.',
+    _meta: {
+      ui: {
+        resourceUri: RESOURCE_URI,
+        visibility: ["app"] // Prevent accidental model reset
+      }
+    }
+  },
+  // ... handler
+)
 ```
 
-**Rationale:** These tools are UI interaction primitives. The model should use higher-level tools like `backgammon_make_move`. Having the model call `roll_dice` directly can lead to confusion and unnecessary turn management complexity.
+**Analogy:** Like an email app - model can show inbox (read-only), but deleting emails requires explicit UI click.
 
-**File:** `src/server.ts:185-217, 290-321`
+**File:** `src/server.ts:185-217, 290-321, 369-384`
 
 ---
 
-### 2. React Styling Hook Usage ⚠️
+### 2. Loading State Management ⚠️
+
+**Current State:** Only shows loading for initial game state:
+
+```typescript
+// From McpAppShim.tsx:272-274
+if (!gameState) {
+  return <div className="waiting">Waiting for game to start...</div>
+}
+```
+
+**Issue:** When users click buttons that call `app.callServerTool()`, the UI doesn't indicate that processing is happening. iFrames render immediately, but tool execution is asynchronous.
+
+**Problem Scenario:**
+1. User clicks "Roll Dice" button
+2. `handleRollClick` calls `app.callServerTool({ name: 'backgammon_roll_dice' })`
+3. Network delay while server processes
+4. UI shows no feedback - button appears unresponsive
+5. Result eventually arrives and updates UI
+
+**Recommendation:**
+
+```typescript
+// Add loading state tracking
+const [isLoading, setIsLoading] = useState(false)
+
+const handleRollClick = useCallback(async () => {
+  setIsLoading(true)
+  try {
+    await app?.callServerTool({ name: 'backgammon_roll_dice', arguments: {} })
+  } finally {
+    setIsLoading(false)
+  }
+}, [app])
+
+const handleEndTurnClick = useCallback(async () => {
+  setIsLoading(true)
+  try {
+    await app?.callServerTool({ name: 'backgammon_end_turn', arguments: {} })
+  } finally {
+    setIsLoading(false)
+  }
+}, [app])
+
+// In BoardView, disable buttons during loading
+<BoardView
+  // ... other props
+  isLoading={isLoading}
+  onRollClick={handleRollClick}
+  onEndTurnClick={handleEndTurnClick}
+/>
+```
+
+**UI Enhancement:** Add visual feedback:
+
+```typescript
+// Overlay approach
+{isLoading && (
+  <div className="loading-overlay">
+    <div className="spinner">Processing...</div>
+  </div>
+)}
+
+// Or button disabled state
+<button onClick={handleRollClick} disabled={isLoading}>
+  {isLoading ? 'Rolling...' : 'Roll Dice'}
+</button>
+```
+
+**Rationale:** Users need feedback that their actions are being processed, especially on slower connections.
+
+**File:** `src/client/McpAppShim.tsx:150-156`
+
+---
+
+### 3. Model Context Management ℹ️
+
+**Current State:** No use of `sendMessage()` or `updateModelContext()` to keep the model informed of UI interactions.
+
+**Analysis:** **For your current implementation, this is likely not needed.** Every UI interaction already triggers a tool call that the model can observe:
+- Roll dice → `backgammon_roll_dice` tool call
+- Make move → `backgammon_make_move` tool call
+- End turn → `backgammon_end_turn` tool call
+
+The model already has full visibility into game state through tool responses.
+
+**When Would These Be Useful?**
+
+These patterns become valuable when you add features where the user interacts with the UI **without triggering tool calls**:
+
+1. **Browsing/exploration features**: Viewing game history, statistics, or move analysis
+2. **Settings changes**: User adjusts preferences that affect gameplay
+3. **Requesting help**: "Suggest best move" button that should prompt model analysis
+4. **Aggregated updates**: Summarizing multiple actions instead of model tracking each individual tool result
+
+**Two Patterns Available:**
+
+#### `sendMessage()` - Triggers Model Response
+Sends a visible user message that prompts the model to respond:
+
+```typescript
+// FUTURE FEATURE: "Get AI Help" button
+const handleRequestHelp = useCallback(async () => {
+  await app?.sendMessage({
+    role: "user",
+    content: [{
+      type: "text",
+      text: "What's my best move here?"
+    }]
+  })
+  // This will trigger the model to analyze the current position
+}, [app])
+```
+
+#### `updateModelContext()` - Silent Background Context
+Adds context without triggering a response or visible message:
+
+```typescript
+// FUTURE FEATURE: User browses move history (no tool call)
+const handleHistoryBrowse = useCallback(async (moveNumber: number) => {
+  // UI updates to show historical position (no tool call)
+  setDisplayedMoveNumber(moveNumber)
+
+  // Silently update model context about what user is viewing
+  await app?.updateModelContext({
+    content: [{
+      type: "text",
+      text: `User viewing position after move ${moveNumber}`
+    }]
+  })
+}, [app])
+```
+
+**Potential Future Usage for Backgammon:**
+
+- **`sendMessage()`**: "Suggest best move" or "Explain this position" buttons
+- **`updateModelContext()`**: When user browses game history or adjusts UI-only settings
+- **Current actions**: Already covered by tool calls - no need to duplicate
+
+**Assessment:** **Low priority** - only implement if adding features where users interact with UI without triggering tools.
+
+**Benefit (when applicable):** Model has context about UI-only interactions that don't naturally create tool calls.
+
+**File:** `src/client/McpAppShim.tsx` (new functionality needed)
+
+---
+
+### 4. Data Flow Security ⚠️
+
+**Current State:** Using `structuredContent` correctly, but security implications not fully leveraged.
+
+**Understanding the Three Return Types:**
+
+```typescript
+return {
+  // 1. content: Exposed to MODEL - what the AI sees for reasoning
+  content: [{ type: 'text', text: 'Rolled 3-4.' }],
+
+  // 2. structuredContent: Hidden from MODEL - only for UI hydration
+  structuredContent: {
+    gameState: state,
+    validMoves
+  },
+
+  // 3. _meta: Hidden from MODEL - metadata like timestamps
+  _meta: { ui: { resourceUri: RESOURCE_URI } }
+}
+```
+
+**Security Principle:** Minimize what the model can see. Expose only necessary information in `content`.
+
+**Current Approach Analysis:**
+
+```typescript
+// From server.ts:173-178
+return gameResponse(text, {
+  gameState: state,      // Hidden from model ✓
+  validMoves,            // Hidden from model ✓
+  config                 // Hidden from model ✓
+})
+```
+
+**Your implementation is good!** But consider these refinements:
+
+**1. Sensitive Data Protection:**
+If you add features like user profiles or game history:
+
+```typescript
+// DON'T expose internal IDs or sensitive data in content
+return {
+  content: [{
+    type: 'text',
+    text: 'Game loaded.' // Minimal info
+  }],
+  structuredContent: {
+    gameState: fullState,        // Full state for UI
+    userId: currentUserId,       // NEVER in content!
+    internalGameId: gameId       // NEVER in content!
+  }
+}
+```
+
+**2. Strategy/Hint Isolation:**
+If you add AI hints or analysis:
+
+```typescript
+// Keep AI-generated hints in structuredContent so model doesn't see its own suggestions
+return {
+  content: [{ type: 'text', text: 'Move made.' }],
+  structuredContent: {
+    gameState,
+    aiHint: 'Consider building a prime',  // UI sees, model doesn't
+    evaluationScore: 0.65                  // UI sees, model doesn't
+  }
+}
+```
+
+**Important Note:** ChatGPT's SDK differs - `structuredContent` IS exposed to the model. If supporting multiple platforms:
+
+```typescript
+// Conditional based on host
+const isChatGPT = hostContext?.platform === 'chatgpt'
+
+return {
+  content: [{ type: 'text', text: 'Move made.' }],
+  structuredContent: isChatGPT
+    ? sanitizedState  // Limited data for ChatGPT
+    : fullState       // Full data for Claude
+}
+```
+
+**Current Assessment:** Your usage is correct, no immediate changes needed. Consider these patterns for future features.
+
+**File:** `src/server.ts` (all tool responses)
+
+---
+
+### 5. Structured Error Objects ⚠️
+
+**Current State:** Errors return plain text with `isError: true`:
+
+```typescript
+// From server.ts:60-68
+function errorResponse(message: string) {
+  return {
+    content: [{ type: 'text' as const, text: `Error: ${message}` }],
+    isError: true
+  }
+}
+```
+
+**Issue:** Both model and UI see the same error message. No structured data for programmatic error handling.
+
+**Recommendation:** Return structured errors in `structuredContent`:
+
+```typescript
+interface ErrorDetails {
+  code: string
+  message: string
+  suggestions?: string[]
+  retryable?: boolean
+}
+
+function errorResponse(
+  message: string,
+  details?: Partial<ErrorDetails>
+): {
+  content: { type: 'text'; text: string }[]
+  structuredContent?: { error: ErrorDetails }
+  isError: true
+} {
+  const error: ErrorDetails = {
+    code: details?.code ?? 'UNKNOWN_ERROR',
+    message,
+    suggestions: details?.suggestions,
+    retryable: details?.retryable ?? false
+  }
+
+  return {
+    content: [{
+      type: 'text' as const,
+      text: `Error: ${message}`
+    }],
+    structuredContent: { error },
+    isError: true
+  }
+}
+```
+
+**Usage:**
+
+```typescript
+// Server-side
+if (state.phase !== 'moving') {
+  return errorResponse('Cannot move - not in moving phase', {
+    code: 'INVALID_PHASE',
+    suggestions: [
+      'Roll dice first if at start of turn',
+      'End turn if moves are complete'
+    ],
+    retryable: false
+  })
+}
+
+// Client-side
+useEffect(() => {
+  if (error && toolResult?.structuredContent?.error) {
+    const errorDetails = toolResult.structuredContent.error as ErrorDetails
+
+    // Show rich error UI
+    setErrorMessage(errorDetails.message)
+    if (errorDetails.suggestions) {
+      setSuggestions(errorDetails.suggestions)
+    }
+
+    // Enable retry button only if retryable
+    setCanRetry(errorDetails.retryable ?? false)
+  }
+}, [error, toolResult])
+```
+
+**Benefits:**
+- UI can show contextual help (suggestions)
+- Programmable retry logic based on error type
+- Better error tracking/logging (error codes)
+- Model gets simple text, UI gets rich detail
+
+**File:** `src/server.ts:60-68` (helper function), all tool error returns
+
+---
+
+### 6. React Styling Hook Usage ⚠️
 
 **Current State:** Manual application of host styles in `useEffect`:
 
@@ -489,27 +844,30 @@ const handleFullscreenToggle = useCallback(() => {
 ## Priority Recommendations
 
 ### High Priority (Implement Soon)
-1. **Add tool visibility controls** - Prevents model confusion, improves UX (examples: `system-monitor-server`)
-2. **Add safe area inset handling** - Critical for mobile/tablet support (examples: all React examples)
-3. **Share type definitions** - Prevents type drift between server/client
-4. **Add output schemas to tools** - Better type safety and documentation (examples: `basic-server-vanillajs`)
+1. **Add tool visibility controls** - Prevents model confusion and accidental destructive actions (Section 1)
+2. **Add loading state management** - Critical UX improvement for async operations (Section 2)
+3. **Add safe area inset handling** - Critical for mobile/tablet support (Section 6)
+4. **Share type definitions** - Prevents type drift between server/client (Section 9)
+5. **Structured error objects** - Better error handling and recovery (Section 5)
 
 ### Medium Priority (Consider for Next Version)
-5. **Use `useHostStyles` hook** - More idiomatic React pattern (if SDK provides it)
-6. **Document tool registration approach** - Clarifies intentional design decisions
-7. **Add development logging** - Improves debugging experience (pattern: all examples)
-8. **Add development scripts** - Improves developer experience (tsx watch)
+6. **Leverage data flow security** - Review content vs structuredContent usage (Section 4)
+7. **Add output schemas to tools** - Better type safety and documentation (Additional Findings #1)
+8. **Use `useHostStyles` hook** - More idiomatic React pattern (Section 6)
+9. **Document tool registration approach** - Clarifies intentional design decisions (Section 4)
+10. **Add development logging** - Improves debugging experience (Additional Findings #7)
 
 ### Low Priority (Future Enhancements)
-9. **Enhanced error recovery UI** - Better UX for error states
-10. **Vite sourcemap configuration** - Better dev experience (pattern: examples)
-11. **Visibility-based optimizations** - Only if adding animations/polling
-12. **Fullscreen mode support** - Nice-to-have feature
-13. **Streaming partial input** - Only if adding batch operations
+11. **Model context management** - Only if adding non-tool UI interactions (Section 3)
+12. **Development scripts** - Improves developer experience (tsx watch)
+13. **Vite sourcemap configuration** - Better dev experience
+14. **Visibility-based optimizations** - Only if adding animations/polling (Section 6)
+15. **Fullscreen mode support** - Nice-to-have feature (Section 13)
+16. **Streaming partial input** - Only if adding batch operations (Section 5)
 
 ### Optional (Style/Convention Alignment)
-14. **Standardize resource registration signature** - Match examples more closely
-15. **Use `onAppCreated` callback** - Only if need custom lifecycle handlers
+17. **Standardize resource registration signature** - Match examples more closely
+18. **Use `onAppCreated` callback** - Only if need custom lifecycle handlers
 
 ---
 
