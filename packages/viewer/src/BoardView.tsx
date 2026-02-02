@@ -26,6 +26,8 @@ interface BoardViewProps {
   validMoves?: readonly unknown[]
   /** Last action for highlighting (optional) */
   lastAction?: GameAction | null
+  /** Which player(s) the UI controls. 'white', 'black', 'both', or null (spectator mode) */
+  humanControlled?: Player | 'both' | null
   /** Callback when a point is clicked */
   onPointClick?: (pointIndex: PointIndex) => void
   /** Callback when the bar is clicked for a player */
@@ -45,6 +47,7 @@ export function BoardView({
   canEndTurn: canEndTurnProp,
   validMoves,
   lastAction,
+  humanControlled,
   onPointClick,
   onBarClick,
   onBorneOffClick,
@@ -70,6 +73,13 @@ export function BoardView({
     remainingMoves.length > 0 &&
     (validMoves?.length ?? 0) === 0
 
+  // Determine if it's a human's turn (for AI control)
+  // undefined means backward-compatible mode (all interactions enabled)
+  const isHumanTurn =
+    humanControlled === undefined ||
+    humanControlled === 'both' ||
+    humanControlled === currentPlayer
+
   return (
     <div className="board-view">
       <GameInfo
@@ -86,15 +96,16 @@ export function BoardView({
         selectedSource={selectedSource}
         validDestinations={validDestinations}
         lastAction={lastAction}
-        onPointClick={onPointClick}
-        onBarClick={onBarClick}
-        onBorneOffClick={onBorneOffClick}
+        onPointClick={isHumanTurn ? onPointClick : undefined}
+        onBarClick={isHumanTurn ? onBarClick : undefined}
+        onBorneOffClick={isHumanTurn ? onBorneOffClick : undefined}
       />
       <Controls
         canRoll={canRoll}
         canEndTurn={canEndTurn}
         isGameOver={isGameOver}
         noMovesAvailable={noMovesAvailable}
+        disabled={!isHumanTurn}
         onRollClick={onRollClick}
         onEndTurnClick={onEndTurnClick}
       />
