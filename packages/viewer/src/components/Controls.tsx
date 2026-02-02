@@ -31,7 +31,7 @@ export function Controls({
   return (
     <div className="controls">
       {disabled && (
-        <span className="controls__message">Waiting for opponent...</span>
+        <span className="controls__message">Waiting for next move...</span>
       )}
       {!disabled && noMovesAvailable && (
         <span className="controls__message">No moves available</span>
