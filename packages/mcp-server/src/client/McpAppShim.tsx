@@ -117,7 +117,6 @@ export function McpAppShim(): React.JSX.Element {
         clearTimeout(timer)
       }
     }
-    return undefined
   }, [error])
 
   // Clear selection when game state changes (new moves made)
