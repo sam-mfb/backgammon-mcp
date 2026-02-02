@@ -16,7 +16,8 @@ import {
   registerAppResource,
   RESOURCE_MIME_TYPE
 } from '@modelcontextprotocol/ext-apps/server'
-import { store, setGameConfig, type GameConfig } from './store'
+import { store, setGameConfig } from './store'
+import type { BackgammonStructuredContent, GameConfig } from './types'
 import { renderAvailableMoves, renderFullGameState } from './asciiBoard'
 import {
   performStartGame,
@@ -24,9 +25,7 @@ import {
   performMove,
   performEndTurn,
   resetGame,
-  getValidMoves,
-  type GameState,
-  type AvailableMoves
+  getValidMoves
 } from '@backgammon/game'
 
 // =============================================================================
@@ -37,20 +36,155 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const RESOURCE_URI = 'ui://backgammon/board'
 
 // =============================================================================
-// Types
+// Output Schemas (Zod schemas for tool output validation)
 // =============================================================================
 
-/**
- * Structured content returned by game tools for UI rendering.
- * Contains the full game state and available moves for the current position.
- *
- * The index signature is required by the MCP SDK's structuredContent type.
- */
-interface BackgammonStructuredContent {
-  [key: string]: unknown
-  gameState: GameState
-  validMoves?: readonly AvailableMoves[]
-  config?: GameConfig
+const PlayerSchema = z.enum(['white', 'black'])
+
+const DieValueSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6)
+])
+
+const PointIndexSchema = z.number().int().min(1).max(24)
+
+const CheckerCountsSchema = z.object({
+  white: z.number().int().min(0),
+  black: z.number().int().min(0)
+})
+
+const BoardStateSchema = z.object({
+  points: z.tuple([
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number(),
+    z.number()
+  ]),
+  bar: CheckerCountsSchema,
+  borneOff: CheckerCountsSchema
+})
+
+const DiceRollSchema = z.object({
+  die1: DieValueSchema,
+  die2: DieValueSchema
+})
+
+const MoveFromSchema = z.union([PointIndexSchema, z.literal('bar')])
+
+const MoveToSchema = z.union([PointIndexSchema, z.literal('off')])
+
+const MoveSchema = z.object({
+  from: MoveFromSchema,
+  to: MoveToSchema,
+  dieUsed: DieValueSchema
+})
+
+const TurnSchema = z.object({
+  player: PlayerSchema,
+  diceRoll: DiceRollSchema,
+  moves: z.array(MoveSchema)
+})
+
+const GamePhaseSchema = z.enum([
+  'not_started',
+  'rolling_for_first',
+  'rolling',
+  'moving',
+  'game_over'
+])
+
+const VictoryTypeSchema = z.enum(['single', 'gammon', 'backgammon'])
+
+const GameResultSchema = z.object({
+  winner: PlayerSchema,
+  victoryType: VictoryTypeSchema
+})
+
+const GameActionSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('game_start'),
+    firstPlayer: PlayerSchema,
+    whiteRoll: DieValueSchema,
+    blackRoll: DieValueSchema
+  }),
+  z.object({
+    type: z.literal('dice_roll'),
+    player: PlayerSchema,
+    roll: DiceRollSchema,
+    turnForfeited: z.boolean()
+  }),
+  z.object({
+    type: z.literal('piece_move'),
+    player: PlayerSchema,
+    from: MoveFromSchema,
+    to: MoveToSchema,
+    dieUsed: DieValueSchema,
+    hit: z.boolean()
+  }),
+  z.object({
+    type: z.literal('turn_end'),
+    player: PlayerSchema
+  })
+])
+
+const GameStateSchema = z.object({
+  board: BoardStateSchema,
+  currentPlayer: PlayerSchema.nullable(),
+  phase: GamePhaseSchema,
+  diceRoll: DiceRollSchema.nullable(),
+  remainingMoves: z.array(DieValueSchema),
+  turnNumber: z.number().int().min(0),
+  movesThisTurn: z.array(MoveSchema),
+  result: GameResultSchema.nullable(),
+  history: z.array(TurnSchema),
+  actionHistory: z.array(GameActionSchema)
+})
+
+const MoveDestinationSchema = z.object({
+  to: MoveToSchema,
+  dieValue: DieValueSchema,
+  wouldHit: z.boolean()
+})
+
+const AvailableMovesSchema = z.object({
+  from: MoveFromSchema,
+  destinations: z.array(MoveDestinationSchema)
+})
+
+const GameConfigSchema = z.object({
+  whiteControl: z.enum(['human', 'ai']),
+  blackControl: z.enum(['human', 'ai'])
+})
+
+/** Output schema shape for tools that return game state with valid moves and config */
+const GameResponseOutputSchema = {
+  gameState: GameStateSchema,
+  validMoves: z.array(AvailableMovesSchema).optional(),
+  config: GameConfigSchema.optional()
 }
 
 // =============================================================================
@@ -109,9 +243,12 @@ const server = new McpServer({
 
 registerAppResource(
   server,
-  'Interactive backgammon board',
+  'Backgammon Board',
   RESOURCE_URI,
-  { description: 'Interactive backgammon game board' },
+  {
+    mimeType: RESOURCE_MIME_TYPE,
+    description: 'Interactive backgammon game board'
+  },
   async () => {
     // Path resolves relative to src/ where this file lives, going up to package root then into dist/
     const htmlPath = join(__dirname, '../dist/client/index.html')
@@ -150,6 +287,7 @@ registerAppTool(
         .default('ai')
         .describe("Who controls black: 'human' (UI) or 'ai' (model)")
     },
+    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   ({ whiteControl, blackControl }) => {
@@ -188,6 +326,7 @@ registerAppTool(
   {
     description:
       "Roll the dice for the current player's turn. Use at the beginning of each turn (except the first turn after start_game where dice are already rolled).",
+    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   () => {
@@ -241,6 +380,7 @@ registerAppTool(
         .max(6)
         .describe('The die value being used for this move (1-6)')
     },
+    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   ({ from, to, dieUsed }) => {
@@ -293,6 +433,7 @@ registerAppTool(
   {
     description:
       "End the current player's turn after all moves are made. Control passes to opponent who must use backgammon_roll_dice.",
+    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   () => {
@@ -330,6 +471,7 @@ registerAppTool(
   {
     description:
       'Get the current state of the game including board position, current player, dice, and available moves.',
+    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   () => {
@@ -371,6 +513,7 @@ registerAppTool(
   'backgammon_reset_game',
   {
     description: 'Reset the game to its initial state. Use this to start fresh.',
+    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   () => {
