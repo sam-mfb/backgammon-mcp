@@ -243,7 +243,7 @@ const server = new McpServer({
 
 registerAppResource(
   server,
-  RESOURCE_URI,
+  'Backgammon Board',
   RESOURCE_URI,
   {
     mimeType: RESOURCE_MIME_TYPE,
