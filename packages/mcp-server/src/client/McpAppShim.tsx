@@ -14,7 +14,7 @@ import {
   type MoveFrom,
   type AvailableMoves
 } from '@backgammon/game'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 // =============================================================================
 // Types
@@ -32,6 +32,11 @@ interface BackgammonStructuredContent {
   gameState: GameState
   validMoves?: readonly AvailableMoves[]
   config?: GameConfig
+}
+
+const DEFAULT_CONFIG: GameConfig = {
+  whiteControl: 'human',
+  blackControl: 'ai'
 }
 
 // =============================================================================
@@ -66,26 +71,37 @@ export function McpAppShim(): React.JSX.Element {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Store config from start_game/get_game_state, persists across subsequent tool results
-  const configRef = useRef<GameConfig>({
-    whiteControl: 'human',
-    blackControl: 'ai'
-  })
+  const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG)
 
   const structuredContent = toolResult?.structuredContent
 
+  // Extract values we need for hooks - these must be computed before any conditionals
+  const gameState = structuredContent?.gameState
+  const validMoves = useMemo(
+    () => structuredContent?.validMoves ?? [],
+    [structuredContent?.validMoves]
+  )
+  const currentPlayer = gameState?.currentPlayer ?? null
+  const board = gameState?.board
+  const phase = gameState?.phase
+
   // Apply host styling when context changes
   useEffect(() => {
-    if (hostContext?.theme) applyDocumentTheme(hostContext.theme)
-    if (hostContext?.styles?.variables)
+    if (hostContext?.theme) {
+      applyDocumentTheme(hostContext.theme)
+    }
+    if (hostContext?.styles?.variables) {
       applyHostStyleVariables(hostContext.styles.variables)
-    if (hostContext?.styles?.css?.fonts)
+    }
+    if (hostContext?.styles?.css?.fonts) {
       applyHostFonts(hostContext.styles.css.fonts)
+    }
   }, [hostContext])
 
   // Capture config when start_game or get_game_state returns it
   useEffect(() => {
     if (structuredContent?.config) {
-      configRef.current = structuredContent.config
+      setConfig(structuredContent.config)
     }
   }, [structuredContent?.config])
 
@@ -94,28 +110,33 @@ export function McpAppShim(): React.JSX.Element {
     if (error) {
       setErrorMessage(error.message)
       // Clear error after 3 seconds
-      const timer = setTimeout(() => setErrorMessage(null), 3000)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => {
+        setErrorMessage(null)
+      }, 3000)
+      return () => {
+        clearTimeout(timer)
+      }
     }
+    return undefined
   }, [error])
 
   // Clear selection when game state changes (new moves made)
   useEffect(() => {
     setSelectedSource(null)
     setValidDestinations([])
-  }, [structuredContent?.gameState])
+  }, [gameState])
 
-  // Show waiting state when no game state is available
-  if (!structuredContent?.gameState) {
-    return <div className="waiting">Waiting for game to start...</div>
-  }
+  // Derive values from state
+  const humanControlled = useMemo(
+    () => deriveHumanControlled(config),
+    [config]
+  )
+  const lastAction = useMemo(
+    () => (gameState ? selectLastAction(gameState) : null),
+    [gameState]
+  )
 
-  const { gameState, validMoves = [] } = structuredContent
-  const humanControlled = deriveHumanControlled(configRef.current)
-  const lastAction = selectLastAction(gameState)
-  const { currentPlayer, board, phase } = gameState
-
-  // Get valid destinations for a source position
+  // Get valid destinations for a source position - memoized helper
   const getDestinationsForSource = useCallback(
     (source: MoveFrom): MoveTo[] => {
       if (validMoves.length === 0) return []
@@ -138,7 +159,7 @@ export function McpAppShim(): React.JSX.Element {
   // Handle point click
   const handlePointClick = useCallback(
     (pointIndex: PointIndex): void => {
-      if (phase !== 'moving' || !currentPlayer) return
+      if (phase !== 'moving' || !currentPlayer || !board) return
 
       // Check if this point is a valid destination for the selected source
       if (selectedSource !== null && validDestinations.includes(pointIndex)) {
@@ -207,7 +228,7 @@ export function McpAppShim(): React.JSX.Element {
   // Handle bar click
   const handleBarClick = useCallback(
     (player: Player): void => {
-      if (phase !== 'moving' || player !== currentPlayer) return
+      if (phase !== 'moving' || player !== currentPlayer || !board) return
 
       if (board.bar[player] > 0) {
         const destinations = getDestinationsForSource('bar')
@@ -247,6 +268,11 @@ export function McpAppShim(): React.JSX.Element {
     },
     [phase, selectedSource, validDestinations, validMoves, app]
   )
+
+  // Show waiting state when no game state is available
+  if (!gameState) {
+    return <div className="waiting">Waiting for game to start...</div>
+  }
 
   return (
     <>

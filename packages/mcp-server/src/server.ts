@@ -5,6 +5,9 @@
  * and registers all backgammon tools.
  */
 
+import { readFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
@@ -20,6 +23,13 @@ import {
   type GameState,
   type AvailableMoves
 } from '@backgammon/game'
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const RESOURCE_URI = 'ui://backgammon/board'
 
 // =============================================================================
 // Types
@@ -70,10 +80,12 @@ function gameResponse(
 ): {
   content: { type: 'text'; text: string }[]
   structuredContent: BackgammonStructuredContent
+  _meta: { ui: { resourceUri: string } }
 } {
   return {
     content: [{ type: 'text' as const, text }],
-    structuredContent: structured
+    structuredContent: structured,
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
   }
 }
 
@@ -84,6 +96,24 @@ function gameResponse(
 const server = new McpServer({
   name: 'backgammon',
   version: '1.0.0'
+})
+
+// =============================================================================
+// Resource: UI
+// =============================================================================
+
+server.resource(RESOURCE_URI, 'Interactive backgammon board', () => {
+  const htmlPath = join(__dirname, '../dist/client/index.html')
+  const html = readFileSync(htmlPath, 'utf-8')
+  return {
+    contents: [
+      {
+        uri: RESOURCE_URI,
+        mimeType: 'text/html',
+        text: html
+      }
+    ]
+  }
 })
 
 // =============================================================================
