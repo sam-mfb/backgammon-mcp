@@ -397,7 +397,9 @@ export const selectActionHistory = (
 ): GameState['actionHistory'] => state.game.actionHistory
 export const selectLastAction = (state: RootState): GameAction | null => {
   const { actionHistory } = state.game
-  return actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null
+  return actionHistory.length > 0
+    ? actionHistory[actionHistory.length - 1]
+    : null
 }
 export const selectBar = (state: RootState): BoardState['bar'] =>
   state.game.board.bar

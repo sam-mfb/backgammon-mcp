@@ -1,5 +1,10 @@
 import type React from 'react'
-import type { BoardState, GameAction, PointIndex, MoveTo } from '@backgammon/game'
+import type {
+  BoardState,
+  GameAction,
+  PointIndex,
+  MoveTo
+} from '@backgammon/game'
 import type { SelectedSource } from '../BoardView'
 import { Point } from './Point'
 
@@ -54,7 +59,9 @@ export function Quadrant({
           checkerCount={points[pointIndex - 1]}
           position={position}
           isSelected={selectedSource === pointIndex}
-          isValidDestination={validDestinations.includes(pointIndex as PointIndex)}
+          isValidDestination={validDestinations.includes(
+            pointIndex as PointIndex
+          )}
           isLastMoveSource={lastMoveSource === pointIndex}
           isLastMoveDestination={lastMoveDestination === pointIndex}
           onClick={onPointClick}

@@ -17,7 +17,9 @@ Transform `packages/mcp-server/` into an MCP App that provides an interactive ba
 ## Phase 0: Action History (packages/game/, packages/viewer/, packages/web-app/)
 
 ### Goal
+
 Add a flat history of atomic game actions to GameState. This enables:
+
 - Deriving "last action" for UI highlighting
 - Future undo/replay functionality
 - Complete game recreation from history (captures all non-determinism: dice + decisions)
@@ -42,7 +44,7 @@ export type GameAction =
       readonly type: 'dice_roll'
       readonly player: Player
       readonly roll: DiceRoll
-      readonly turnForfeited: boolean  // True if no legal moves available
+      readonly turnForfeited: boolean // True if no legal moves available
     }
   | {
       readonly type: 'piece_move'
@@ -59,6 +61,7 @@ export type GameAction =
 ```
 
 Update `GameState` interface:
+
 ```typescript
 export interface GameState {
   // ... existing fields ...
@@ -71,6 +74,7 @@ export interface GameState {
 ### File: `packages/game/src/reducer.ts`
 
 Update reducer to append actions to `actionHistory`:
+
 - `performStartGame` → append `game_start` action
 - `performRollDice` → append `dice_roll` action
 - `performMove` → append `piece_move` action
@@ -79,16 +83,20 @@ Update reducer to append actions to `actionHistory`:
 ### File: `packages/game/src/selectors.ts`
 
 Add selector for last action:
+
 ```typescript
 export function selectLastAction(state: GameState): GameAction | null {
   const { actionHistory } = state
-  return actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null
+  return actionHistory.length > 0
+    ? actionHistory[actionHistory.length - 1]
+    : null
 }
 ```
 
 ### File: `packages/viewer/src/BoardView.tsx`
 
 Add optional prop for highlighting last action:
+
 ```typescript
 interface BoardViewProps {
   // ... existing props ...
@@ -98,29 +106,34 @@ interface BoardViewProps {
 ```
 
 Pass to child components for visual highlighting:
+
 - `piece_move` → highlight source and destination points
 - `dice_roll` → could animate dice (future)
 
 ### File: `packages/viewer/src/components/Point.tsx` (or similar)
 
 Add CSS classes for last-move highlighting:
+
 - `.point--last-move-source`
 - `.point--last-move-destination`
 
 ### File: `packages/viewer/src/BoardView.css`
 
 Add styles for last-move highlighting:
+
 ```css
 .point--last-move-source .point__triangle,
 .point--last-move-destination .point__triangle {
   filter: brightness(1.2);
-  box-shadow: inset 0 0 10px var(--bgv-last-move-highlight, rgba(255, 200, 0, 0.4));
+  box-shadow: inset 0 0 10px
+    var(--bgv-last-move-highlight, rgba(255, 200, 0, 0.4));
 }
 ```
 
 ### File: `packages/web-app/src/CouchGame.tsx`
 
 Use the new selector and pass to BoardView:
+
 ```typescript
 const lastAction = selectLastAction(gameState)
 
@@ -132,6 +145,7 @@ const lastAction = selectLastAction(gameState)
 ```
 
 ### Deliverables
+
 - [ ] `GameAction` discriminated union type in `types.ts`
 - [ ] `actionHistory` field added to `GameState`
 - [ ] Reducer appends actions to history
@@ -145,6 +159,7 @@ const lastAction = selectLastAction(gameState)
 ## Phase 1: CSS Variables (packages/viewer/)
 
 ### Goal
+
 Replace hardcoded colors with CSS custom properties that map to host variables with fallbacks. This enables host theming while maintaining visual consistency when no host styles are provided.
 
 ### File: `packages/viewer/src/BoardView.css`
@@ -170,9 +185,15 @@ Add a `:root` block at the top with semantic CSS variables:
   --bgv-point-even: var(--color-surface-tertiary, #8b6914);
 
   /* Checkers */
-  --bgv-checker-white-bg: var(--color-checker-white, linear-gradient(145deg, #fff, #e0e0e0));
+  --bgv-checker-white-bg: var(
+    --color-checker-white,
+    linear-gradient(145deg, #fff, #e0e0e0)
+  );
   --bgv-checker-white-border: var(--color-checker-white-border, #ccc);
-  --bgv-checker-black-bg: var(--color-checker-black, linear-gradient(145deg, #333, #1a1a1a));
+  --bgv-checker-black-bg: var(
+    --color-checker-black,
+    linear-gradient(145deg, #333, #1a1a1a)
+  );
   --bgv-checker-black-border: var(--color-checker-black-border, #444);
 
   /* Dice */
@@ -187,21 +208,22 @@ Add a `:root` block at the top with semantic CSS variables:
 
 ### Replacements
 
-| Original | Variable |
-|----------|----------|
-| `#2d2d2d` | `var(--bgv-bg-primary)` |
-| `#3d3d3d` | `var(--bgv-bg-secondary)` |
-| `#fff` (text) | `var(--bgv-text-primary)` |
-| `#999` | `var(--bgv-text-secondary)` |
-| `#666` | `var(--bgv-text-muted)` |
-| `#4a90d9` | `var(--bgv-accent)` |
-| `#5aa0e9` | `var(--bgv-accent-hover)` |
-| `#8b4513` | `var(--bgv-board-primary)` |
-| `#5c2e0a` | `var(--bgv-board-border)` |
-| `#d4a574` | `var(--bgv-point-odd)` |
-| `#8b6914` | `var(--bgv-point-even)` |
+| Original      | Variable                    |
+| ------------- | --------------------------- |
+| `#2d2d2d`     | `var(--bgv-bg-primary)`     |
+| `#3d3d3d`     | `var(--bgv-bg-secondary)`   |
+| `#fff` (text) | `var(--bgv-text-primary)`   |
+| `#999`        | `var(--bgv-text-secondary)` |
+| `#666`        | `var(--bgv-text-muted)`     |
+| `#4a90d9`     | `var(--bgv-accent)`         |
+| `#5aa0e9`     | `var(--bgv-accent-hover)`   |
+| `#8b4513`     | `var(--bgv-board-primary)`  |
+| `#5c2e0a`     | `var(--bgv-board-border)`   |
+| `#d4a574`     | `var(--bgv-point-odd)`      |
+| `#8b6914`     | `var(--bgv-point-even)`     |
 
 ### Deliverables
+
 - [ ] Updated `BoardView.css` with CSS custom properties
 - [ ] Existing web-app should look identical (fallbacks match original values)
 - [ ] Viewer tests pass
@@ -211,11 +233,13 @@ Add a `:root` block at the top with semantic CSS variables:
 ## Phase 2: Viewer Props for AI Control (packages/viewer/)
 
 ### Goal
+
 Add ability to disable controls when it's an AI player's turn. Controls remain visible but disabled (grayed out).
 
 ### File: `packages/viewer/src/BoardView.tsx`
 
 Add new prop:
+
 ```typescript
 interface BoardViewProps {
   // ... existing props
@@ -225,14 +249,16 @@ interface BoardViewProps {
 ```
 
 Derive `isHumanTurn`:
+
 ```typescript
 const isHumanTurn =
   humanControlled === undefined ||
   humanControlled === 'both' ||
-  humanControlled === currentPlayer;
+  humanControlled === currentPlayer
 ```
 
 Conditionally disable interactions:
+
 ```typescript
 <BoardSurface
   // ... existing props
@@ -249,6 +275,7 @@ Conditionally disable interactions:
 ### File: `packages/viewer/src/components/Controls.tsx`
 
 Add `disabled` prop:
+
 ```typescript
 interface ControlsProps {
   // ... existing props
@@ -258,10 +285,12 @@ interface ControlsProps {
 ```
 
 When `disabled` is true:
+
 - Add `disabled` attribute to both buttons (Roll Dice, End Turn)
 - Optionally show "Waiting for opponent..." message
 
 ### Deliverables
+
 - [ ] `BoardView.tsx` with `humanControlled` prop
 - [ ] `Controls.tsx` with `disabled` prop
 - [ ] Backward compatible (default behavior unchanged when prop not provided)
@@ -271,28 +300,35 @@ When `disabled` is true:
 ## Phase 3: structuredContent in Tool Responses (packages/mcp-server/)
 
 ### Goal
+
 Tools return both text `content` (for model context / non-App hosts) and `structuredContent` (for UI rendering).
 
 ### File: `packages/mcp-server/src/server.ts`
 
 Define structured content type:
+
 ```typescript
 interface BackgammonStructuredContent {
-  gameState: GameState  // Includes actionHistory, from which lastAction is derived
-  validMoves?: AvailableMoves[]  // Included when in moving phase
+  gameState: GameState // Includes actionHistory, from which lastAction is derived
+  validMoves?: AvailableMoves[] // Included when in moving phase
 }
 ```
 
 Note:
+
 - `config` (player control settings) is only returned by `backgammon_start_game` and `backgammon_get_game_state`. The shim stores it locally.
 - `lastAction` is derived from `gameState.actionHistory` using `selectLastAction` - no need to send it separately.
 
 Create helper:
+
 ```typescript
 function gameResponse(
   text: string,
   structured: BackgammonStructuredContent
-): { content: { type: 'text'; text: string }[]; structuredContent: BackgammonStructuredContent } {
+): {
+  content: { type: 'text'; text: string }[]
+  structuredContent: BackgammonStructuredContent
+} {
   return {
     content: [{ type: 'text' as const, text }],
     structuredContent: structured
@@ -306,27 +342,28 @@ function gameResponse(
 
 ```typescript
 // backgammon_start_game
-"Game started. White goes first with 4-2."
+'Game started. White goes first with 4-2.'
 
 // backgammon_roll_dice
-"Rolled 5-3."
+'Rolled 5-3.'
 // Or if no moves: "Rolled 2-1. No legal moves - turn forfeited."
 
 // backgammon_make_move
-"Moved 13 → 9 using 4."
+'Moved 13 → 9 using 4.'
 // Or with hit: "Moved 8 → 3 using 5 (hit!)."
 // Or bearing off: "Bore off from 2 using 2."
 
 // backgammon_end_turn
-"Turn ended. Black to roll."
+'Turn ended. Black to roll.'
 
 // backgammon_reset_game
-"Game reset."
+'Game reset.'
 ```
 
 **Keep ASCII board only in `backgammon_get_game_state`** - this is the explicit "show me the board" tool for when the LLM needs to understand the position.
 
 ### Tools to Update
+
 - [ ] `backgammon_start_game` - concise text, include config in structuredContent
 - [ ] `backgammon_roll_dice` - concise text, no ASCII board
 - [ ] `backgammon_make_move` - concise text, no ASCII board
@@ -335,6 +372,7 @@ function gameResponse(
 - [ ] `backgammon_reset_game` - concise text
 
 ### Deliverables
+
 - [ ] All game tools return `structuredContent` with gameState and validMoves
 - [ ] Text `content` is concise (no ASCII board except get_game_state)
 - [ ] Non-App hosts continue to work (text-only fallback)
@@ -344,11 +382,13 @@ function gameResponse(
 ## Phase 4: Player Control Configuration (packages/mcp-server/)
 
 ### Goal
+
 Allow `backgammon_start_game` to specify which players are human vs AI controlled.
 
 ### File: `packages/mcp-server/src/store.ts`
 
 Add config to server state:
+
 ```typescript
 interface ServerState {
   game: GameState
@@ -362,6 +402,7 @@ const initialConfig: GameConfig = {
 ```
 
 Add action to set config:
+
 ```typescript
 setGameConfig: (state, action: PayloadAction<GameConfig>) => {
   state.config = action.payload
@@ -371,14 +412,21 @@ setGameConfig: (state, action: PayloadAction<GameConfig>) => {
 ### File: `packages/mcp-server/src/server.ts`
 
 Update `backgammon_start_game` tool schema:
+
 ```typescript
 server.tool(
   'backgammon_start_game',
   'Start a new backgammon game...',
   {
-    whiteControl: z.enum(['human', 'ai']).optional().default('human')
+    whiteControl: z
+      .enum(['human', 'ai'])
+      .optional()
+      .default('human')
       .describe("Who controls white: 'human' (UI) or 'ai' (model)"),
-    blackControl: z.enum(['human', 'ai']).optional().default('ai')
+    blackControl: z
+      .enum(['human', 'ai'])
+      .optional()
+      .default('ai')
       .describe("Who controls black: 'human' (UI) or 'ai' (model)")
   },
   ({ whiteControl, blackControl }) => {
@@ -388,11 +436,16 @@ server.tool(
 
     // Only start_game includes config in structuredContent
     return {
-      content: [{ type: 'text', text: `Game started. ${firstPlayer} goes first with ${die1}-${die2}.` }],
+      content: [
+        {
+          type: 'text',
+          text: `Game started. ${firstPlayer} goes first with ${die1}-${die2}.`
+        }
+      ],
       structuredContent: {
         gameState: store.getState().game,
         validMoves: getValidMoves({ state: store.getState().game }),
-        config  // Only included here, shim stores it
+        config // Only included here, shim stores it
       },
       _meta: { ui: { resourceUri: RESOURCE_URI } }
     }
@@ -401,6 +454,7 @@ server.tool(
 ```
 
 ### Deliverables
+
 - [ ] `store.ts` with GameConfig state
 - [ ] `backgammon_start_game` accepts player control parameters
 - [ ] Config included in `backgammon_start_game` structuredContent only (shim stores it)
@@ -410,6 +464,7 @@ server.tool(
 ## Phase 5: MCP App Client (packages/mcp-server/)
 
 ### Goal
+
 Create a thin MCP SDK wrapper that wires the viewer's BoardView to tool calls. Bundled as single HTML file served as MCP resource.
 
 ### New Directory Structure
@@ -432,15 +487,15 @@ packages/mcp-server/
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Backgammon</title>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="./main.tsx"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backgammon</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
 </html>
 ```
 
@@ -460,6 +515,7 @@ if (root) {
 ### File: `packages/mcp-server/src/client/McpAppShim.tsx`
 
 This thin shim:
+
 1. Uses MCP SDK's `useApp` hook to receive tool results
 2. Applies host styling (theme, CSS variables, fonts)
 3. Passes game state from `structuredContent` to `BoardView`
@@ -579,6 +635,7 @@ function deriveHumanControlled(config: GameConfig): Player | 'both' | null {
 ```
 
 ### Deliverables
+
 - [ ] `client/index.html` template
 - [ ] `client/main.tsx` entry point
 - [ ] `client/McpAppShim.tsx` connecting BoardView to MCP
@@ -588,6 +645,7 @@ function deriveHumanControlled(config: GameConfig): Player | 'both' | null {
 ## Phase 6: Build Configuration & Resource Registration
 
 ### Goal
+
 Configure Vite to bundle client as single HTML file, register as MCP resource.
 
 ### File: `packages/mcp-server/vite.config.client.ts`
@@ -645,27 +703,25 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const RESOURCE_URI = 'ui://backgammon/board'
 
 // Register UI resource
-server.resource(
-  RESOURCE_URI,
-  'Interactive backgammon board',
-  async () => {
-    const htmlPath = join(__dirname, '../dist/client/index.html')
-    const html = readFileSync(htmlPath, 'utf-8')
-    return {
-      contents: [{
+server.resource(RESOURCE_URI, 'Interactive backgammon board', async () => {
+  const htmlPath = join(__dirname, '../dist/client/index.html')
+  const html = readFileSync(htmlPath, 'utf-8')
+  return {
+    contents: [
+      {
         uri: RESOURCE_URI,
         mimeType: 'text/html',
         text: html
-      }]
-    }
+      }
+    ]
   }
-)
+})
 
 // Add _meta.ui to tools
 server.tool(
   'backgammon_start_game',
   // ...
-  async (args) => {
+  async args => {
     return {
       ...gameResponse(text, structuredContent),
       _meta: { ui: { resourceUri: RESOURCE_URI } }
@@ -675,6 +731,7 @@ server.tool(
 ```
 
 ### Deliverables
+
 - [ ] `vite.config.client.ts` build config
 - [ ] Updated `package.json` with dependencies and scripts
 - [ ] Resource registration in `server.ts`
@@ -684,33 +741,34 @@ server.tool(
 
 ## Summary: Files to Modify
 
-| File | Phase | Changes |
-|------|-------|---------|
-| `packages/game/src/types.ts` | 0 | `GameAction` union, `actionHistory` in GameState |
-| `packages/game/src/reducer.ts` | 0 | Append actions to history |
-| `packages/game/src/selectors.ts` | 0 | `selectLastAction` selector |
-| `packages/viewer/src/BoardView.css` | 0, 1 | Last-move highlighting, CSS custom properties |
-| `packages/viewer/src/BoardView.tsx` | 0, 2 | `lastAction` prop, `humanControlled` prop |
-| `packages/viewer/src/components/Controls.tsx` | 2 | `disabled` prop |
-| `packages/web-app/src/CouchGame.tsx` | 0 | Use `selectLastAction`, pass to BoardView |
-| `packages/mcp-server/src/server.ts` | 3, 4, 6 | structuredContent, player config, resource registration |
-| `packages/mcp-server/src/store.ts` | 4 | GameConfig state |
-| `packages/mcp-server/package.json` | 6 | Dependencies and build scripts |
+| File                                          | Phase   | Changes                                                 |
+| --------------------------------------------- | ------- | ------------------------------------------------------- |
+| `packages/game/src/types.ts`                  | 0       | `GameAction` union, `actionHistory` in GameState        |
+| `packages/game/src/reducer.ts`                | 0       | Append actions to history                               |
+| `packages/game/src/selectors.ts`              | 0       | `selectLastAction` selector                             |
+| `packages/viewer/src/BoardView.css`           | 0, 1    | Last-move highlighting, CSS custom properties           |
+| `packages/viewer/src/BoardView.tsx`           | 0, 2    | `lastAction` prop, `humanControlled` prop               |
+| `packages/viewer/src/components/Controls.tsx` | 2       | `disabled` prop                                         |
+| `packages/web-app/src/CouchGame.tsx`          | 0       | Use `selectLastAction`, pass to BoardView               |
+| `packages/mcp-server/src/server.ts`           | 3, 4, 6 | structuredContent, player config, resource registration |
+| `packages/mcp-server/src/store.ts`            | 4       | GameConfig state                                        |
+| `packages/mcp-server/package.json`            | 6       | Dependencies and build scripts                          |
 
 ## Summary: New Files to Create
 
-| File | Phase | Purpose |
-|------|-------|---------|
-| `packages/mcp-server/src/client/index.html` | 5 | HTML template |
-| `packages/mcp-server/src/client/main.tsx` | 5 | React entry point |
-| `packages/mcp-server/src/client/McpAppShim.tsx` | 5 | MCP SDK wrapper |
-| `packages/mcp-server/vite.config.client.ts` | 6 | Client build config |
+| File                                            | Phase | Purpose             |
+| ----------------------------------------------- | ----- | ------------------- |
+| `packages/mcp-server/src/client/index.html`     | 5     | HTML template       |
+| `packages/mcp-server/src/client/main.tsx`       | 5     | React entry point   |
+| `packages/mcp-server/src/client/McpAppShim.tsx` | 5     | MCP SDK wrapper     |
+| `packages/mcp-server/vite.config.client.ts`     | 6     | Client build config |
 
 ---
 
 ## Verification
 
 ### Phase 0 Verification
+
 ```bash
 # Run game tests
 pnpm --filter @backgammon/game test
@@ -724,6 +782,7 @@ pnpm --filter @backgammon/web-app dev
 ```
 
 ### Build Test
+
 ```bash
 cd packages/mcp-server
 pnpm build
@@ -733,6 +792,7 @@ pnpm build
 ```
 
 ### Unit Tests
+
 - Existing game tests pass with new actionHistory field
 - Add test for `selectLastAction` selector
 - Existing viewer tests pass (CSS variables are transparent)
@@ -740,6 +800,7 @@ pnpm build
 - Add test for BoardView with `humanControlled` and `lastAction` props
 
 ### Integration Test
+
 1. Start server: `pnpm --filter @backgammon/mcp-server start`
 2. Connect with MCP client that supports Apps (e.g., Claude Desktop)
 3. Call `backgammon_start_game` with `{ whiteControl: 'human', blackControl: 'ai' }`

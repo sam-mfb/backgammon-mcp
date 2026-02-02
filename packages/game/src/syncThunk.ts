@@ -64,7 +64,9 @@ export function isSyncThunkAction(
   if (typeof meta !== 'object' || meta === null) {
     return false
   }
-  return typeof (meta as { payloadCreator?: unknown }).payloadCreator === 'function'
+  return (
+    typeof (meta as { payloadCreator?: unknown }).payloadCreator === 'function'
+  )
 }
 
 /**
