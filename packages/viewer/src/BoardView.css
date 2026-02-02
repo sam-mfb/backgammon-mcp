@@ -1,13 +1,62 @@
+/* =============================================================================
+   CSS Custom Properties
+   Maps to host variables with fallbacks for standalone use
+   ============================================================================= */
+
+:root {
+  /* UI chrome - map to host variables */
+  --bgv-bg-primary: var(--color-background-primary, #2d2d2d);
+  --bgv-bg-secondary: var(--color-background-secondary, #3d3d3d);
+  --bgv-text-primary: var(--color-text-primary, #fff);
+  --bgv-text-secondary: var(--color-text-secondary, #999);
+  --bgv-text-muted: var(--color-text-tertiary, #666);
+  --bgv-accent: var(--color-accent-primary, #4a90d9);
+  --bgv-accent-hover: var(--color-accent-primary-hover, #5aa0e9);
+  --bgv-font-family: var(--font-sans, system-ui, sans-serif);
+
+  /* Board theming - also host-customizable */
+  --bgv-board-primary: var(--color-surface-primary, #8b4513);
+  --bgv-board-border: var(--color-border-primary, #5c2e0a);
+  --bgv-point-odd: var(--color-surface-secondary, #d4a574);
+  --bgv-point-even: var(--color-surface-tertiary, #8b6914);
+
+  /* Checkers */
+  --bgv-checker-white-bg: var(
+    --color-checker-white,
+    linear-gradient(145deg, #fff, #e0e0e0)
+  );
+  --bgv-checker-white-border: var(--color-checker-white-border, #ccc);
+  --bgv-checker-black-bg: var(
+    --color-checker-black,
+    linear-gradient(145deg, #333, #1a1a1a)
+  );
+  --bgv-checker-black-border: var(--color-checker-black-border, #444);
+
+  /* Dice */
+  --bgv-die-bg: var(--color-die-background, #f5f5f5);
+  --bgv-die-text: var(--color-die-text, #1a1a1a);
+  --bgv-die-used-bg: var(--color-die-used-background, #999);
+
+  /* Interactive states */
+  --bgv-selection-color: var(--color-selection, #4a90d9);
+  --bgv-valid-move-color: var(--color-valid-move, rgba(74, 200, 100, 0.6));
+
+  /* Buttons */
+  --bgv-button-bg: var(--color-button-background, #555);
+  --bgv-button-hover-bg: var(--color-button-hover-background, #666);
+}
+
 /* Board View Container */
 .board-view {
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  background: #2d2d2d;
+  background: var(--bgv-bg-primary);
   border-radius: 8px;
   max-width: 900px;
   margin: 0 auto;
+  font-family: var(--bgv-font-family);
 }
 
 /* Game Info */
@@ -16,9 +65,9 @@
   align-items: center;
   gap: 24px;
   padding: 12px 16px;
-  background: #3d3d3d;
+  background: var(--bgv-bg-secondary);
   border-radius: 6px;
-  color: #fff;
+  color: var(--bgv-text-primary);
   font-size: 14px;
 }
 
@@ -31,7 +80,7 @@
 }
 
 .game-info__label {
-  color: #999;
+  color: var(--bgv-text-secondary);
 }
 
 .game-info__value {
@@ -39,7 +88,7 @@
 }
 
 .game-info__value--white {
-  color: #fff;
+  color: var(--bgv-text-primary);
   text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
 }
 
@@ -48,7 +97,7 @@
 }
 
 .game-info__value--none {
-  color: #666;
+  color: var(--bgv-text-muted);
 }
 
 /* Dice Display */
@@ -61,7 +110,7 @@
 }
 
 .dice-display--empty {
-  color: #666;
+  color: var(--bgv-text-muted);
   font-style: italic;
   min-height: 36px;
   display: flex;
@@ -69,27 +118,27 @@
 }
 
 .dice-display__doubles {
-  color: #999;
+  color: var(--bgv-text-secondary);
   font-size: 12px;
 }
 
 .die {
   width: 36px;
   height: 36px;
-  background: #f5f5f5;
+  background: var(--bgv-die-bg);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   font-size: 18px;
-  color: #1a1a1a;
+  color: var(--bgv-die-text);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .die--used {
   opacity: 0.4;
-  background: #999;
+  background: var(--bgv-die-used-bg);
 }
 
 .die__value {
@@ -102,8 +151,8 @@
   grid-template-columns: 60px 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 0;
-  background: #8b4513;
-  border: 4px solid #5c2e0a;
+  background: var(--bgv-board-primary);
+  border: 4px solid var(--bgv-board-border);
   border-radius: 8px;
   min-height: 400px;
   overflow: hidden;
@@ -115,7 +164,7 @@
 }
 
 .board-surface__row--top {
-  border-bottom: 2px solid #5c2e0a;
+  border-bottom: 2px solid var(--bgv-board-border);
 }
 
 /* Borne Off Areas */
@@ -125,7 +174,7 @@
   align-items: center;
   justify-content: center;
   padding: 8px;
-  background: #5c2e0a;
+  background: var(--bgv-board-border);
   gap: 4px;
 }
 
@@ -143,7 +192,7 @@
 .borne-off__label {
   font-size: 10px;
   text-transform: uppercase;
-  color: #999;
+  color: var(--bgv-text-secondary);
   letter-spacing: 1px;
 }
 
@@ -164,7 +213,7 @@
 .borne-off__count {
   font-size: 14px;
   font-weight: bold;
-  color: #fff;
+  color: var(--bgv-text-primary);
 }
 
 /* Quadrant */
@@ -219,13 +268,13 @@
 }
 
 .point--odd .point__triangle {
-  border-top-color: #d4a574;
-  border-bottom-color: #d4a574;
+  border-top-color: var(--bgv-point-odd);
+  border-bottom-color: var(--bgv-point-odd);
 }
 
 .point--even .point__triangle {
-  border-top-color: #8b6914;
-  border-bottom-color: #8b6914;
+  border-top-color: var(--bgv-point-even);
+  border-bottom-color: var(--bgv-point-even);
 }
 
 .point__checkers {
@@ -260,7 +309,7 @@
 .point__label {
   position: absolute;
   font-size: 10px;
-  color: #999;
+  color: var(--bgv-text-secondary);
   z-index: 2;
 }
 
@@ -282,19 +331,19 @@
 }
 
 .checker--white {
-  background: linear-gradient(145deg, #fff, #e0e0e0);
-  border-color: #ccc;
+  background: var(--bgv-checker-white-bg);
+  border-color: var(--bgv-checker-white-border);
 }
 
 .checker--black {
-  background: linear-gradient(145deg, #333, #1a1a1a);
-  border-color: #444;
+  background: var(--bgv-checker-black-bg);
+  border-color: var(--bgv-checker-black-border);
 }
 
 /* Bar */
 .bar {
   width: 40px;
-  background: #5c2e0a;
+  background: var(--bgv-board-border);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -323,7 +372,7 @@
 
 .bar-placeholder {
   width: 40px;
-  background: #5c2e0a;
+  background: var(--bgv-board-border);
 }
 
 /* Demo Controls */
@@ -332,14 +381,14 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #3d3d3d;
+  background: var(--bgv-bg-secondary);
   border-radius: 6px;
 }
 
 .demo-controls__button {
   padding: 8px 16px;
-  background: #555;
-  color: #fff;
+  background: var(--bgv-button-bg);
+  color: var(--bgv-text-primary);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -348,7 +397,7 @@
 }
 
 .demo-controls__button:hover:not(:disabled) {
-  background: #666;
+  background: var(--bgv-button-hover-bg);
 }
 
 .demo-controls__button:disabled {
@@ -357,11 +406,11 @@
 }
 
 .demo-controls__button--primary {
-  background: #4a90d9;
+  background: var(--bgv-accent);
 }
 
 .demo-controls__button--primary:hover:not(:disabled) {
-  background: #5aa0e9;
+  background: var(--bgv-accent-hover);
 }
 
 .demo-controls__info {
@@ -371,12 +420,12 @@
 
 .demo-controls__step {
   font-size: 14px;
-  color: #999;
+  color: var(--bgv-text-secondary);
 }
 
 .demo-controls__description {
   font-size: 14px;
-  color: #fff;
+  color: var(--bgv-text-primary);
   margin-top: 4px;
 }
 
@@ -397,7 +446,7 @@
 }
 
 .game-info__winner--white {
-  color: #fff;
+  color: var(--bgv-text-primary);
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
@@ -412,7 +461,7 @@
   justify-content: center;
   gap: 16px;
   padding: 12px 16px;
-  background: #3d3d3d;
+  background: var(--bgv-bg-secondary);
   border-radius: 6px;
 }
 
@@ -443,28 +492,28 @@
 }
 
 .controls__button--roll {
-  background: #4a90d9;
-  color: #fff;
+  background: var(--bgv-accent);
+  color: var(--bgv-text-primary);
   box-shadow: 0 2px 8px rgba(74, 144, 217, 0.4);
 }
 
 .controls__button--roll:hover:not(:disabled) {
-  background: #5aa0e9;
+  background: var(--bgv-accent-hover);
   box-shadow: 0 4px 12px rgba(74, 144, 217, 0.5);
 }
 
 .controls__button--end-turn {
-  background: #555;
-  color: #fff;
+  background: var(--bgv-button-bg);
+  color: var(--bgv-text-primary);
 }
 
 .controls__button--end-turn:hover:not(:disabled) {
-  background: #666;
+  background: var(--bgv-button-hover-bg);
 }
 
 .controls__message {
   font-size: 16px;
-  color: #999;
+  color: var(--bgv-text-secondary);
 }
 
 /* Point - Clickable & Selected States */
@@ -482,7 +531,7 @@
 
 .point--selected .checker {
   box-shadow:
-    0 0 0 3px #4a90d9,
+    0 0 0 3px var(--bgv-selection-color),
     0 2px 8px rgba(74, 144, 217, 0.6);
 }
 
@@ -498,7 +547,7 @@
   transform: translate(-50%, -50%);
   width: 24px;
   height: 24px;
-  background: rgba(74, 200, 100, 0.6);
+  background: var(--bgv-valid-move-color);
   border-radius: 50%;
   z-index: 3;
   pointer-events: none;
@@ -538,7 +587,7 @@
 
 .bar__section--selected .checker {
   box-shadow:
-    0 0 0 3px #4a90d9,
+    0 0 0 3px var(--bgv-selection-color),
     0 2px 8px rgba(74, 144, 217, 0.6);
 }
 
@@ -559,7 +608,7 @@
   transform: translate(-50%, -50%);
   width: 40px;
   height: 40px;
-  background: rgba(74, 200, 100, 0.5);
+  background: var(--bgv-valid-move-color);
   border-radius: 50%;
   pointer-events: none;
   animation: pulse 1s ease-in-out infinite;
