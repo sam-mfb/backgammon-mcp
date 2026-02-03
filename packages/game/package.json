@@ -9,7 +9,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "pnpm typecheck",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

@@ -10,7 +10,8 @@
     "./BoardView.css": "./src/BoardView.css"
   },
   "scripts": {
-    "build": "tsc --noEmit"
+    "build": "pnpm typecheck",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@backgammon/game": "workspace:*",

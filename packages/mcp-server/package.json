@@ -9,9 +9,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "pnpm build:client && pnpm build:server",
+    "build": "pnpm typecheck && pnpm build:client && pnpm build:server",
     "build:client": "vite build --config vite.config.client.ts",
-    "build:server": "tsc --noEmit",
+    "build:server": "echo 'Server uses tsx - no build needed'",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.client.json",
     "start": "tsx src/server.ts"
   },
   "dependencies": {
