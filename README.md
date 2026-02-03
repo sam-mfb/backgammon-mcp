@@ -38,7 +38,7 @@ Play backgammon locally in your browser - perfect for two humans on the same dev
 pnpm --filter @backgammon/web-app dev
 ```
 
-Open http://localhost:5173 in your browser.
+Open http://localhost:3000 in your browser.
 
 ### Claude Desktop (MCP App)
 
@@ -93,15 +93,30 @@ Or watch an AI vs AI game:
 
 ## Available Tools (MCP)
 
+### Game Management
+
 | Tool | Description |
 |------|-------------|
-| `backgammon_start_game` | Start a new game. Optionally specify who controls each color (`human` or `ai`). |
-| `backgammon_roll_dice` | Roll dice for the current turn. |
-| `backgammon_make_move` | Move a checker from one point to another. |
-| `backgammon_end_turn` | End the current player's turn. |
-| `backgammon_get_game_state` | Get the current board position and available moves. |
+| `backgammon_start_game` | Start a new game. Specify who controls each color (`human` or `ai`). |
+| `backgammon_get_game_state` | Query the current board position and available moves. |
 | `backgammon_reset_game` | Reset to initial state. |
 | `backgammon_get_rules` | Get backgammon rules (overview, movement, dice, hitting, bearing_off, winning). |
+
+### Human Player Tools (UI-triggered)
+
+| Tool | Description |
+|------|-------------|
+| `view_roll_dice` | Roll dice for the human player's turn. |
+| `view_make_move` | Make a move during the human player's turn. |
+| `view_end_turn` | End the human player's turn. |
+
+### AI Player Tools (Model-triggered)
+
+| Tool | Description |
+|------|-------------|
+| `model_roll_dice` | Roll dice for the AI's turn. |
+| `model_take_turn` | Execute the AI's complete turn atomically (all moves at once). |
+| `model_make_move` | Make a single move when the user verbally asks the AI to move on their behalf. |
 
 ## Development
 
