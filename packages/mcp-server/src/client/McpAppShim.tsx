@@ -1,4 +1,8 @@
-import { useApp, useHostStyles } from '@modelcontextprotocol/ext-apps/react'
+import {
+  useApp,
+  useHostStyles,
+  type McpUiHostContext
+} from '@modelcontextprotocol/ext-apps/react'
 import { BoardView } from '@backgammon/viewer'
 import {
   selectLastAction,
@@ -9,34 +13,52 @@ import {
 } from '@backgammon/game'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { BackgammonStructuredContent, GameConfig } from '../types'
+import React from 'react'
 
 const DEFAULT_CONFIG: GameConfig = {
   whiteControl: 'human',
   blackControl: 'ai'
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function deriveHumanControlled(config: GameConfig): Player | 'both' | null {
-  if (config.whiteControl === 'human' && config.blackControl === 'human')
-    return 'both'
-  if (config.whiteControl === 'human') return 'white'
-  if (config.blackControl === 'human') return 'black'
-  return null // AI vs AI - spectator mode
-}
-
-// =============================================================================
-// Component
-// =============================================================================
-
 export function McpAppShim(): React.JSX.Element {
-  const { app, toolResult, hostContext, error } =
-    useApp<BackgammonStructuredContent>({
-      appInfo: { name: 'Backgammon', version: '1.0.0' },
-      capabilities: {}
-    })
+  // State for tool results and host context - populated via callbacks
+  const [toolResult, setToolResult] = useState<{
+    structuredContent?: BackgammonStructuredContent
+  } | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [logMessage, setLogMessage] = useState<string | null>(null)
+  const [hostContext, setHostContext] = useState<McpUiHostContext | undefined>(
+    undefined
+  )
+
+  const { app, error } = useApp({
+    appInfo: { name: 'Backgammon', version: '1.0.0' },
+    capabilities: {},
+    onAppCreated: createdApp => {
+      // Register handler for tool results
+      createdApp.ontoolresult = params => {
+        const structuredContent = params.structuredContent
+        if (structuredContent) {
+          setToolResult({
+            structuredContent: structuredContent as BackgammonStructuredContent
+          })
+        } else {
+          setLogMessage('No structuredContent received')
+        }
+      }
+      // Register handler for host context changes
+      createdApp.onhostcontextchanged = params => {
+        setHostContext(prev => ({ ...prev, ...params }))
+      }
+    }
+  })
+
+  // Seed initial host context after connection
+  useEffect(() => {
+    if (app) {
+      setHostContext(app.getHostContext())
+    }
+  }, [app])
 
   const [selectedSource, setSelectedSource] = useState<
     PointIndex | 'bar' | null
@@ -44,7 +66,6 @@ export function McpAppShim(): React.JSX.Element {
   const [validDestinations, setValidDestinations] = useState<readonly MoveTo[]>(
     []
   )
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Store config from start_game/get_game_state, persists across subsequent tool results
   const [config, setConfig] = useState<GameConfig>(DEFAULT_CONFIG)
@@ -62,22 +83,28 @@ export function McpAppShim(): React.JSX.Element {
   const phase = gameState?.phase
 
   // Automatically applies theme, variables, and fonts from host context
-  useHostStyles(hostContext)
+  useHostStyles(app, app?.getHostContext())
 
   // Apply safe area insets for devices with notches or system UI
   useEffect(() => {
     if (hostContext?.safeAreaInsets) {
       const { top, right, bottom, left } = hostContext.safeAreaInsets
-      document.documentElement.style.setProperty('--safe-area-top', `${top}px`)
+      document.documentElement.style.setProperty(
+        '--safe-area-top',
+        `${top.toString()}px`
+      )
       document.documentElement.style.setProperty(
         '--safe-area-right',
-        `${right}px`
+        `${right.toString()}px`
       )
       document.documentElement.style.setProperty(
         '--safe-area-bottom',
-        `${bottom}px`
+        `${bottom.toString()}px`
       )
-      document.documentElement.style.setProperty('--safe-area-left', `${left}px`)
+      document.documentElement.style.setProperty(
+        '--safe-area-left',
+        `${left.toString()}px`
+      )
     }
   }, [hostContext])
 
@@ -109,12 +136,9 @@ export function McpAppShim(): React.JSX.Element {
   }, [gameState])
 
   // Derive values from state
-  const humanControlled = useMemo(
-    () => deriveHumanControlled(config),
-    [config]
-  )
+  const humanControlled = useMemo(() => deriveHumanControlled(config), [config])
   const lastAction = useMemo(
-    () => (gameState ? selectLastAction(gameState) : null),
+    () => (gameState ? selectLastAction({ game: gameState }) : null),
     [gameState]
   )
 
@@ -272,6 +296,15 @@ export function McpAppShim(): React.JSX.Element {
         onRollClick={handleRollClick}
         onEndTurnClick={handleEndTurnClick}
       />
+      {logMessage && <div className="log-toast">{logMessage}</div>}
     </>
   )
+}
+
+function deriveHumanControlled(config: GameConfig): Player | 'both' | null {
+  if (config.whiteControl === 'human' && config.blackControl === 'human')
+    return 'both'
+  if (config.whiteControl === 'human') return 'white'
+  if (config.blackControl === 'human') return 'black'
+  return null // AI vs AI - spectator mode
 }
