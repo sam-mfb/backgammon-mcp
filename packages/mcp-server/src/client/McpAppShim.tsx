@@ -161,14 +161,54 @@ export function McpAppShim(): React.JSX.Element {
     [validMoves]
   )
 
+  // Helper to process tool results from app-initiated calls
+  // (ontoolresult is NOT called for visibility: ['app'] tools when app initiates)
+  const processToolResult = useCallback(
+    (result: {
+      structuredContent?: Record<string, unknown>
+      _meta?: Record<string, unknown>
+    }) => {
+      if (result.structuredContent) {
+        setToolResult({
+          structuredContent: result.structuredContent as BackgammonStructuredContent
+        })
+      }
+
+      // Check for updateModelContext in _meta and forward to model
+      const meta = result._meta as
+        | { updateModelContext?: { content: { type: 'text'; text: string }[] } }
+        | undefined
+      if (meta?.updateModelContext && app) {
+        app.updateModelContext(meta.updateModelContext)
+      }
+    },
+    [app]
+  )
+
   // Wire button clicks to MCP tool calls (view-only tools for human player)
   const handleRollClick = useCallback(() => {
-    app?.callServerTool({ name: 'view_roll_dice', arguments: {} })
-  }, [app])
+    if (!app) return
+    const doRoll = async (): Promise<void> => {
+      const result = await app.callServerTool({
+        name: 'view_roll_dice',
+        arguments: {}
+      })
+      processToolResult(result)
+    }
+    void doRoll()
+  }, [app, processToolResult])
 
   const handleEndTurnClick = useCallback(() => {
-    app?.callServerTool({ name: 'view_end_turn', arguments: {} })
-  }, [app])
+    if (!app) return
+    const doEndTurn = async (): Promise<void> => {
+      const result = await app.callServerTool({
+        name: 'view_end_turn',
+        arguments: {}
+      })
+      processToolResult(result)
+    }
+    void doEndTurn()
+  }, [app, processToolResult])
 
   // Handle point click
   const handlePointClick = useCallback(
@@ -183,15 +223,19 @@ export function McpAppShim(): React.JSX.Element {
           d => d.to === pointIndex
         )
 
-        if (destination) {
-          app?.callServerTool({
-            name: 'view_make_move',
-            arguments: {
-              from: selectedSource,
-              to: pointIndex,
-              dieUsed: destination.dieValue
-            }
-          })
+        if (destination && app) {
+          const doMove = async (): Promise<void> => {
+            const result = await app.callServerTool({
+              name: 'view_make_move',
+              arguments: {
+                from: selectedSource,
+                to: pointIndex,
+                dieUsed: destination.dieValue
+              }
+            })
+            processToolResult(result)
+          }
+          void doMove()
         }
         return
       }
@@ -235,7 +279,8 @@ export function McpAppShim(): React.JSX.Element {
       validDestinations,
       validMoves,
       app,
-      getDestinationsForSource
+      getDestinationsForSource,
+      processToolResult
     ]
   )
 
@@ -269,18 +314,22 @@ export function McpAppShim(): React.JSX.Element {
       const availableMove = validMoves.find(am => am.from === selectedSource)
       const destination = availableMove?.destinations.find(d => d.to === 'off')
 
-      if (destination) {
-        app?.callServerTool({
-          name: 'view_make_move',
-          arguments: {
-            from: selectedSource,
-            to: 'off',
-            dieUsed: destination.dieValue
-          }
-        })
+      if (destination && app) {
+        const doBearOff = async (): Promise<void> => {
+          const result = await app.callServerTool({
+            name: 'view_make_move',
+            arguments: {
+              from: selectedSource,
+              to: 'off',
+              dieUsed: destination.dieValue
+            }
+          })
+          processToolResult(result)
+        }
+        void doBearOff()
       }
     },
-    [phase, selectedSource, validDestinations, validMoves, app]
+    [phase, selectedSource, validDestinations, validMoves, app, processToolResult]
   )
 
   // Show waiting state when no game state is available
