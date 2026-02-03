@@ -35,7 +35,7 @@ export function McpAppShim(): React.JSX.Element {
     appInfo: { name: 'Backgammon', version: '1.0.0' },
     capabilities: {},
     onAppCreated: createdApp => {
-      // Register handler for tool results
+      // Register handler for tool results (model-initiated tools)
       createdApp.ontoolresult = params => {
         const structuredContent = params.structuredContent
         if (structuredContent) {
@@ -44,14 +44,6 @@ export function McpAppShim(): React.JSX.Element {
           })
         } else {
           setLogMessage('No structuredContent received')
-        }
-
-        // Check for updateModelContext in _meta and forward to model
-        const meta = params._meta as
-          | { updateModelContext?: { content: { type: 'text'; text: string }[] } }
-          | undefined
-        if (meta?.updateModelContext) {
-          createdApp.updateModelContext(meta.updateModelContext)
         }
       }
       // Register handler for host context changes
@@ -161,30 +153,6 @@ export function McpAppShim(): React.JSX.Element {
     [validMoves]
   )
 
-  // Helper to process tool results from app-initiated calls
-  // (ontoolresult is NOT called for visibility: ['app'] tools when app initiates)
-  const processToolResult = useCallback(
-    (result: {
-      structuredContent?: Record<string, unknown>
-      _meta?: Record<string, unknown>
-    }) => {
-      if (result.structuredContent) {
-        setToolResult({
-          structuredContent: result.structuredContent as BackgammonStructuredContent
-        })
-      }
-
-      // Check for updateModelContext in _meta and forward to model
-      const meta = result._meta as
-        | { updateModelContext?: { content: { type: 'text'; text: string }[] } }
-        | undefined
-      if (meta?.updateModelContext && app) {
-        app.updateModelContext(meta.updateModelContext)
-      }
-    },
-    [app]
-  )
-
   // Wire button clicks to MCP tool calls (view-only tools for human player)
   const handleRollClick = useCallback(() => {
     if (!app) return
@@ -193,10 +161,14 @@ export function McpAppShim(): React.JSX.Element {
         name: 'view_roll_dice',
         arguments: {}
       })
-      processToolResult(result)
+      if (result.structuredContent) {
+        setToolResult({
+          structuredContent: result.structuredContent as BackgammonStructuredContent
+        })
+      }
     }
     void doRoll()
-  }, [app, processToolResult])
+  }, [app])
 
   const handleEndTurnClick = useCallback(() => {
     if (!app) return
@@ -205,10 +177,19 @@ export function McpAppShim(): React.JSX.Element {
         name: 'view_end_turn',
         arguments: {}
       })
-      processToolResult(result)
+      const content = result.structuredContent as BackgammonStructuredContent | undefined
+      if (content) {
+        setToolResult({ structuredContent: content })
+        // Inform the model of the human's completed turn
+        if (content.turnSummary) {
+          app.updateModelContext({
+            content: [{ type: 'text', text: content.turnSummary }]
+          })
+        }
+      }
     }
     void doEndTurn()
-  }, [app, processToolResult])
+  }, [app])
 
   // Handle point click
   const handlePointClick = useCallback(
@@ -233,7 +214,11 @@ export function McpAppShim(): React.JSX.Element {
                 dieUsed: destination.dieValue
               }
             })
-            processToolResult(result)
+            if (result.structuredContent) {
+              setToolResult({
+                structuredContent: result.structuredContent as BackgammonStructuredContent
+              })
+            }
           }
           void doMove()
         }
@@ -279,8 +264,7 @@ export function McpAppShim(): React.JSX.Element {
       validDestinations,
       validMoves,
       app,
-      getDestinationsForSource,
-      processToolResult
+      getDestinationsForSource
     ]
   )
 
@@ -324,12 +308,16 @@ export function McpAppShim(): React.JSX.Element {
               dieUsed: destination.dieValue
             }
           })
-          processToolResult(result)
+          if (result.structuredContent) {
+            setToolResult({
+              structuredContent: result.structuredContent as BackgammonStructuredContent
+            })
+          }
         }
         void doBearOff()
       }
     },
-    [phase, selectedSource, validDestinations, validMoves, app, processToolResult]
+    [phase, selectedSource, validDestinations, validMoves, app]
   )
 
   // Show waiting state when no game state is available

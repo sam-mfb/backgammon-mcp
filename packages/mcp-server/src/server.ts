@@ -632,14 +632,10 @@ registerAppTool(
         { type: 'text' as const, text: `Turn ended. ${playerName} to roll.` }
       ],
       structuredContent: {
-        gameState: state
+        gameState: state,
+        turnSummary: summaryText
       },
-      _meta: {
-        ...viewOnlyMeta(),
-        updateModelContext: {
-          content: [{ type: 'text' as const, text: summaryText }]
-        }
-      }
+      _meta: viewOnlyMeta()
     }
   }
 )
