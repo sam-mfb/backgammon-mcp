@@ -249,7 +249,7 @@ registerAppResource(
     mimeType: RESOURCE_MIME_TYPE,
     description: 'Interactive backgammon game board'
   },
-  async () => {
+  () => {
     // Path resolves relative to src/ where this file lives, going up to package root then into dist/
     const htmlPath = join(__dirname, '../dist/client/index.html')
     const html = readFileSync(htmlPath, 'utf-8')
@@ -451,8 +451,7 @@ registerAppTool(
     const { nextPlayer } = result.value
     const state = store.getState().game
 
-    const playerName =
-      nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
+    const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
     const text = `Turn ended. ${playerName} to roll.`
 
     return gameResponse(text, {
@@ -512,7 +511,8 @@ registerAppTool(
   server,
   'backgammon_reset_game',
   {
-    description: 'Reset the game to its initial state. Use this to start fresh.',
+    description:
+      'Reset the game to its initial state. Use this to start fresh.',
     outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
