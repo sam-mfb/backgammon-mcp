@@ -950,7 +950,7 @@ registerAppTool(
     description:
       'Get the current state of the game including board position, current player, dice, and available moves.',
     outputSchema: GameResponseOutputSchema,
-    _meta: { ui: { resourceUri: RESOURCE_URI } }
+    _meta: modelOnlyMeta()
   },
   () => {
     const state = store.getState().game
