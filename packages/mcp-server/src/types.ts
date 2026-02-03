@@ -5,9 +5,26 @@
  * both the server (src/server.ts) and client (src/client/McpAppShim.tsx).
  */
 
-import type { GameState, AvailableMoves } from '@backgammon/game'
+import type { GameState, AvailableMoves, Move, Player } from '@backgammon/game'
 
 export type PlayerControl = 'human' | 'ai'
+
+/**
+ * Summary of a completed turn for model context updates.
+ * Used when view_end_turn informs the model of the user's complete turn.
+ */
+export interface TurnSummary {
+  readonly player: Player
+  readonly diceRoll: { die1: number; die2: number }
+  readonly moves: readonly (Move & { hit: boolean })[]
+  readonly boardSummary: {
+    readonly whiteHome: number
+    readonly blackHome: number
+    readonly whiteBar: number
+    readonly blackBar: number
+  }
+  readonly nextPlayer: Player
+}
 
 export interface GameConfig {
   readonly whiteControl: PlayerControl

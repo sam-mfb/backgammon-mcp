@@ -9,6 +9,7 @@ export type {
   BoardState,
   DiceRoll,
   DieValue,
+  Move,
   MoveFrom,
   MoveTo,
   GamePhase,

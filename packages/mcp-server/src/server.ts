@@ -17,15 +17,19 @@ import {
   RESOURCE_MIME_TYPE
 } from '@modelcontextprotocol/ext-apps/server'
 import { store, setGameConfig } from './store'
-import type { BackgammonStructuredContent, GameConfig } from './types'
-import { renderAvailableMoves, renderFullGameState } from './asciiBoard'
+import type {
+  BackgammonStructuredContent,
+  GameConfig,
+  TurnSummary
+} from './types'
 import {
   performStartGame,
   performRollDice,
   performMove,
   performEndTurn,
   resetGame,
-  getValidMoves
+  getValidMoves,
+  type GameState
 } from '@backgammon/game'
 
 // =============================================================================
@@ -228,6 +232,107 @@ function gameResponse(
   }
 }
 
+/**
+ * Create _meta for view-only tools (visible only to app/UI, not model)
+ */
+function viewOnlyMeta(): {
+  ui: { resourceUri: string; visibility: readonly ['app'] }
+} {
+  return { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] as const } }
+}
+
+/**
+ * Create _meta for model-only tools (visible only to model, not app)
+ */
+function modelOnlyMeta(): {
+  ui: { resourceUri: string; visibility: readonly ['model'] }
+} {
+  return { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] as const } }
+}
+
+/**
+ * Check if it's currently the human player's turn
+ */
+function isHumanTurn(state: GameState, config: GameConfig): boolean {
+  if (!state.currentPlayer) return false
+  const control =
+    state.currentPlayer === 'white' ? config.whiteControl : config.blackControl
+  return control === 'human'
+}
+
+/**
+ * Check if it's currently the AI player's turn
+ */
+function isAITurn(state: GameState, config: GameConfig): boolean {
+  if (!state.currentPlayer) return false
+  const control =
+    state.currentPlayer === 'white' ? config.whiteControl : config.blackControl
+  return control === 'ai'
+}
+
+/**
+ * Build a turn summary for model context updates.
+ * Called when view_end_turn informs the model of the user's completed turn.
+ */
+function buildTurnSummary(
+  state: GameState,
+  movesWithHits: readonly { hit: boolean }[]
+): TurnSummary {
+  const lastTurn = state.history[state.history.length - 1]
+  const nextPlayer = state.currentPlayer
+  if (!nextPlayer) {
+    throw new Error('No current player - cannot build turn summary')
+  }
+
+  const movesWithHitInfo = lastTurn.moves.map((move, i) => ({
+    ...move,
+    hit: movesWithHits[i]?.hit ?? false
+  }))
+
+  return {
+    player: lastTurn.player,
+    diceRoll: lastTurn.diceRoll,
+    moves: movesWithHitInfo,
+    boardSummary: {
+      whiteHome: state.board.borneOff.white,
+      blackHome: state.board.borneOff.black,
+      whiteBar: state.board.bar.white,
+      blackBar: state.board.bar.black
+    },
+    nextPlayer
+  }
+}
+
+/**
+ * Format a turn summary as markdown text for model context
+ */
+function formatTurnSummaryForModel(summary: TurnSummary): string {
+  const playerName =
+    summary.player.charAt(0).toUpperCase() + summary.player.slice(1)
+  const diceStr = `${String(summary.diceRoll.die1)}-${String(summary.diceRoll.die2)}`
+
+  let movesStr: string
+  if (summary.moves.length === 0) {
+    movesStr = '(no valid moves - turn forfeited)'
+  } else {
+    movesStr = summary.moves
+      .map(m => {
+        const hitStr = m.hit ? ' (hit!)' : ''
+        return `${String(m.from)}→${String(m.to)}${hitStr}`
+      })
+      .join(', ')
+  }
+
+  const nextPlayerName =
+    summary.nextPlayer.charAt(0).toUpperCase() + summary.nextPlayer.slice(1)
+
+  return `${playerName} (${summary.player}) completed turn:
+- Rolled: ${diceStr}
+- Moves: ${movesStr}
+- Board: White ${String(summary.boardSummary.whiteHome)} home, Black ${String(summary.boardSummary.blackHome)} home, White ${String(summary.boardSummary.whiteBar)} bar, Black ${String(summary.boardSummary.blackBar)} bar
+- ${nextPlayerName}'s turn (${summary.nextPlayer}) to roll.`
+}
+
 // =============================================================================
 // Server Setup
 // =============================================================================
@@ -317,19 +422,253 @@ registerAppTool(
 )
 
 // =============================================================================
-// Tool: Roll Dice
+// View-Only Tools (visibility: ['app']) - For human player UI interactions
+// =============================================================================
+
+// Track moves with hit info during human turn for turn summary
+let movesWithHitsThisTurn: { hit: boolean }[] = []
+
+registerAppTool(
+  server,
+  'view_roll_dice',
+  {
+    description:
+      "Roll the dice for the human player's turn. Updates UI only - model is NOT informed until view_end_turn is called.",
+    outputSchema: {
+      ...GameResponseOutputSchema,
+      turnForfeited: z.boolean().optional()
+    },
+    _meta: viewOnlyMeta()
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn to roll")
+    }
+
+    // Reset hit tracking for new turn
+    movesWithHitsThisTurn = []
+
+    const action = store.dispatch(performRollDice())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to roll dice')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const { diceRoll, validMoves, turnForfeited } = result.value
+    const state = store.getState().game
+
+    const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
+
+    // If turn was forfeited (no valid moves), auto-end and inform model
+    if (turnForfeited) {
+      const summary = buildTurnSummary(state, [])
+      const summaryText = formatTurnSummaryForModel(summary)
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Rolled ${diceText}. No legal moves - turn forfeited.`
+          }
+        ],
+        structuredContent: {
+          gameState: state,
+          validMoves
+        },
+        _meta: {
+          ...viewOnlyMeta(),
+          updateModelContext: {
+            content: [{ type: 'text' as const, text: summaryText }]
+          }
+        },
+        turnForfeited: true
+      }
+    }
+
+    return {
+      content: [{ type: 'text' as const, text: `Rolled ${diceText}.` }],
+      structuredContent: {
+        gameState: state,
+        validMoves
+      },
+      _meta: viewOnlyMeta()
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'view_make_move',
+  {
+    description:
+      "Make a move during the human player's turn. Updates UI only - model is NOT informed until view_end_turn is called.",
+    inputSchema: {
+      from: z
+        .union([z.number().int().min(1).max(24), z.literal('bar')])
+        .describe("Starting point (1-24) or 'bar'"),
+      to: z
+        .union([z.number().int().min(1).max(24), z.literal('off')])
+        .describe("Destination point (1-24) or 'off' to bear off"),
+      dieUsed: z
+        .number()
+        .int()
+        .min(1)
+        .max(6)
+        .describe('The die value being used for this move (1-6)')
+    },
+    outputSchema: GameResponseOutputSchema,
+    _meta: viewOnlyMeta()
+  },
+  ({ from, to, dieUsed }) => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn to move")
+    }
+
+    const action = store.dispatch(performMove({ from, to, dieUsed }))
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to make move')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const { move, hit, gameOver, validMoves } = result.value
+    const state = store.getState().game
+
+    // Track hit for turn summary
+    movesWithHitsThisTurn.push({ hit })
+
+    // Build text response
+    let text: string
+    if (move.to === 'off') {
+      text = `Bore off from ${String(move.from)} using ${String(move.dieUsed)}.`
+    } else {
+      text = `Moved ${String(move.from)} → ${String(move.to)} using ${String(move.dieUsed)}`
+      if (hit) {
+        text += ' (hit!)'
+      }
+      text += '.'
+    }
+
+    if (gameOver) {
+      const winnerName =
+        gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
+      text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
+    }
+
+    return {
+      content: [{ type: 'text' as const, text }],
+      structuredContent: {
+        gameState: state,
+        validMoves
+      },
+      _meta: viewOnlyMeta()
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'view_end_turn',
+  {
+    description:
+      "End the human player's turn. This sends a summary of the turn to the model via updateModelContext.",
+    outputSchema: GameResponseOutputSchema,
+    _meta: viewOnlyMeta()
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn to end")
+    }
+
+    // Capture moves with hits before ending turn
+    const movesWithHits = [...movesWithHitsThisTurn]
+
+    const action = store.dispatch(performEndTurn())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to end turn')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const { nextPlayer } = result.value
+    const state = store.getState().game
+
+    // Build turn summary for model
+    const summary = buildTurnSummary(state, movesWithHits)
+    const summaryText = formatTurnSummaryForModel(summary)
+
+    // Reset hit tracking
+    movesWithHitsThisTurn = []
+
+    const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
+
+    return {
+      content: [
+        { type: 'text' as const, text: `Turn ended. ${playerName} to roll.` }
+      ],
+      structuredContent: {
+        gameState: state
+      },
+      _meta: {
+        ...viewOnlyMeta(),
+        updateModelContext: {
+          content: [{ type: 'text' as const, text: summaryText }]
+        }
+      }
+    }
+  }
+)
+
+// =============================================================================
+// Model Tools (visibility: ['model']) - For AI player actions
 // =============================================================================
 
 registerAppTool(
   server,
-  'backgammon_roll_dice',
+  'model_roll_dice',
   {
     description:
-      "Roll the dice for the current player's turn. Use at the beginning of each turn (except the first turn after start_game where dice are already rolled).",
-    outputSchema: GameResponseOutputSchema,
-    _meta: { ui: { resourceUri: RESOURCE_URI } }
+      "Roll the dice for the AI player's turn. Use at the beginning of the AI's turn.",
+    outputSchema: {
+      ...GameResponseOutputSchema,
+      turnForfeited: z.boolean().optional()
+    },
+    _meta: modelOnlyMeta()
   },
   () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the AI's turn
+    if (!isAITurn(stateBefore, config)) {
+      return errorResponse("It's not the AI player's turn to roll")
+    }
+
     const action = store.dispatch(performRollDice())
     const result = action.meta.result
 
@@ -349,23 +688,193 @@ registerAppTool(
       ? `Rolled ${diceText}. No legal moves - turn forfeited.`
       : `Rolled ${diceText}.`
 
-    return gameResponse(text, {
-      gameState: state,
-      validMoves
-    })
+    return {
+      content: [{ type: 'text' as const, text }],
+      structuredContent: {
+        gameState: state,
+        validMoves
+      },
+      _meta: modelOnlyMeta(),
+      turnForfeited
+    }
   }
 )
 
-// =============================================================================
-// Tool: Make Move
-// =============================================================================
+registerAppTool(
+  server,
+  'model_take_turn',
+  {
+    description:
+      "Execute the AI player's complete turn atomically. Provide all moves upfront. Use after model_roll_dice (unless turn was forfeited). Automatically ends the turn.",
+    inputSchema: {
+      moves: z
+        .array(
+          z.object({
+            from: z
+              .union([z.number().int().min(1).max(24), z.literal('bar')])
+              .describe("Starting point (1-24) or 'bar'"),
+            to: z
+              .union([z.number().int().min(1).max(24), z.literal('off')])
+              .describe("Destination point (1-24) or 'off' to bear off"),
+            dieUsed: z
+              .number()
+              .int()
+              .min(1)
+              .max(6)
+              .describe('The die value being used for this move (1-6)')
+          })
+        )
+        .describe(
+          'Array of moves to execute in order. Can be 0-4 moves depending on dice and board state.'
+        )
+    },
+    outputSchema: {
+      ...GameResponseOutputSchema,
+      executedMoves: z
+        .array(
+          z.object({
+            from: MoveFromSchema,
+            to: MoveToSchema,
+            dieUsed: DieValueSchema,
+            hit: z.boolean()
+          })
+        )
+        .optional()
+    },
+    _meta: modelOnlyMeta()
+  },
+  ({ moves }) => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the AI's turn
+    if (!isAITurn(stateBefore, config)) {
+      return errorResponse("It's not the AI player's turn")
+    }
+
+    // Verify we're in moving phase
+    if (stateBefore.phase !== 'moving') {
+      return errorResponse(
+        'Cannot take turn - not in moving phase. Use model_roll_dice first.'
+      )
+    }
+
+    // Execute all moves atomically (rollback on failure)
+    const executedMoves: {
+      from: number | 'bar'
+      to: number | 'off'
+      dieUsed: number
+      hit: boolean
+    }[] = []
+
+    for (let i = 0; i < moves.length; i++) {
+      const move = moves[i]
+      const action = store.dispatch(
+        performMove({ from: move.from, to: move.to, dieUsed: move.dieUsed })
+      )
+      const result = action.meta.result
+
+      if (!result) {
+        return errorResponse(`Move ${String(i + 1)} failed: Unknown error`)
+      }
+
+      if (!result.ok) {
+        // Return error with context about which move failed
+        const validMoves = getValidMoves({ state: store.getState().game })
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error: Move ${String(i + 1)} (${String(move.from)}→${String(move.to)}) failed: ${result.error.message}`
+            }
+          ],
+          structuredContent: {
+            gameState: store.getState().game,
+            validMoves
+          },
+          _meta: modelOnlyMeta(),
+          isError: true
+        }
+      }
+
+      executedMoves.push({
+        from: move.from,
+        to: move.to,
+        dieUsed: move.dieUsed,
+        hit: result.value.hit
+      })
+
+      // Check for game over after each move
+      if (result.value.gameOver) {
+        const state = store.getState().game
+        const winnerName =
+          result.value.gameOver.winner.charAt(0).toUpperCase() +
+          result.value.gameOver.winner.slice(1)
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Turn completed. Game over! ${winnerName} wins with a ${result.value.gameOver.victoryType}!`
+            }
+          ],
+          structuredContent: {
+            gameState: state
+          },
+          _meta: modelOnlyMeta(),
+          executedMoves
+        }
+      }
+    }
+
+    // End the turn
+    const endAction = store.dispatch(performEndTurn())
+    const endResult = endAction.meta.result
+
+    if (!endResult) {
+      return errorResponse('Failed to end turn')
+    }
+
+    if (!endResult.ok) {
+      return errorResponse(endResult.error.message)
+    }
+
+    const { nextPlayer } = endResult.value
+    const state = store.getState().game
+
+    const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
+    const moveSummary =
+      executedMoves.length > 0
+        ? executedMoves
+            .map(m => {
+              const hitStr = m.hit ? ' (hit!)' : ''
+              return `${String(m.from)}→${String(m.to)}${hitStr}`
+            })
+            .join(', ')
+        : 'no moves'
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Turn completed: ${moveSummary}. ${playerName} to roll.`
+        }
+      ],
+      structuredContent: {
+        gameState: state
+      },
+      _meta: modelOnlyMeta(),
+      executedMoves
+    }
+  }
+)
 
 registerAppTool(
   server,
-  'backgammon_make_move',
+  'model_make_move',
   {
     description:
-      "Make a single checker move. 'from' is the starting point (1-24) or 'bar'. 'to' is the destination (1-24) or 'off' to bear off. 'dieUsed' is which die value (1-6) you're using.",
+      "Make a single move when the human user VERBALLY asks you to move on their behalf. Do NOT use this for your own AI turn - use model_take_turn instead. This is for when the user says something like 'move from 13 to 8' during their turn.",
     inputSchema: {
       from: z
         .union([z.number().int().min(1).max(24), z.literal('bar')])
@@ -381,7 +890,7 @@ registerAppTool(
         .describe('The die value being used for this move (1-6)')
     },
     outputSchema: GameResponseOutputSchema,
-    _meta: { ui: { resourceUri: RESOURCE_URI } }
+    _meta: modelOnlyMeta()
   },
   ({ from, to, dieUsed }) => {
     const action = store.dispatch(performMove({ from, to, dieUsed }))
@@ -398,7 +907,10 @@ registerAppTool(
     const { move, hit, gameOver, validMoves } = result.value
     const state = store.getState().game
 
-    // Build concise text response
+    // Track hit for turn summary (in case view_end_turn is called later)
+    movesWithHitsThisTurn.push({ hit })
+
+    // Build text response
     let text: string
     if (move.to === 'off') {
       text = `Bore off from ${String(move.from)} using ${String(move.dieUsed)}.`
@@ -416,47 +928,14 @@ registerAppTool(
       text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
     }
 
-    return gameResponse(text, {
-      gameState: state,
-      validMoves
-    })
-  }
-)
-
-// =============================================================================
-// Tool: End Turn
-// =============================================================================
-
-registerAppTool(
-  server,
-  'backgammon_end_turn',
-  {
-    description:
-      "End the current player's turn after all moves are made. Control passes to opponent who must use backgammon_roll_dice.",
-    outputSchema: GameResponseOutputSchema,
-    _meta: { ui: { resourceUri: RESOURCE_URI } }
-  },
-  () => {
-    const action = store.dispatch(performEndTurn())
-    const result = action.meta.result
-
-    if (!result) {
-      return errorResponse('Failed to end turn')
+    return {
+      content: [{ type: 'text' as const, text }],
+      structuredContent: {
+        gameState: state,
+        validMoves
+      },
+      _meta: modelOnlyMeta()
     }
-
-    if (!result.ok) {
-      return errorResponse(result.error.message)
-    }
-
-    const { nextPlayer } = result.value
-    const state = store.getState().game
-
-    const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
-    const text = `Turn ended. ${playerName} to roll.`
-
-    return gameResponse(text, {
-      gameState: state
-    })
   }
 )
 
@@ -483,16 +962,22 @@ registerAppTool(
       )
     }
 
-    // Keep ASCII board in text for get_game_state (explicit "show me the board" tool)
-    const boardText = renderFullGameState({ state })
-    let text = boardText
-
     // Get valid moves if in moving phase
     const validMoves =
       state.phase === 'moving' ? getValidMoves({ state }) : undefined
 
-    if (validMoves && validMoves.length > 0) {
-      text += '\n\n' + renderAvailableMoves({ state })
+    // Build concise text summary (no ASCII board - JSON gamestate is sufficient)
+    const playerName = state.currentPlayer
+      ? state.currentPlayer.charAt(0).toUpperCase() + state.currentPlayer.slice(1)
+      : 'None'
+    let text = `Turn ${String(state.turnNumber)}, ${playerName} to play, phase: ${state.phase}`
+
+    if (state.diceRoll) {
+      text += `, dice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`
+    }
+
+    if (state.remainingMoves.length > 0) {
+      text += `, remaining: [${state.remainingMoves.join(', ')}]`
     }
 
     return gameResponse(text, {

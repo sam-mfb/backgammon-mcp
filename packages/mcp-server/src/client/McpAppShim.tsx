@@ -45,6 +45,14 @@ export function McpAppShim(): React.JSX.Element {
         } else {
           setLogMessage('No structuredContent received')
         }
+
+        // Check for updateModelContext in _meta and forward to model
+        const meta = params._meta as
+          | { updateModelContext?: { content: { type: 'text'; text: string }[] } }
+          | undefined
+        if (meta?.updateModelContext) {
+          createdApp.updateModelContext(meta.updateModelContext)
+        }
       }
       // Register handler for host context changes
       createdApp.onhostcontextchanged = params => {
@@ -153,13 +161,13 @@ export function McpAppShim(): React.JSX.Element {
     [validMoves]
   )
 
-  // Wire button clicks to MCP tool calls
+  // Wire button clicks to MCP tool calls (view-only tools for human player)
   const handleRollClick = useCallback(() => {
-    app?.callServerTool({ name: 'backgammon_roll_dice', arguments: {} })
+    app?.callServerTool({ name: 'view_roll_dice', arguments: {} })
   }, [app])
 
   const handleEndTurnClick = useCallback(() => {
-    app?.callServerTool({ name: 'backgammon_end_turn', arguments: {} })
+    app?.callServerTool({ name: 'view_end_turn', arguments: {} })
   }, [app])
 
   // Handle point click
@@ -177,7 +185,7 @@ export function McpAppShim(): React.JSX.Element {
 
         if (destination) {
           app?.callServerTool({
-            name: 'backgammon_make_move',
+            name: 'view_make_move',
             arguments: {
               from: selectedSource,
               to: pointIndex,
@@ -263,7 +271,7 @@ export function McpAppShim(): React.JSX.Element {
 
       if (destination) {
         app?.callServerTool({
-          name: 'backgammon_make_move',
+          name: 'view_make_move',
           arguments: {
             from: selectedSource,
             to: 'off',
