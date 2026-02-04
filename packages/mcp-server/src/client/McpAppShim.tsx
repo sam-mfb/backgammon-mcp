@@ -81,6 +81,12 @@ export function McpAppShim(): React.JSX.Element {
   const currentPlayer = gameState?.currentPlayer ?? null
   const board = gameState?.board
   const phase = gameState?.phase
+  const remainingMoves = gameState?.remainingMoves ?? []
+
+  // Can end turn when all dice used or no valid moves available
+  const canEndTurn =
+    phase === 'moving' &&
+    (remainingMoves.length === 0 || validMoves.length === 0)
 
   // Automatically applies theme, variables, and fonts from host context
   useHostStyles(app, app?.getHostContext())
@@ -347,6 +353,7 @@ export function McpAppShim(): React.JSX.Element {
         selectedSource={selectedSource}
         validDestinations={validDestinations}
         validMoves={validMoves}
+        canEndTurn={canEndTurn}
         humanControlled={humanControlled}
         lastAction={lastAction}
         onPointClick={handlePointClick}
