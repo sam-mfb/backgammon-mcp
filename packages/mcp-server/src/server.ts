@@ -379,8 +379,9 @@ registerAppTool(
   server,
   'backgammon_start_game',
   {
-    description:
-      'Start a new backgammon game. Initializes the board with standard starting positions, rolls dice to determine who goes first, and begins the first turn.',
+    description: `Start a new backgammon game. Initializes the board with standard starting positions, rolls dice to determine who goes first, and begins the first turn.
+
+When playing, just make your moves without commentary or strategy discussion unless the user asks. Point numbers are from white's perspective: white moves from 24 toward 1, black moves from 1 toward 24.`,
     inputSchema: {
       whiteControl: z
         .enum(['human', 'ai'])
@@ -647,7 +648,7 @@ registerAppTool(
   'model_roll_dice',
   {
     description:
-      "Roll the dice for the AI player's turn. Use at the beginning of the AI's turn.",
+      "Roll the dice for the AI player's turn. Remember: point numbers are from white's perspective (white moves 24→1, black moves 1→24).",
     outputSchema: {
       ...GameResponseOutputSchema,
       turnForfeited: z.boolean().optional()
