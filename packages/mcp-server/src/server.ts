@@ -483,7 +483,20 @@ registerAppTool(
     // If turn was forfeited (no valid moves), auto-end and include turn summary
     // for client to send via updateModelContext
     if (turnForfeited) {
-      const summary = buildTurnSummary(state, [])
+      // End the turn (this will switch to opponent)
+      const endAction = store.dispatch(performEndTurn())
+      const endResult = endAction.meta.result
+
+      if (!endResult) {
+        return errorResponse('Failed to end turn on forfeit')
+      }
+
+      if (!endResult.ok) {
+        return errorResponse(endResult.error.message)
+      }
+
+      const stateAfterEnd = store.getState().game
+      const summary = buildTurnSummary(stateAfterEnd, [])
       const summaryText = formatTurnSummaryForModel(summary)
 
       return {
@@ -494,7 +507,7 @@ registerAppTool(
           }
         ],
         structuredContent: {
-          gameState: state,
+          gameState: stateAfterEnd,
           validMoves,
           turnSummary: summaryText
         },
