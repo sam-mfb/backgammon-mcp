@@ -661,7 +661,7 @@ registerAppTool(
   'model_roll_dice',
   {
     description:
-      "Roll the dice for the AI player's turn. Remember: point numbers are from white's perspective (white moves 24→1, black moves 1→24).",
+      "Roll the dice for the AI player's turn. Remember: point numbers are from white's perspective (white moves 24→1, black moves 1→24). If turn is forfeited (no valid moves), you must still call model_take_turn with forfeit: true.",
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   () => {
@@ -707,7 +707,7 @@ registerAppTool(
   'model_take_turn',
   {
     description:
-      "Execute the AI player's complete turn atomically. Provide all moves upfront. Use after model_roll_dice (unless turn was forfeited). Automatically ends the turn.",
+      "Execute the AI player's complete turn atomically. Provide all moves upfront. Use after model_roll_dice. If no valid moves were available (turn forfeited), call with forfeit: true instead of moves.",
     inputSchema: {
       moves: z
         .array(
@@ -726,20 +726,50 @@ registerAppTool(
               .describe('The die value being used for this move (1-6)')
           })
         )
+        .optional()
         .describe(
-          'Array of moves to execute in order. Can be 0-4 moves depending on dice and board state.'
-        )
+          'Array of moves to execute in order. Can be 0-4 moves depending on dice and board state. Omit if forfeiting.'
+        ),
+      forfeit: z
+        .boolean()
+        .optional()
+        .describe('Set to true if no valid moves were available (turn forfeited by model_roll_dice)')
     },
     outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
-  ({ moves }) => {
+  ({ moves, forfeit }) => {
     const config = store.getState().config
     const stateBefore = store.getState().game
 
     // Verify it's the AI's turn
     if (!isAITurn(stateBefore, config)) {
       return errorResponse("It's not the AI player's turn")
+    }
+
+    // Handle forfeit case (turn was already forfeited by model_roll_dice)
+    if (forfeit) {
+      // Turn should already be ended by performRollDice when forfeited
+      // Just return the current state for UI update
+      const state = store.getState().game
+      const nextPlayer = state.currentPlayer
+      if (!nextPlayer) {
+        return errorResponse('No current player after forfeit')
+      }
+      const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Turn forfeited (no valid moves). ${playerName} to roll.`
+          }
+        ],
+        structuredContent: {
+          gameState: state
+        },
+        _meta: { ui: { resourceUri: RESOURCE_URI } }
+      }
     }
 
     // Verify we're in moving phase
@@ -757,8 +787,9 @@ registerAppTool(
       hit: boolean
     }[] = []
 
-    for (let i = 0; i < moves.length; i++) {
-      const move = moves[i]
+    const movesToExecute = moves ?? []
+    for (let i = 0; i < movesToExecute.length; i++) {
+      const move = movesToExecute[i]
       const action = store.dispatch(
         performMove({ from: move.from, to: move.to, dieUsed: move.dieUsed })
       )
