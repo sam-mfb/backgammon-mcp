@@ -214,40 +214,41 @@ function textResponse(text: string): {
 }
 
 /**
+ * Format valid moves as readable text for the model.
+ * Example: "From 24: 21, 19. From 13: 8 (hit), 7."
+ */
+function formatValidMovesForModel(
+  validMoves: readonly { from: number | 'bar'; destinations: readonly { to: number | 'off'; dieValue: number; wouldHit: boolean }[] }[]
+): string {
+  if (validMoves.length === 0) return 'No valid moves.'
+  return validMoves
+    .map(m => {
+      const dests = m.destinations
+        .map(d => {
+          const hitStr = d.wouldHit ? ' (hit)' : ''
+          return `${String(d.to)}${hitStr}`
+        })
+        .join(', ')
+      return `From ${String(m.from)}: ${dests}`
+    })
+    .join('. ') + '.'
+}
+
+/**
  * Create a response with both text content (for non-App hosts) and
  * structured content (for UI rendering).
  */
 function gameResponse(
   text: string,
-  structured: BackgammonStructuredContent
+  structured?: BackgammonStructuredContent
 ): {
   content: { type: 'text'; text: string }[]
-  structuredContent: BackgammonStructuredContent
-  _meta: { ui: { resourceUri: string } }
+  structuredContent?: BackgammonStructuredContent
 } {
   return {
     content: [{ type: 'text' as const, text }],
-    structuredContent: structured,
-    _meta: { ui: { resourceUri: RESOURCE_URI } }
+    structuredContent: structured
   }
-}
-
-/**
- * Create _meta for view-only tools (visible only to app/UI, not model)
- */
-function viewOnlyMeta(): {
-  ui: { resourceUri: string; visibility: readonly ['app'] }
-} {
-  return { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] as const } }
-}
-
-/**
- * Create _meta for model-only tools (visible only to model, not app)
- */
-function modelOnlyMeta(): {
-  ui: { resourceUri: string; visibility: readonly ['model'] }
-} {
-  return { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] as const } }
 }
 
 /**
@@ -433,12 +434,12 @@ registerAppTool(
   'view_roll_dice',
   {
     description:
-      "Roll the dice for the human player's turn. Updates UI only - model is NOT informed until view_end_turn is called.",
+      "Roll the dice for the human player's turn. If no valid moves exist, the turn is automatically forfeited.",
     outputSchema: {
       ...GameResponseOutputSchema,
       turnForfeited: z.boolean().optional()
     },
-    _meta: viewOnlyMeta()
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
   },
   () => {
     const config = store.getState().config
@@ -468,7 +469,8 @@ registerAppTool(
 
     const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
 
-    // If turn was forfeited (no valid moves), auto-end and inform model
+    // If turn was forfeited (no valid moves), auto-end and include turn summary
+    // for client to send via updateModelContext
     if (turnForfeited) {
       const summary = buildTurnSummary(state, [])
       const summaryText = formatTurnSummaryForModel(summary)
@@ -482,14 +484,10 @@ registerAppTool(
         ],
         structuredContent: {
           gameState: state,
-          validMoves
+          validMoves,
+          turnSummary: summaryText
         },
-        _meta: {
-          ...viewOnlyMeta(),
-          updateModelContext: {
-            content: [{ type: 'text' as const, text: summaryText }]
-          }
-        },
+        _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } },
         turnForfeited: true
       }
     }
@@ -500,7 +498,7 @@ registerAppTool(
         gameState: state,
         validMoves
       },
-      _meta: viewOnlyMeta()
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
   }
 )
@@ -526,7 +524,7 @@ registerAppTool(
         .describe('The die value being used for this move (1-6)')
     },
     outputSchema: GameResponseOutputSchema,
-    _meta: viewOnlyMeta()
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
   },
   ({ from, to, dieUsed }) => {
     const config = store.getState().config
@@ -578,7 +576,7 @@ registerAppTool(
         gameState: state,
         validMoves
       },
-      _meta: viewOnlyMeta()
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
   }
 )
@@ -588,9 +586,9 @@ registerAppTool(
   'view_end_turn',
   {
     description:
-      "End the human player's turn. This sends a summary of the turn to the model via updateModelContext.",
+      "End the human player's turn and pass control to the next player.",
     outputSchema: GameResponseOutputSchema,
-    _meta: viewOnlyMeta()
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
   },
   () => {
     const config = store.getState().config
@@ -635,7 +633,7 @@ registerAppTool(
         gameState: state,
         turnSummary: summaryText
       },
-      _meta: viewOnlyMeta()
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
   }
 )
@@ -654,7 +652,7 @@ registerAppTool(
       ...GameResponseOutputSchema,
       turnForfeited: z.boolean().optional()
     },
-    _meta: modelOnlyMeta()
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   () => {
     const config = store.getState().config
@@ -677,20 +675,18 @@ registerAppTool(
     }
 
     const { diceRoll, validMoves, turnForfeited } = result.value
-    const state = store.getState().game
 
     const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
-    const text = turnForfeited
-      ? `Rolled ${diceText}. No legal moves - turn forfeited.`
-      : `Rolled ${diceText}.`
+    let text: string
+    if (turnForfeited) {
+      text = `Rolled ${diceText}. No legal moves - turn forfeited.`
+    } else {
+      text = `Rolled ${diceText}. ${formatValidMovesForModel(validMoves)}`
+    }
 
     return {
       content: [{ type: 'text' as const, text }],
-      structuredContent: {
-        gameState: state,
-        validMoves
-      },
-      _meta: modelOnlyMeta(),
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
       turnForfeited
     }
   }
@@ -737,7 +733,7 @@ registerAppTool(
         )
         .optional()
     },
-    _meta: modelOnlyMeta()
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   ({ moves }) => {
     const config = store.getState().config
@@ -777,18 +773,15 @@ registerAppTool(
       if (!result.ok) {
         // Return error with context about which move failed
         const validMoves = getValidMoves({ state: store.getState().game })
+        const validMovesText = formatValidMovesForModel(validMoves)
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Error: Move ${String(i + 1)} (${String(move.from)}→${String(move.to)}) failed: ${result.error.message}`
+              text: `Error: Move ${String(i + 1)} (${String(move.from)}→${String(move.to)}) failed: ${result.error.message}. Valid moves: ${validMovesText}`
             }
           ],
-          structuredContent: {
-            gameState: store.getState().game,
-            validMoves
-          },
-          _meta: modelOnlyMeta(),
+          _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
           isError: true
         }
       }
@@ -802,7 +795,6 @@ registerAppTool(
 
       // Check for game over after each move
       if (result.value.gameOver) {
-        const state = store.getState().game
         const winnerName =
           result.value.gameOver.winner.charAt(0).toUpperCase() +
           result.value.gameOver.winner.slice(1)
@@ -814,10 +806,7 @@ registerAppTool(
               text: `Turn completed. Game over! ${winnerName} wins with a ${result.value.gameOver.victoryType}!`
             }
           ],
-          structuredContent: {
-            gameState: state
-          },
-          _meta: modelOnlyMeta(),
+          _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
           executedMoves
         }
       }
@@ -836,7 +825,6 @@ registerAppTool(
     }
 
     const { nextPlayer } = endResult.value
-    const state = store.getState().game
 
     const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
     const moveSummary =
@@ -856,10 +844,7 @@ registerAppTool(
           text: `Turn completed: ${moveSummary}. ${playerName} to roll.`
         }
       ],
-      structuredContent: {
-        gameState: state
-      },
-      _meta: modelOnlyMeta(),
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
       executedMoves
     }
   }
@@ -886,7 +871,7 @@ registerAppTool(
         .describe('The die value being used for this move (1-6)')
     },
     outputSchema: GameResponseOutputSchema,
-    _meta: modelOnlyMeta()
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   ({ from, to, dieUsed }) => {
     const action = store.dispatch(performMove({ from, to, dieUsed }))
@@ -901,7 +886,6 @@ registerAppTool(
     }
 
     const { move, hit, gameOver, validMoves } = result.value
-    const state = store.getState().game
 
     // Track hit for turn summary (in case view_end_turn is called later)
     movesWithHitsThisTurn.push({ hit })
@@ -922,15 +906,13 @@ registerAppTool(
       const winnerName =
         gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
       text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
+    } else if (validMoves.length > 0) {
+      text += ` Remaining: ${formatValidMovesForModel(validMoves)}`
     }
 
     return {
       content: [{ type: 'text' as const, text }],
-      structuredContent: {
-        gameState: state,
-        validMoves
-      },
-      _meta: modelOnlyMeta()
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
     }
   }
 )
@@ -946,11 +928,10 @@ registerAppTool(
     description:
       'Get the current state of the game including board position, current player, dice, and available moves.',
     outputSchema: GameResponseOutputSchema,
-    _meta: modelOnlyMeta()
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   () => {
     const state = store.getState().game
-    const config = store.getState().config
 
     if (state.phase === 'not_started') {
       return errorResponse(
@@ -964,7 +945,8 @@ registerAppTool(
 
     // Build concise text summary (no ASCII board - JSON gamestate is sufficient)
     const playerName = state.currentPlayer
-      ? state.currentPlayer.charAt(0).toUpperCase() + state.currentPlayer.slice(1)
+      ? state.currentPlayer.charAt(0).toUpperCase() +
+        state.currentPlayer.slice(1)
       : 'None'
     let text = `Turn ${String(state.turnNumber)}, ${playerName} to play, phase: ${state.phase}`
 
@@ -972,15 +954,15 @@ registerAppTool(
       text += `, dice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`
     }
 
+    if (validMoves && validMoves.length > 0) {
+      text += `. Valid moves: ${formatValidMovesForModel(validMoves)}`
+    }
+
     if (state.remainingMoves.length > 0) {
       text += `, remaining: [${state.remainingMoves.join(', ')}]`
     }
 
-    return gameResponse(text, {
-      gameState: state,
-      validMoves,
-      config
-    })
+    return gameResponse(text)
   }
 )
 

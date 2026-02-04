@@ -161,10 +161,17 @@ export function McpAppShim(): React.JSX.Element {
         name: 'view_roll_dice',
         arguments: {}
       })
-      if (result.structuredContent) {
-        setToolResult({
-          structuredContent: result.structuredContent as BackgammonStructuredContent
-        })
+      const content = result.structuredContent as
+        | BackgammonStructuredContent
+        | undefined
+      if (content) {
+        setToolResult({ structuredContent: content })
+        // If turn was forfeited (no valid moves), inform the model
+        if (content.turnSummary) {
+          await app.updateModelContext({
+            content: [{ type: 'text', text: content.turnSummary }]
+          })
+        }
       }
     }
     void doRoll()
@@ -177,12 +184,14 @@ export function McpAppShim(): React.JSX.Element {
         name: 'view_end_turn',
         arguments: {}
       })
-      const content = result.structuredContent as BackgammonStructuredContent | undefined
+      const content = result.structuredContent as
+        | BackgammonStructuredContent
+        | undefined
       if (content) {
         setToolResult({ structuredContent: content })
         // Inform the model of the human's completed turn
         if (content.turnSummary) {
-          app.updateModelContext({
+          await app.updateModelContext({
             content: [{ type: 'text', text: content.turnSummary }]
           })
         }
@@ -216,7 +225,8 @@ export function McpAppShim(): React.JSX.Element {
             })
             if (result.structuredContent) {
               setToolResult({
-                structuredContent: result.structuredContent as BackgammonStructuredContent
+                structuredContent:
+                  result.structuredContent as BackgammonStructuredContent
               })
             }
           }
@@ -310,7 +320,8 @@ export function McpAppShim(): React.JSX.Element {
           })
           if (result.structuredContent) {
             setToolResult({
-              structuredContent: result.structuredContent as BackgammonStructuredContent
+              structuredContent:
+                result.structuredContent as BackgammonStructuredContent
             })
           }
         }
