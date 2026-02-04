@@ -925,6 +925,70 @@ registerAppTool(
 )
 
 // =============================================================================
+// Tool: Get Last Turn
+// =============================================================================
+
+registerAppTool(
+  server,
+  'backgammon_get_last_turn',
+  {
+    description:
+      "Get the last completed turn for a specific player. Useful if you missed a turn notification or need to recall what happened.",
+    inputSchema: {
+      player: z
+        .enum(['white', 'black'])
+        .describe('Which player\'s last turn to retrieve')
+    },
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
+  },
+  ({ player }) => {
+    const state = store.getState().game
+
+    if (state.phase === 'not_started') {
+      return errorResponse('No game in progress.')
+    }
+
+    // Find the last turn for the specified player
+    const lastTurnForPlayer = [...state.history]
+      .reverse()
+      .find(turn => turn.player === player)
+
+    if (!lastTurnForPlayer) {
+      const playerName = player.charAt(0).toUpperCase() + player.slice(1)
+      return textResponse(`${playerName} has not taken a turn yet.`)
+    }
+
+    const playerName = player.charAt(0).toUpperCase() + player.slice(1)
+    const diceStr = `${String(lastTurnForPlayer.diceRoll.die1)}-${String(lastTurnForPlayer.diceRoll.die2)}`
+
+    let movesStr: string
+    if (lastTurnForPlayer.moves.length === 0) {
+      movesStr = '(no valid moves - turn forfeited)'
+    } else {
+      // Get hit info from actionHistory for this turn's moves
+      const turnMoveActions = state.actionHistory.filter(
+        action =>
+          action.type === 'piece_move' && action.player === player
+      )
+      // Match moves to their hit status from the most recent actions
+      const recentMoveActions = turnMoveActions.slice(-lastTurnForPlayer.moves.length)
+
+      movesStr = lastTurnForPlayer.moves
+        .map((m, i) => {
+          const hitAction = recentMoveActions[i]
+          const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
+          return `${String(m.from)}→${String(m.to)}${hitStr}`
+        })
+        .join(', ')
+    }
+
+    return textResponse(
+      `${playerName}'s last turn:\n- Rolled: ${diceStr}\n- Moves: ${movesStr}`
+    )
+  }
+)
+
+// =============================================================================
 // Tool: Get Game State
 // =============================================================================
 
