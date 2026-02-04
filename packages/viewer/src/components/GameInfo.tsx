@@ -43,6 +43,10 @@ function victoryLabel(victoryType: GameResult['victoryType']): string {
   }
 }
 
+function titleCase(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
 export function GameInfo({
   currentPlayer,
   phase,
@@ -58,7 +62,7 @@ export function GameInfo({
           <span
             className={`game-info__winner game-info__winner--${result.winner}`}
           >
-            {result.winner} wins{victoryLabel(result.victoryType)}
+            {titleCase(result.winner)} wins{victoryLabel(result.victoryType)}
           </span>
         </div>
       ) : (
@@ -68,7 +72,7 @@ export function GameInfo({
             <span
               className={`game-info__value game-info__value--${currentPlayer ?? 'none'}`}
             >
-              {currentPlayer ?? '—'}
+              {currentPlayer ? titleCase(currentPlayer) : '—'}
             </span>
           </div>
           <div className="game-info__phase">

@@ -46,7 +46,9 @@ export function BorneOffArea({
         }
       }}
     >
-      <div className="borne-off__label">{player}</div>
+      <div className="borne-off__label">
+        {player.charAt(0).toUpperCase() + player.slice(1)}
+      </div>
       <div className="borne-off__checkers">{checkers}</div>
       <div className="borne-off__count">{count}</div>
     </div>
