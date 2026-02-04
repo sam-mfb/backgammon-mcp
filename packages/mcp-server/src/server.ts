@@ -649,10 +649,6 @@ registerAppTool(
   {
     description:
       "Roll the dice for the AI player's turn. Remember: point numbers are from white's perspective (white moves 24→1, black moves 1→24).",
-    outputSchema: {
-      ...GameResponseOutputSchema,
-      turnForfeited: z.boolean().optional()
-    },
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   () => {
@@ -720,19 +716,6 @@ registerAppTool(
         .describe(
           'Array of moves to execute in order. Can be 0-4 moves depending on dice and board state.'
         )
-    },
-    outputSchema: {
-      ...GameResponseOutputSchema,
-      executedMoves: z
-        .array(
-          z.object({
-            from: MoveFromSchema,
-            to: MoveToSchema,
-            dieUsed: DieValueSchema,
-            hit: z.boolean()
-          })
-        )
-        .optional()
     },
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
@@ -871,7 +854,6 @@ registerAppTool(
         .max(6)
         .describe('The die value being used for this move (1-6)')
     },
-    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   ({ from, to, dieUsed }) => {
@@ -928,7 +910,6 @@ registerAppTool(
   {
     description:
       'Get the current state of the game including board position, current player, dice, and available moves.',
-    outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   () => {
