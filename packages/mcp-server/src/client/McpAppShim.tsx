@@ -177,10 +177,23 @@ export function McpAppShim(): React.JSX.Element {
           // The player who just finished is the opposite of current player
           const finishedPlayer =
             content.gameState.currentPlayer === 'white' ? 'Black' : 'White'
-          // Update context with detailed summary
-          await app.updateModelContext({
-            content: [{ type: 'text', text: content.turnSummary }]
-          })
+
+          // Check if host supports model context updates
+          const caps = app.getHostCapabilities()
+          if (caps?.updateModelContext) {
+            try {
+              await app.updateModelContext({
+                content: [{ type: 'text', text: content.turnSummary }]
+              })
+            } catch (e) {
+              setErrorMessage(
+                `Failed to update model context: ${e instanceof Error ? e.message : String(e)}`
+              )
+            }
+          } else {
+            setErrorMessage('Host does not support updateModelContext')
+          }
+
           // Send brief trigger message
           await app.sendMessage({
             role: 'user',
@@ -218,10 +231,23 @@ export function McpAppShim(): React.JSX.Element {
       // The player who just finished is the opposite of current player
       const finishedPlayer =
         content.gameState.currentPlayer === 'white' ? 'Black' : 'White'
-      // Update context with detailed summary
-      await app.updateModelContext({
-        content: [{ type: 'text', text: content.turnSummary }]
-      })
+
+      // Check if host supports model context updates
+      const caps = app.getHostCapabilities()
+      if (caps?.updateModelContext) {
+        try {
+          await app.updateModelContext({
+            content: [{ type: 'text', text: content.turnSummary }]
+          })
+        } catch (e) {
+          setErrorMessage(
+            `Failed to update model context: ${e instanceof Error ? e.message : String(e)}`
+          )
+        }
+      } else {
+        setErrorMessage('Host does not support updateModelContext')
+      }
+
       // Send brief trigger message
       await app.sendMessage({
         role: 'user',
