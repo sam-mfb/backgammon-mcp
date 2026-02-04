@@ -94,6 +94,12 @@ Or watch an AI vs AI game:
 
 > "Start a backgammon game where you control both players and play against yourself."
 
+### Known Limitations
+
+**Board redraws on every turn**: The board UI redraws completely each time you or the model takes a turn. This is a known issue being discussed in [modelcontextprotocol/ext-apps#430](https://github.com/modelcontextprotocol/ext-apps/issues/430), so hopefully this can improve in the future.
+
+**End Turn doesn't automatically trigger the model**: When you click "End Turn" in the view, the model doesn't automatically take its turn. The MCP Apps SDK's `ui/message` (at least in Claude Desktop) only populates the chat input but doesn't send it - you have to press return. Similarly, `ui/update-model-context` defers until the next user message. As a workaround, after clicking "End Turn", press return in the chat to prompt the model to take its turn.
+
 ## Development
 
 ### Run Tests
