@@ -20,7 +20,6 @@ import type {
   Move,
   Player
 } from './types'
-import { getOpponent } from './types'
 import {
   checkGameOver,
   getValidMoves,
@@ -233,27 +232,11 @@ export const gameSlice = createSlice({
           state.actionHistory.push(diceRollAction)
 
           if (turnForfeited) {
-            // Auto-forfeit: switch to opponent
-            const opponent = getOpponent(player)
-
-            // Append turn_end action for the forfeited turn
-            const turnEndAction: GameAction = {
-              type: 'turn_end',
-              player
-            }
-            state.actionHistory.push(turnEndAction)
-
-            state.history.push({
-              player,
-              diceRoll,
-              moves: []
-            })
-            state.currentPlayer = opponent
-            state.phase = 'rolling'
-            state.diceRoll = null
+            // No valid moves - stay in moving phase for model to explicitly forfeit
+            state.diceRoll = diceRoll
+            state.phase = 'moving'
             state.remainingMoves = []
             state.movesThisTurn = []
-            state.turnNumber++
           } else {
             state.diceRoll = diceRoll
             state.phase = 'moving'
