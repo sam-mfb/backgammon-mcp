@@ -218,20 +218,29 @@ function textResponse(text: string): {
  * Example: "From 24: 21, 19. From 13: 8 (hit), 7."
  */
 function formatValidMovesForModel(
-  validMoves: readonly { from: number | 'bar'; destinations: readonly { to: number | 'off'; dieValue: number; wouldHit: boolean }[] }[]
+  validMoves: readonly {
+    from: number | 'bar'
+    destinations: readonly {
+      to: number | 'off'
+      dieValue: number
+      wouldHit: boolean
+    }[]
+  }[]
 ): string {
   if (validMoves.length === 0) return 'No valid moves.'
-  return validMoves
-    .map(m => {
-      const dests = m.destinations
-        .map(d => {
-          const hitStr = d.wouldHit ? ' (hit)' : ''
-          return `${String(d.to)}${hitStr}`
-        })
-        .join(', ')
-      return `From ${String(m.from)}: ${dests}`
-    })
-    .join('. ') + '.'
+  return (
+    validMoves
+      .map(m => {
+        const dests = m.destinations
+          .map(d => {
+            const hitStr = d.wouldHit ? ' (hit)' : ''
+            return `${String(d.to)}${hitStr}`
+          })
+          .join(', ')
+        return `From ${String(m.from)}: ${dests}`
+      })
+      .join('. ') + '.'
+  )
 }
 
 /**
@@ -717,7 +726,8 @@ registerAppTool(
           'Array of moves to execute in order. Can be 0-4 moves depending on dice and board state.'
         )
     },
-    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   ({ moves }) => {
     const config = store.getState().config
@@ -765,7 +775,11 @@ registerAppTool(
               text: `Error: Move ${String(i + 1)} (${String(move.from)}→${String(move.to)}) failed: ${result.error.message}. Valid moves: ${validMovesText}`
             }
           ],
-          _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
+          structuredContent: {
+            gameState: store.getState().game,
+            validMoves
+          },
+          _meta: { ui: { resourceUri: RESOURCE_URI } },
           isError: true
         }
       }
@@ -779,6 +793,7 @@ registerAppTool(
 
       // Check for game over after each move
       if (result.value.gameOver) {
+        const state = store.getState().game
         const winnerName =
           result.value.gameOver.winner.charAt(0).toUpperCase() +
           result.value.gameOver.winner.slice(1)
@@ -790,7 +805,10 @@ registerAppTool(
               text: `Turn completed. Game over! ${winnerName} wins with a ${result.value.gameOver.victoryType}!`
             }
           ],
-          _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
+          structuredContent: {
+            gameState: state
+          },
+          _meta: { ui: { resourceUri: RESOURCE_URI } },
           executedMoves
         }
       }
@@ -809,6 +827,7 @@ registerAppTool(
     }
 
     const { nextPlayer } = endResult.value
+    const state = store.getState().game
 
     const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
     const moveSummary =
@@ -828,7 +847,10 @@ registerAppTool(
           text: `Turn completed: ${moveSummary}. ${playerName} to roll.`
         }
       ],
-      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
+      structuredContent: {
+        gameState: state
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI } },
       executedMoves
     }
   }
