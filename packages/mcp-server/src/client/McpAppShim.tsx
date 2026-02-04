@@ -172,9 +172,10 @@ export function McpAppShim(): React.JSX.Element {
         | undefined
       if (content) {
         setToolResult({ structuredContent: content })
-        // If turn was forfeited (no valid moves), inform the model
+        // If turn was forfeited (no valid moves), notify model it's their turn
         if (content.turnSummary) {
-          await app.updateModelContext({
+          await app.sendMessage({
+            role: 'user',
             content: [{ type: 'text', text: content.turnSummary }]
           })
         }
@@ -202,7 +203,9 @@ export function McpAppShim(): React.JSX.Element {
         return
       }
       setToolResult({ structuredContent: content })
-      await app.updateModelContext({
+      // Send message to immediately notify model it's their turn
+      await app.sendMessage({
+        role: 'user',
         content: [{ type: 'text', text: content.turnSummary }]
       })
     }
@@ -340,9 +343,9 @@ export function McpAppShim(): React.JSX.Element {
     [phase, selectedSource, validDestinations, validMoves, app]
   )
 
-  // Show waiting state when no game state is available
+  // Show loading state when no game state is available
   if (!gameState) {
-    return <div className="waiting">Waiting for game to start...</div>
+    return <div className="waiting">Loading game board...</div>
   }
 
   return (
