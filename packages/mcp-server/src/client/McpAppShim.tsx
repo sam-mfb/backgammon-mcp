@@ -187,15 +187,18 @@ export function McpAppShim(): React.JSX.Element {
       const content = result.structuredContent as
         | BackgammonStructuredContent
         | undefined
-      if (content) {
-        setToolResult({ structuredContent: content })
-        // Inform the model of the human's completed turn
-        if (content.turnSummary) {
-          await app.updateModelContext({
-            content: [{ type: 'text', text: content.turnSummary }]
-          })
-        }
+      if (!content) {
+        setErrorMessage('view_end_turn returned no structured content')
+        return
       }
+      if (!content.turnSummary) {
+        setErrorMessage('view_end_turn returned no turn summary')
+        return
+      }
+      setToolResult({ structuredContent: content })
+      await app.updateModelContext({
+        content: [{ type: 'text', text: content.turnSummary }]
+      })
     }
     void doEndTurn()
   }, [app])

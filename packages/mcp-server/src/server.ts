@@ -447,6 +447,7 @@ registerAppTool(
       "Roll the dice for the human player's turn. If no valid moves exist, the turn is automatically forfeited.",
     outputSchema: {
       ...GameResponseOutputSchema,
+      turnSummary: z.string().optional(),
       turnForfeited: z.boolean().optional()
     },
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
@@ -597,7 +598,10 @@ registerAppTool(
   {
     description:
       "End the human player's turn and pass control to the next player.",
-    outputSchema: GameResponseOutputSchema,
+    outputSchema: {
+      gameState: GameStateSchema,
+      turnSummary: z.string().optional()
+    },
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
   },
   () => {
@@ -808,8 +812,7 @@ registerAppTool(
           structuredContent: {
             gameState: state
           },
-          _meta: { ui: { resourceUri: RESOURCE_URI } },
-          executedMoves
+          _meta: { ui: { resourceUri: RESOURCE_URI } }
         }
       }
     }
@@ -850,8 +853,7 @@ registerAppTool(
       structuredContent: {
         gameState: state
       },
-      _meta: { ui: { resourceUri: RESOURCE_URI } },
-      executedMoves
+      _meta: { ui: { resourceUri: RESOURCE_URI } }
     }
   }
 )
