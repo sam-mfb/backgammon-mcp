@@ -173,10 +173,18 @@ export function McpAppShim(): React.JSX.Element {
       if (content) {
         setToolResult({ structuredContent: content })
         // If turn was forfeited (no valid moves), notify model it's their turn
-        if (content.turnSummary) {
+        if (content.turnSummary && content.gameState.currentPlayer) {
+          // The player who just finished is the opposite of current player
+          const finishedPlayer =
+            content.gameState.currentPlayer === 'white' ? 'Black' : 'White'
+          // Update context with detailed summary
+          await app.updateModelContext({
+            content: [{ type: 'text', text: content.turnSummary }]
+          })
+          // Send brief trigger message
           await app.sendMessage({
             role: 'user',
-            content: [{ type: 'text', text: content.turnSummary }]
+            content: [{ type: 'text', text: `${finishedPlayer} turn over.` }]
           })
         }
       }
@@ -202,11 +210,22 @@ export function McpAppShim(): React.JSX.Element {
         setErrorMessage('view_end_turn returned no turn summary')
         return
       }
+      if (!content.gameState.currentPlayer) {
+        setErrorMessage('view_end_turn returned no current player')
+        return
+      }
       setToolResult({ structuredContent: content })
-      // Send message to immediately notify model it's their turn
+      // The player who just finished is the opposite of current player
+      const finishedPlayer =
+        content.gameState.currentPlayer === 'white' ? 'Black' : 'White'
+      // Update context with detailed summary
+      await app.updateModelContext({
+        content: [{ type: 'text', text: content.turnSummary }]
+      })
+      // Send brief trigger message
       await app.sendMessage({
         role: 'user',
-        content: [{ type: 'text', text: content.turnSummary }]
+        content: [{ type: 'text', text: `${finishedPlayer} turn over.` }]
       })
     }
     void doEndTurn()
