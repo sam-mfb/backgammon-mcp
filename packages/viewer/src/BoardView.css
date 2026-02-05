@@ -344,11 +344,11 @@
 }
 
 .point__label--white {
-  color: #fff;
+  color: var(--bgv-text-primary);
 }
 
 .point__label--black {
-  color: #1a1a1a;
+  color: var(--bgv-die-text);
 }
 
 /* Checker */
