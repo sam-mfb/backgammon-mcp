@@ -56,6 +56,8 @@ export function Point({
     .filter(Boolean)
     .join(' ')
 
+  const blackPointIndex = 25 - pointIndex
+
   return (
     <div
       className={classNames}
@@ -71,7 +73,10 @@ export function Point({
     >
       <div className="point__triangle" />
       <div className="point__checkers">{checkers}</div>
-      <span className="point__label">{pointIndex}</span>
+      <div className="point__labels">
+        <span className="point__label point__label--white">{pointIndex}</span>
+        <span className="point__label point__label--black">{blackPointIndex}</span>
+      </div>
     </div>
   )
 }

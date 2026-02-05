@@ -324,19 +324,31 @@
   margin-bottom: 0;
 }
 
-.point__label {
+.point__labels {
   position: absolute;
-  font-size: 10px;
-  color: var(--bgv-text-secondary);
+  display: flex;
+  gap: 4px;
   z-index: 2;
 }
 
-.point--top .point__label {
+.point--top .point__labels {
   bottom: 4px;
 }
 
-.point--bottom .point__label {
+.point--bottom .point__labels {
   top: 4px;
+}
+
+.point__label {
+  font-size: 10px;
+}
+
+.point__label--white {
+  color: #fff;
+}
+
+.point__label--black {
+  color: #1a1a1a;
 }
 
 /* Checker */
