@@ -483,7 +483,20 @@ registerAppTool(
     // If turn was forfeited (no valid moves), auto-end and include turn summary
     // for client to send via updateModelContext
     if (turnForfeited) {
-      const summary = buildTurnSummary(state, [])
+      // End the turn (this will switch to opponent)
+      const endAction = store.dispatch(performEndTurn())
+      const endResult = endAction.meta.result
+
+      if (!endResult) {
+        return errorResponse('Failed to end turn on forfeit')
+      }
+
+      if (!endResult.ok) {
+        return errorResponse(endResult.error.message)
+      }
+
+      const stateAfterEnd = store.getState().game
+      const summary = buildTurnSummary(stateAfterEnd, [])
       const summaryText = formatTurnSummaryForModel(summary)
 
       return {
@@ -494,7 +507,7 @@ registerAppTool(
           }
         ],
         structuredContent: {
-          gameState: state,
+          gameState: stateAfterEnd,
           validMoves,
           turnSummary: summaryText
         },
@@ -747,15 +760,29 @@ registerAppTool(
       return errorResponse("It's not the AI player's turn")
     }
 
-    // Handle forfeit case (turn was already forfeited by model_roll_dice)
+    // Handle forfeit case (no valid moves after roll)
     if (forfeit) {
-      // Turn should already be ended by performRollDice when forfeited
-      // Just return the current state for UI update
-      const state = store.getState().game
-      const nextPlayer = state.currentPlayer
-      if (!nextPlayer) {
-        return errorResponse('No current player after forfeit')
+      // Verify we're in moving phase (model_roll_dice should have set this)
+      if (stateBefore.phase !== 'moving') {
+        return errorResponse(
+          'Cannot forfeit - not in moving phase. Use model_roll_dice first.'
+        )
       }
+
+      // End the turn (this will switch to opponent)
+      const endAction = store.dispatch(performEndTurn())
+      const endResult = endAction.meta.result
+
+      if (!endResult) {
+        return errorResponse('Failed to end turn on forfeit')
+      }
+
+      if (!endResult.ok) {
+        return errorResponse(endResult.error.message)
+      }
+
+      const { nextPlayer } = endResult.value
+      const state = store.getState().game
       const playerName = nextPlayer.charAt(0).toUpperCase() + nextPlayer.slice(1)
 
       return {
