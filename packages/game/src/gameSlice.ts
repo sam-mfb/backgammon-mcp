@@ -232,7 +232,7 @@ export const gameSlice = createSlice({
           state.actionHistory.push(diceRollAction)
 
           if (turnForfeited) {
-            // No valid moves - stay in moving phase for model to explicitly forfeit
+            // No valid moves - stay in moving phase so caller can explicitly end turn
             state.diceRoll = diceRoll
             state.phase = 'moving'
             state.remainingMoves = []
