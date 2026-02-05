@@ -766,6 +766,44 @@ registerAppTool(
     }
 
     const { diceRoll, validMoves, turnForfeited } = result.value
+    const state = store.getState().game
+
+    // Get opponent's last turn for context (since not all clients implement updateModelContext)
+    const currentPlayer = state.currentPlayer
+    const opponent = currentPlayer === 'white' ? 'black' : 'white'
+    const opponentLastTurn = [...state.history]
+      .reverse()
+      .find(turn => turn.player === opponent)
+
+    let opponentTurnText = ''
+    if (opponentLastTurn) {
+      const opponentName = opponent.charAt(0).toUpperCase() + opponent.slice(1)
+      const oppDiceStr = `${String(opponentLastTurn.diceRoll.die1)}-${String(opponentLastTurn.diceRoll.die2)}`
+
+      let oppMovesStr: string
+      if (opponentLastTurn.moves.length === 0) {
+        oppMovesStr = '(no valid moves - turn forfeited)'
+      } else {
+        // Get hit info from actionHistory for opponent's moves
+        const turnMoveActions = state.actionHistory.filter(
+          action => action.type === 'piece_move' && action.player === opponent
+        )
+        const recentMoveActions = turnMoveActions.slice(-opponentLastTurn.moves.length)
+
+        oppMovesStr = opponentLastTurn.moves
+          .map((m, i) => {
+            const hitAction = recentMoveActions[i]
+            const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
+            return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
+          })
+          .join(', ')
+      }
+
+      opponentTurnText = `\n\n${opponentName}'s last turn:\n- Rolled: ${oppDiceStr}\n- Moves: ${oppMovesStr}`
+    }
+
+    // Include current game state
+    const gameStateStr = formatGameStateForModel(state)
 
     const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
     let text: string
@@ -774,6 +812,10 @@ registerAppTool(
     } else {
       text = `Rolled ${diceText}. ${formatValidMovesForModel(validMoves)}`
     }
+
+    // Append opponent's last turn and game state for context
+    text += opponentTurnText
+    text += `\n\nCurrent game state:\n${gameStateStr}`
 
     return {
       content: [{ type: 'text' as const, text }],
