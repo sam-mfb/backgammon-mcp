@@ -205,6 +205,71 @@ function errorResponse(message: string): {
   }
 }
 
+/**
+ * Convert a point number from white's perspective to black's perspective (or vice versa).
+ * White point N = Black point (25 - N)
+ */
+function flipPointPerspective(point: number): number {
+  return 25 - point
+}
+
+/**
+ * Format a point number showing both white and black perspectives.
+ * Example: "24 (black: 1)" or "bar" or "off"
+ */
+function formatPointDual(point: number | 'bar' | 'off'): string {
+  if (point === 'bar' || point === 'off') {
+    return point
+  }
+  const blackPoint = flipPointPerspective(point)
+  return `${String(point)} (black: ${String(blackPoint)})`
+}
+
+/**
+ * Format the current game state as text for the model.
+ * Shows board positions with both perspectives, bar, borne off, and game status.
+ */
+function formatGameStateForModel(state: GameState): string {
+  const lines: string[] = []
+
+  // Game status
+  const playerName = state.currentPlayer
+    ? state.currentPlayer.charAt(0).toUpperCase() + state.currentPlayer.slice(1)
+    : 'None'
+  lines.push(`Turn ${String(state.turnNumber)}, ${playerName} to play, phase: ${state.phase}`)
+
+  if (state.diceRoll) {
+    lines.push(`Dice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`)
+  }
+
+  // Bar and borne off
+  lines.push(`Bar: White ${String(state.board.bar.white)}, Black ${String(state.board.bar.black)}`)
+  lines.push(`Borne off: White ${String(state.board.borneOff.white)}, Black ${String(state.board.borneOff.black)}`)
+
+  // Board positions - show occupied points with both perspectives
+  const whitePositions: string[] = []
+  const blackPositions: string[] = []
+
+  for (let i = 0; i < 24; i++) {
+    const pointValue = state.board.points[i]
+    const whitePoint = i + 1
+    const blackPoint = flipPointPerspective(whitePoint)
+
+    if (pointValue > 0) {
+      // White checkers
+      whitePositions.push(`${String(whitePoint)} (black: ${String(blackPoint)}): ${String(pointValue)}`)
+    } else if (pointValue < 0) {
+      // Black checkers
+      blackPositions.push(`${String(whitePoint)} (black: ${String(blackPoint)}): ${String(-pointValue)}`)
+    }
+  }
+
+  lines.push(`White checkers: ${whitePositions.length > 0 ? whitePositions.join(', ') : 'none'}`)
+  lines.push(`Black checkers: ${blackPositions.length > 0 ? blackPositions.join(', ') : 'none'}`)
+
+  return lines.join('\n')
+}
+
 function textResponse(text: string): {
   content: { type: 'text'; text: string }[]
 } {
@@ -215,7 +280,8 @@ function textResponse(text: string): {
 
 /**
  * Format valid moves as readable text for the model.
- * Example: "From 24: 21, 19. From 13: 8 (hit), 7."
+ * Shows both white and black point perspectives.
+ * Example: "From 24 (black: 1): 21 (black: 4), 19 (black: 6). From bar: 24 (black: 1) (hit)."
  */
 function formatValidMovesForModel(
   validMoves: readonly {
@@ -231,13 +297,14 @@ function formatValidMovesForModel(
   return (
     validMoves
       .map(m => {
+        const fromStr = formatPointDual(m.from)
         const dests = m.destinations
           .map(d => {
             const hitStr = d.wouldHit ? ' (hit)' : ''
-            return `${String(d.to)}${hitStr}`
+            return `${formatPointDual(d.to)}${hitStr}`
           })
           .join(', ')
-        return `From ${String(m.from)}: ${dests}`
+        return `From ${fromStr}: ${dests}`
       })
       .join('. ') + '.'
   )
@@ -314,7 +381,8 @@ function buildTurnSummary(
 }
 
 /**
- * Format a turn summary as markdown text for model context
+ * Format a turn summary as markdown text for model context.
+ * Uses dual point formatting to show both perspectives.
  */
 function formatTurnSummaryForModel(summary: TurnSummary): string {
   const playerName =
@@ -328,7 +396,7 @@ function formatTurnSummaryForModel(summary: TurnSummary): string {
     movesStr = summary.moves
       .map(m => {
         const hitStr = m.hit ? ' (hit!)' : ''
-        return `${String(m.from)}→${String(m.to)}${hitStr}`
+        return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
       })
       .join(', ')
   }
@@ -834,7 +902,7 @@ registerAppTool(
           content: [
             {
               type: 'text' as const,
-              text: `Error: Move ${String(i + 1)} (${String(move.from)}→${String(move.to)}) failed: ${result.error.message}. Valid moves: ${validMovesText}`
+              text: `Error: Move ${String(i + 1)} (${formatPointDual(move.from)}→${formatPointDual(move.to)}) failed: ${result.error.message}. Valid moves: ${validMovesText}`
             }
           ],
           structuredContent: {
@@ -896,7 +964,7 @@ registerAppTool(
         ? executedMoves
             .map(m => {
               const hitStr = m.hit ? ' (hit!)' : ''
-              return `${String(m.from)}→${String(m.to)}${hitStr}`
+              return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
             })
             .join(', ')
         : 'no moves'
@@ -955,12 +1023,12 @@ registerAppTool(
     // Track hit for turn summary (in case view_end_turn is called later)
     movesWithHitsThisTurn.push({ hit })
 
-    // Build text response
+    // Build text response with dual point formatting
     let text: string
     if (move.to === 'off') {
-      text = `Bore off from ${String(move.from)} using ${String(move.dieUsed)}.`
+      text = `Bore off from ${formatPointDual(move.from)} using ${String(move.dieUsed)}.`
     } else {
-      text = `Moved ${String(move.from)} → ${String(move.to)} using ${String(move.dieUsed)}`
+      text = `Moved ${formatPointDual(move.from)} → ${formatPointDual(move.to)} using ${String(move.dieUsed)}`
       if (hit) {
         text += ' (hit!)'
       }
@@ -991,7 +1059,7 @@ registerAppTool(
   'backgammon_get_last_turn',
   {
     description:
-      "Get the last completed turn for a specific player. Useful if you missed a turn notification or need to recall what happened.",
+      "Get the last completed turn for a specific player along with current game state. Useful if you missed a turn notification or need to recall what happened.",
     inputSchema: {
       player: z
         .enum(['white', 'black'])
@@ -1013,7 +1081,9 @@ registerAppTool(
 
     if (!lastTurnForPlayer) {
       const playerName = player.charAt(0).toUpperCase() + player.slice(1)
-      return textResponse(`${playerName} has not taken a turn yet.`)
+      // Still include game state even if player hasn't moved yet
+      const gameStateStr = formatGameStateForModel(state)
+      return textResponse(`${playerName} has not taken a turn yet.\n\nCurrent game state:\n${gameStateStr}`)
     }
 
     const playerName = player.charAt(0).toUpperCase() + player.slice(1)
@@ -1035,13 +1105,16 @@ registerAppTool(
         .map((m, i) => {
           const hitAction = recentMoveActions[i]
           const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
-          return `${String(m.from)}→${String(m.to)}${hitStr}`
+          return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
         })
         .join(', ')
     }
 
+    // Include current game state along with last turn info
+    const gameStateStr = formatGameStateForModel(state)
+
     return textResponse(
-      `${playerName}'s last turn:\n- Rolled: ${diceStr}\n- Moves: ${movesStr}`
+      `${playerName}'s last turn:\n- Rolled: ${diceStr}\n- Moves: ${movesStr}\n\nCurrent game state:\n${gameStateStr}`
     )
   }
 )
