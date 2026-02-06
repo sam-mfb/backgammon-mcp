@@ -219,6 +219,28 @@ function convertPointForPerspective(
 }
 
 /**
+ * Convert model 'from' input from their perspective back to white's (internal) perspective.
+ */
+function convertInputFrom(
+  point: number | 'bar',
+  perspective: 'white' | 'black'
+): number | 'bar' {
+  if (point === 'bar') return point
+  return perspective === 'white' ? point : 25 - point
+}
+
+/**
+ * Convert model 'to' input from their perspective back to white's (internal) perspective.
+ */
+function convertInputTo(
+  point: number | 'off',
+  perspective: 'white' | 'black'
+): number | 'off' {
+  if (point === 'off') return point
+  return perspective === 'white' ? point : 25 - point
+}
+
+/**
  * Format a point number as a simple string, optionally converting to player's perspective.
  * Example: "24" or "bar" or "off"
  */
@@ -785,7 +807,7 @@ registerAppTool(
   'model_roll_dice',
   {
     description:
-      "Roll the dice for the AI player's turn. Remember: point numbers are from white's perspective (white moves 24→1, black moves 1→24). If turn is forfeited (no valid moves), you must still call model_take_turn with forfeit: true.",
+      "Roll the dice for the AI player's turn. Point numbers shown are from YOUR perspective (you always move 24→1). If turn is forfeited (no valid moves), you must still call model_take_turn with forfeit: true.",
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   () => {
@@ -1002,11 +1024,18 @@ registerAppTool(
       hit: boolean
     }[] = []
 
+    // Get current player for perspective conversion
+    const currentPlayer = stateBefore.currentPlayer ?? 'white'
+
     const movesToExecute = moves ?? []
     for (let i = 0; i < movesToExecute.length; i++) {
       const move = movesToExecute[i]
+      // Convert from model's perspective to internal (white's) perspective
+      const internalFrom = convertInputFrom(move.from, currentPlayer)
+      const internalTo = convertInputTo(move.to, currentPlayer)
+
       const action = store.dispatch(
-        performMove({ from: move.from, to: move.to, dieUsed: move.dieUsed })
+        performMove({ from: internalFrom, to: internalTo, dieUsed: move.dieUsed })
       )
       const result = action.meta.result
 
@@ -1129,7 +1158,16 @@ registerAppTool(
     _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
   },
   ({ from, to, dieUsed }) => {
-    const action = store.dispatch(performMove({ from, to, dieUsed }))
+    const stateBefore = store.getState().game
+    const currentPlayer = stateBefore.currentPlayer ?? 'white'
+
+    // Convert from model's perspective to internal (white's) perspective
+    const internalFrom = convertInputFrom(from, currentPlayer)
+    const internalTo = convertInputTo(to, currentPlayer)
+
+    const action = store.dispatch(
+      performMove({ from: internalFrom, to: internalTo, dieUsed })
+    )
     const result = action.meta.result
 
     if (!result) {
