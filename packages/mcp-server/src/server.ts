@@ -215,16 +215,18 @@ function flipPointPerspective(point: number): number {
 }
 
 /**
- * Format a point number showing both white and black perspectives.
- * Example: "24 (black: 1)" or "bar" or "off"
+ * Format a point number as a simple string.
+ * Example: "24" or "bar" or "off"
  */
-function formatPointDual(point: number | 'bar' | 'off'): string {
+function formatPoint(point: number | 'bar' | 'off'): string {
   if (point === 'bar' || point === 'off') {
     return point
   }
-  const blackPoint = flipPointPerspective(point)
-  return `${String(point)} (black: ${String(blackPoint)})`
+  return String(point)
 }
+
+const PERSPECTIVE_REMINDER =
+  'Reminder: All point numbers are from white\'s perspective. White moves 24→1, black moves 1→24.'
 
 /**
  * Format the current game state as text for the model.
@@ -280,11 +282,17 @@ function textResponse(text: string): {
 }
 
 /**
- * Format valid moves as readable text for the model.
- * Shows both white and black point perspectives.
- * Example: "From 24 (black: 1): 21 (black: 4), 19 (black: 6). From bar: 24 (black: 1) (hit)."
+ * Format valid moves as a structured, labeled list for the model.
+ * Includes die values and hit indicators for each destination.
+ * Example:
+ *   Available moves:
+ *   - From point 24: → 21 (die: 3), → 19 (die: 5, hits)
+ *   - From bar: → 5 (die: 5)
  */
-function formatValidMovesForModel(
+function formatValidMovesForModel({
+  validMoves,
+  header = 'Available moves'
+}: {
   validMoves: readonly {
     from: number | 'bar'
     destinations: readonly {
@@ -293,22 +301,20 @@ function formatValidMovesForModel(
       wouldHit: boolean
     }[]
   }[]
-): string {
+  header?: string
+}): string {
   if (validMoves.length === 0) return 'No valid moves.'
-  return (
-    validMoves
-      .map(m => {
-        const fromStr = formatPointDual(m.from)
-        const dests = m.destinations
-          .map(d => {
-            const hitStr = d.wouldHit ? ' (hit)' : ''
-            return `${formatPointDual(d.to)}${hitStr}`
-          })
-          .join(', ')
-        return `From ${fromStr}: ${dests}`
+  const lines = validMoves.map(m => {
+    const fromStr = formatPoint(m.from)
+    const dests = m.destinations
+      .map(d => {
+        const hitStr = d.wouldHit ? ', hits' : ''
+        return `→ ${formatPoint(d.to)} (die: ${String(d.dieValue)}${hitStr})`
       })
-      .join('. ') + '.'
-  )
+      .join(', ')
+    return `- From ${m.from === 'bar' ? 'bar' : `point ${fromStr}`}: ${dests}`
+  })
+  return `${header}:\n${lines.join('\n')}`
 }
 
 /**
@@ -397,7 +403,7 @@ function formatTurnSummaryForModel(summary: TurnSummary): string {
     movesStr = summary.moves
       .map(m => {
         const hitStr = m.hit ? ' (hit!)' : ''
-        return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
+        return `${formatPoint(m.from)}→${formatPoint(m.to)}${hitStr}`
       })
       .join(', ')
   }
@@ -781,6 +787,7 @@ registerAppTool(
       }
     }
 
+    // Build opponent's last turn summary
     let opponentTurnText = ''
     if (opponentLastTurn) {
       const opponentName = opponent.charAt(0).toUpperCase() + opponent.slice(1)
@@ -799,7 +806,6 @@ registerAppTool(
         ) {
           const action = state.actionHistory[i]
           if (action.type === 'piece_move' && action.player === opponent) {
-            // Unshift to keep actions in chronological order (oldest first)
             recentMoveActions.unshift(action)
           }
         }
@@ -810,7 +816,7 @@ registerAppTool(
           .map((m, i) => {
             const hitAction = includeHitInfo ? recentMoveActions[i] : undefined
             const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
-            return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
+            return `${formatPoint(m.from)}→${formatPoint(m.to)}${hitStr}`
           })
           .join(', ')
       }
@@ -818,20 +824,17 @@ registerAppTool(
       opponentTurnText = `\n\n${opponentName}'s last turn:\n- Rolled: ${oppDiceStr}\n- Moves: ${oppMovesStr}`
     }
 
-    // Include current game state
+    // Build response: context first (game state, opponent), then decision info (dice, moves) last
     const gameStateStr = formatGameStateForModel(state)
-
     const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
-    let text: string
-    if (turnForfeited) {
-      text = `Rolled ${diceText}. No legal moves - turn forfeited.`
-    } else {
-      text = `Rolled ${diceText}. ${formatValidMovesForModel(validMoves)}`
-    }
 
-    // Append opponent's last turn and game state for context
+    let text = `${PERSPECTIVE_REMINDER}\n\nCurrent game state:\n${gameStateStr}`
     text += opponentTurnText
-    text += `\n\nCurrent game state:\n${gameStateStr}`
+    if (turnForfeited) {
+      text += `\n\nYou rolled: ${diceText}\nNo legal moves - turn forfeited.`
+    } else {
+      text += `\n\nYou rolled: ${diceText}\n\n${formatValidMovesForModel({ validMoves })}`
+    }
 
     return {
       content: [{ type: 'text' as const, text }],
@@ -955,12 +958,12 @@ registerAppTool(
       if (!result.ok) {
         // Return error with context about which move failed
         const validMoves = getValidMoves({ state: store.getState().game })
-        const validMovesText = formatValidMovesForModel(validMoves)
+        const validMovesText = formatValidMovesForModel({ validMoves })
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Error: Move ${String(i + 1)} (${formatPointDual(move.from)}→${formatPointDual(move.to)}) failed: ${result.error.message}. Valid moves: ${validMovesText}`
+              text: `Error: Move ${String(i + 1)} (${formatPoint(move.from)}→${formatPoint(move.to)}) failed: ${result.error.message}.\n\n${validMovesText}`
             }
           ],
           structuredContent: {
@@ -1022,7 +1025,7 @@ registerAppTool(
         ? executedMoves
             .map(m => {
               const hitStr = m.hit ? ' (hit!)' : ''
-              return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
+              return `${formatPoint(m.from)}→${formatPoint(m.to)}${hitStr}`
             })
             .join(', ')
         : 'no moves'
@@ -1081,16 +1084,13 @@ registerAppTool(
     // Track hit for turn summary (in case view_end_turn is called later)
     movesWithHitsThisTurn.push({ hit })
 
-    // Build text response with dual point formatting
+    // Build text response
     let text: string
     if (move.to === 'off') {
-      text = `Bore off from ${formatPointDual(move.from)} using ${String(move.dieUsed)}.`
+      text = `Bore off from point ${formatPoint(move.from)} using die ${String(move.dieUsed)}.`
     } else {
-      text = `Moved ${formatPointDual(move.from)} → ${formatPointDual(move.to)} using ${String(move.dieUsed)}`
-      if (hit) {
-        text += ' (hit!)'
-      }
-      text += '.'
+      const hitStr = hit ? ' (hit!)' : ''
+      text = `Moved ${formatPoint(move.from)} → ${formatPoint(move.to)} using die ${String(move.dieUsed)}${hitStr}.`
     }
 
     if (gameOver) {
@@ -1098,7 +1098,7 @@ registerAppTool(
         gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
       text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
     } else if (validMoves.length > 0) {
-      text += ` Remaining: ${formatValidMovesForModel(validMoves)}`
+      text += `\n\n${formatValidMovesForModel({ validMoves, header: 'Remaining moves' })}`
     }
 
     return {
@@ -1176,7 +1176,7 @@ registerAppTool(
         .map((m, i) => {
           const hitAction = includeHitInfo ? recentMoveActions[i] : undefined
           const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
-          return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
+          return `${formatPoint(m.from)}→${formatPoint(m.to)}${hitStr}`
         })
         .join(', ')
     }
@@ -1185,7 +1185,7 @@ registerAppTool(
     const gameStateStr = formatGameStateForModel(state)
 
     return textResponse(
-      `${playerName}'s last turn:\n- Rolled: ${diceStr}\n- Moves: ${movesStr}\n\nCurrent game state:\n${gameStateStr}`
+      `${PERSPECTIVE_REMINDER}\n\n${playerName}'s last turn:\n- Rolled: ${diceStr}\n- Moves: ${movesStr}\n\nCurrent game state:\n${gameStateStr}`
     )
   }
 )
@@ -1215,23 +1215,24 @@ registerAppTool(
     const validMoves =
       state.phase === 'moving' ? getValidMoves({ state }) : undefined
 
-    // Build concise text summary (no ASCII board - JSON gamestate is sufficient)
     const playerName = state.currentPlayer
       ? state.currentPlayer.charAt(0).toUpperCase() +
         state.currentPlayer.slice(1)
       : 'None'
-    let text = `Turn ${String(state.turnNumber)}, ${playerName} to play, phase: ${state.phase}`
+
+    let text = `${PERSPECTIVE_REMINDER}\n\n`
+    text += `Turn ${String(state.turnNumber)}, ${playerName} to play, phase: ${state.phase}`
 
     if (state.diceRoll) {
-      text += `, dice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`
-    }
-
-    if (validMoves && validMoves.length > 0) {
-      text += `. Valid moves: ${formatValidMovesForModel(validMoves)}`
+      text += `\nDice: ${String(state.diceRoll.die1)}-${String(state.diceRoll.die2)}`
     }
 
     if (state.remainingMoves.length > 0) {
-      text += `, remaining: [${state.remainingMoves.join(', ')}]`
+      text += `\nRemaining dice: [${state.remainingMoves.join(', ')}]`
+    }
+
+    if (validMoves && validMoves.length > 0) {
+      text += `\n\n${formatValidMovesForModel({ validMoves })}`
     }
 
     return gameResponse(text)
