@@ -24,6 +24,15 @@ export function Controls({
     return (
       <div className="controls">
         <span className="controls__message">Game Over</span>
+        {onEndTurnClick && (
+          <button
+            className="controls__button"
+            onClick={onEndTurnClick}
+            disabled={disabled}
+          >
+            Acknowledge
+          </button>
+        )}
       </div>
     )
   }

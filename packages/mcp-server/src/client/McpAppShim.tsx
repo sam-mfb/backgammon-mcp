@@ -83,10 +83,11 @@ export function McpAppShim(): React.JSX.Element {
   const phase = gameState?.phase
   const remainingMoves = gameState?.remainingMoves ?? []
 
-  // Can end turn when all dice used or no valid moves available
+  // Can end turn when: all dice used, no valid moves, OR game is over (to acknowledge)
   const canEndTurn =
-    phase === 'moving' &&
-    (remainingMoves.length === 0 || validMoves.length === 0)
+    (phase === 'moving' &&
+      (remainingMoves.length === 0 || validMoves.length === 0)) ||
+    phase === 'game_over'
 
   // Automatically applies theme, variables, and fonts from host context
   useHostStyles(app, app?.getHostContext())
@@ -208,6 +209,19 @@ export function McpAppShim(): React.JSX.Element {
   const handleEndTurnClick = useCallback(() => {
     if (!app) return
     const doEndTurn = async (): Promise<void> => {
+      // If game is over, just notify model without calling view_end_turn
+      if (phase === 'game_over') {
+        const winner = gameState?.result?.winner
+        const winnerName = winner
+          ? winner.charAt(0).toUpperCase() + winner.slice(1)
+          : 'Unknown'
+        await app.sendMessage({
+          role: 'user',
+          content: [{ type: 'text', text: `Game over. ${winnerName} wins!` }]
+        })
+        return
+      }
+
       const result = await app.callServerTool({
         name: 'view_end_turn',
         arguments: {}
@@ -255,7 +269,7 @@ export function McpAppShim(): React.JSX.Element {
       })
     }
     void doEndTurn()
-  }, [app])
+  }, [app, phase, gameState])
 
   // Handle point click
   const handlePointClick = useCallback(
