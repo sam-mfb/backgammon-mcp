@@ -4,7 +4,8 @@ import type {
   GameAction,
   Player,
   PointIndex,
-  MoveTo
+  MoveTo,
+  Turn
 } from '@backgammon/game'
 import type { SelectedSource } from '../BoardView'
 import { Quadrant } from './Quadrant'
@@ -17,6 +18,7 @@ interface BoardSurfaceProps {
   selectedSource: SelectedSource
   validDestinations: readonly MoveTo[]
   lastAction?: GameAction | null
+  previousTurn?: Turn | null
   onPointClick?: (pointIndex: PointIndex) => void
   onBarClick?: (player: Player) => void
   onBorneOffClick?: (player: Player) => void
@@ -28,6 +30,7 @@ export function BoardSurface({
   selectedSource,
   validDestinations,
   lastAction,
+  previousTurn,
   onPointClick,
   onBarClick,
   onBorneOffClick
@@ -57,6 +60,7 @@ export function BoardSurface({
           selectedSource={selectedSource}
           validDestinations={validDestinations}
           lastAction={lastAction}
+          previousTurn={previousTurn}
           onPointClick={onPointClick}
         />
         <Bar
@@ -73,6 +77,7 @@ export function BoardSurface({
           selectedSource={selectedSource}
           validDestinations={validDestinations}
           lastAction={lastAction}
+          previousTurn={previousTurn}
           onPointClick={onPointClick}
         />
       </div>
@@ -87,6 +92,7 @@ export function BoardSurface({
           selectedSource={selectedSource}
           validDestinations={validDestinations}
           lastAction={lastAction}
+          previousTurn={previousTurn}
           onPointClick={onPointClick}
         />
         <div className="bar-placeholder" />
@@ -98,6 +104,7 @@ export function BoardSurface({
           selectedSource={selectedSource}
           validDestinations={validDestinations}
           lastAction={lastAction}
+          previousTurn={previousTurn}
           onPointClick={onPointClick}
         />
       </div>
