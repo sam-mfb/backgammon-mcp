@@ -207,24 +207,54 @@ function errorResponse(message: string): {
 }
 
 /**
- * Format a point number as a simple string.
+ * Convert a point number from white's internal perspective to the given player's perspective.
+ * White's perspective: points 1-24 as-is
+ * Black's perspective: point N becomes point (25-N)
+ */
+function convertPointForPerspective(
+  point: number,
+  perspective: 'white' | 'black'
+): number {
+  return perspective === 'white' ? point : 25 - point
+}
+
+/**
+ * Format a point number as a simple string, optionally converting to player's perspective.
  * Example: "24" or "bar" or "off"
  */
-function formatPoint(point: number | 'bar' | 'off'): string {
+function formatPoint(
+  point: number | 'bar' | 'off',
+  perspective?: 'white' | 'black'
+): string {
   if (point === 'bar' || point === 'off') {
     return point
   }
-  return String(point)
+  const displayPoint = perspective
+    ? convertPointForPerspective(point, perspective)
+    : point
+  return String(displayPoint)
 }
 
-const PERSPECTIVE_REMINDER =
-  'Reminder: All point numbers are from white\'s perspective. White moves 24→1, black moves 1→24.'
+/**
+ * Get the perspective reminder text for the current player.
+ */
+function getPerspectiveReminder(currentPlayer: 'white' | 'black'): string {
+  const playerName =
+    currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)
+  return `Reminder: All point numbers are from ${currentPlayer}'s perspective. You (${playerName}) move 24→1.`
+}
 
 /**
  * Format the current game state as text for the model.
- * Shows board positions with both perspectives, bar, borne off, and game status.
+ * Shows board positions from the given perspective, bar, borne off, and game status.
  */
-function formatGameStateForModel(state: GameState): string {
+function formatGameStateForModel({
+  state,
+  perspective
+}: {
+  state: GameState
+  perspective: 'white' | 'black'
+}): string {
   const lines: string[] = []
 
   // Game status
@@ -241,20 +271,21 @@ function formatGameStateForModel(state: GameState): string {
   lines.push(`Bar: White ${String(state.board.bar.white)}, Black ${String(state.board.bar.black)}`)
   lines.push(`Borne off: White ${String(state.board.borneOff.white)}, Black ${String(state.board.borneOff.black)}`)
 
-  // Board positions - show occupied points (white's perspective only)
+  // Board positions - show occupied points from the given perspective
   const whitePositions: string[] = []
   const blackPositions: string[] = []
 
   for (let i = 0; i < 24; i++) {
     const pointValue = state.board.points[i]
     const whitePoint = i + 1
+    const displayPoint = convertPointForPerspective(whitePoint, perspective)
 
     if (pointValue > 0) {
       // White checkers
-      whitePositions.push(`${String(pointValue)} at point ${String(whitePoint)}`)
+      whitePositions.push(`${String(pointValue)} at point ${String(displayPoint)}`)
     } else if (pointValue < 0) {
       // Black checkers
-      blackPositions.push(`${String(-pointValue)} at point ${String(whitePoint)}`)
+      blackPositions.push(`${String(-pointValue)} at point ${String(displayPoint)}`)
     }
   }
 
@@ -282,6 +313,7 @@ function textResponse(text: string): {
  */
 function formatValidMovesForModel({
   validMoves,
+  perspective,
   header = 'VALID MOVES (you must choose ONLY from this list)'
 }: {
   validMoves: readonly {
@@ -292,15 +324,16 @@ function formatValidMovesForModel({
       wouldHit: boolean
     }[]
   }[]
+  perspective: 'white' | 'black'
   header?: string
 }): string {
   if (validMoves.length === 0) return 'No valid moves.'
   const lines = validMoves.map(m => {
-    const fromStr = formatPoint(m.from)
+    const fromStr = formatPoint(m.from, perspective)
     const dests = m.destinations
       .map(d => {
         const hitStr = d.wouldHit ? ', hits' : ''
-        return `→ ${formatPoint(d.to)} (die: ${String(d.dieValue)}${hitStr})`
+        return `→ ${formatPoint(d.to, perspective)} (die: ${String(d.dieValue)}${hitStr})`
       })
       .join(', ')
     return `- From ${m.from === 'bar' ? 'bar' : `point ${fromStr}`}: ${dests}`
@@ -380,9 +413,15 @@ function buildTurnSummary(
 
 /**
  * Format a turn summary as markdown text for model context.
- * Uses dual point formatting to show both perspectives.
+ * Shows moves from the given perspective (typically the next player's).
  */
-function formatTurnSummaryForModel(summary: TurnSummary): string {
+function formatTurnSummaryForModel({
+  summary,
+  perspective
+}: {
+  summary: TurnSummary
+  perspective: 'white' | 'black'
+}): string {
   const playerName =
     summary.player.charAt(0).toUpperCase() + summary.player.slice(1)
   const diceStr = `${String(summary.diceRoll.die1)}-${String(summary.diceRoll.die2)}`
@@ -394,7 +433,7 @@ function formatTurnSummaryForModel(summary: TurnSummary): string {
     movesStr = summary.moves
       .map(m => {
         const hitStr = m.hit ? ' (hit!)' : ''
-        return `${formatPoint(m.from)}→${formatPoint(m.to)}${hitStr}`
+        return `${formatPoint(m.from, perspective)}→${formatPoint(m.to, perspective)}${hitStr}`
       })
       .join(', ')
   }
@@ -563,7 +602,10 @@ registerAppTool(
 
       const stateAfterEnd = store.getState().game
       const summary = buildTurnSummary(stateAfterEnd, [])
-      const summaryText = formatTurnSummaryForModel(summary)
+      const summaryText = formatTurnSummaryForModel({
+        summary,
+        perspective: summary.nextPlayer
+      })
 
       return {
         content: [
@@ -711,7 +753,10 @@ registerAppTool(
 
     // Build turn summary for model
     const summary = buildTurnSummary(state, movesWithHits)
-    const summaryText = formatTurnSummaryForModel(summary)
+    const summaryText = formatTurnSummaryForModel({
+      summary,
+      perspective: summary.nextPlayer
+    })
 
     // Reset hit tracking
     movesWithHitsThisTurn = []
@@ -766,8 +811,13 @@ registerAppTool(
     const { diceRoll, validMoves, turnForfeited } = result.value
     const state = store.getState().game
 
-    // Get opponent's last turn for context (since not all clients implement updateModelContext)
+    // After a successful roll, currentPlayer is guaranteed to be set
     const currentPlayer = state.currentPlayer
+    if (!currentPlayer) {
+      return errorResponse('No current player after roll - unexpected state')
+    }
+
+    // Get opponent's last turn for context (since not all clients implement updateModelContext)
     const opponent = currentPlayer === 'white' ? 'black' : 'white'
     let opponentLastTurn: (typeof state.history)[number] | undefined
     for (let i = state.history.length - 1; i >= 0; i--) {
@@ -803,11 +853,12 @@ registerAppTool(
 
         const includeHitInfo = recentMoveActions.length === opponentLastTurn.moves.length
 
+        // Format opponent's moves from current player's perspective
         oppMovesStr = opponentLastTurn.moves
           .map((m, i) => {
             const hitAction = includeHitInfo ? recentMoveActions[i] : undefined
             const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
-            return `${formatPoint(m.from)}→${formatPoint(m.to)}${hitStr}`
+            return `${formatPoint(m.from, currentPlayer)}→${formatPoint(m.to, currentPlayer)}${hitStr}`
           })
           .join(', ')
       }
@@ -816,19 +867,19 @@ registerAppTool(
     }
 
     // Build response: context first (game state, opponent), then decision info (dice, moves) last
-    const gameStateStr = formatGameStateForModel(state)
+    const gameStateStr = formatGameStateForModel({ state, perspective: currentPlayer })
     const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
 
-    // Calculate blocked points for current player
+    // Calculate blocked points for current player (converted to their perspective)
     const blockedPoints: number[] = []
     for (let i = 0; i < 24; i++) {
       const pointValue = state.board.points[i]
       const whitePoint = i + 1
       // Blocked if opponent has 2+ checkers
       if (currentPlayer === 'black' && pointValue >= 2) {
-        blockedPoints.push(whitePoint)
+        blockedPoints.push(convertPointForPerspective(whitePoint, currentPlayer))
       } else if (currentPlayer === 'white' && pointValue <= -2) {
-        blockedPoints.push(whitePoint)
+        blockedPoints.push(whitePoint) // White's perspective is already correct
       }
     }
     const blockedText =
@@ -836,12 +887,12 @@ registerAppTool(
         ? `\nYou cannot land on these points (blocked by opponent): ${blockedPoints.join(', ')}\n`
         : ''
 
-    let text = `${PERSPECTIVE_REMINDER}\n\nCurrent game state:\n${gameStateStr}`
+    let text = `${getPerspectiveReminder(currentPlayer)}\n\nCurrent game state:\n${gameStateStr}`
     text += opponentTurnText
     if (turnForfeited) {
       text += `\n\nYou rolled: ${diceText}\nNo legal moves available - turn forfeited.\n\nACTION REQUIRED: Call model_take_turn({ forfeit: true }) to complete your turn.`
     } else {
-      text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves })}`
+      text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves, perspective: currentPlayer })}`
     }
 
     return {
@@ -965,17 +1016,19 @@ registerAppTool(
 
       if (!result.ok) {
         // Return error with context about which move failed
-        const validMoves = getValidMoves({ state: store.getState().game })
-        const validMovesText = formatValidMovesForModel({ validMoves })
+        const currentState = store.getState().game
+        const perspective = currentState.currentPlayer ?? 'white'
+        const validMoves = getValidMoves({ state: currentState })
+        const validMovesText = formatValidMovesForModel({ validMoves, perspective })
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Error: Move ${String(i + 1)} (${formatPoint(move.from)}→${formatPoint(move.to)}) failed: ${result.error.message}.\n\n${validMovesText}`
+              text: `Error: Move ${String(i + 1)} (${formatPoint(move.from, perspective)}→${formatPoint(move.to, perspective)}) failed: ${result.error.message}.\n\n${validMovesText}`
             }
           ],
           structuredContent: {
-            gameState: store.getState().game,
+            gameState: currentState,
             validMoves
           },
           _meta: { ui: { resourceUri: RESOURCE_URI } },
@@ -1088,6 +1141,8 @@ registerAppTool(
     }
 
     const { move, hit, gameOver, validMoves } = result.value
+    const currentState = store.getState().game
+    const perspective = currentState.currentPlayer ?? 'white'
 
     // Track hit for turn summary (in case view_end_turn is called later)
     movesWithHitsThisTurn.push({ hit })
@@ -1095,10 +1150,10 @@ registerAppTool(
     // Build text response
     let text: string
     if (move.to === 'off') {
-      text = `Bore off from point ${formatPoint(move.from)} using die ${String(move.dieUsed)}.`
+      text = `Bore off from point ${formatPoint(move.from, perspective)} using die ${String(move.dieUsed)}.`
     } else {
       const hitStr = hit ? ' (hit!)' : ''
-      text = `Moved ${formatPoint(move.from)} → ${formatPoint(move.to)} using die ${String(move.dieUsed)}${hitStr}.`
+      text = `Moved ${formatPoint(move.from, perspective)} → ${formatPoint(move.to, perspective)} using die ${String(move.dieUsed)}${hitStr}.`
     }
 
     if (gameOver) {
@@ -1106,7 +1161,7 @@ registerAppTool(
         gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
       text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
     } else if (validMoves.length > 0) {
-      text += `\n\n${formatValidMovesForModel({ validMoves, header: 'Remaining moves' })}`
+      text += `\n\n${formatValidMovesForModel({ validMoves, perspective, header: 'Remaining moves' })}`
     }
 
     return {
@@ -1150,10 +1205,13 @@ registerAppTool(
       }
     }
 
+    // Use current player's perspective (or the player arg if no current player)
+    const perspective = state.currentPlayer ?? player
+
     if (!lastTurnForPlayer) {
       const playerName = player.charAt(0).toUpperCase() + player.slice(1)
       // Still include game state even if player hasn't moved yet
-      const gameStateStr = formatGameStateForModel(state)
+      const gameStateStr = formatGameStateForModel({ state, perspective })
       return textResponse(`${playerName} has not taken a turn yet.\n\nCurrent game state:\n${gameStateStr}`)
     }
 
@@ -1184,16 +1242,16 @@ registerAppTool(
         .map((m, i) => {
           const hitAction = includeHitInfo ? recentMoveActions[i] : undefined
           const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
-          return `${formatPoint(m.from)}→${formatPoint(m.to)}${hitStr}`
+          return `${formatPoint(m.from, perspective)}→${formatPoint(m.to, perspective)}${hitStr}`
         })
         .join(', ')
     }
 
     // Include current game state along with last turn info
-    const gameStateStr = formatGameStateForModel(state)
+    const gameStateStr = formatGameStateForModel({ state, perspective })
 
     return textResponse(
-      `${PERSPECTIVE_REMINDER}\n\n${playerName}'s last turn:\n- Rolled: ${diceStr}\n- Moves: ${movesStr}\n\nCurrent game state:\n${gameStateStr}`
+      `${getPerspectiveReminder(perspective)}\n\n${playerName}'s last turn:\n- Rolled: ${diceStr}\n- Moves: ${movesStr}\n\nCurrent game state:\n${gameStateStr}`
     )
   }
 )
@@ -1228,7 +1286,8 @@ registerAppTool(
         state.currentPlayer.slice(1)
       : 'None'
 
-    let text = `${PERSPECTIVE_REMINDER}\n\n`
+    const perspective = state.currentPlayer ?? 'white'
+    let text = `${getPerspectiveReminder(perspective)}\n\n`
     text += `Turn ${String(state.turnNumber)}, ${playerName} to play, phase: ${state.phase}`
 
     if (state.diceRoll) {
@@ -1240,7 +1299,7 @@ registerAppTool(
     }
 
     if (validMoves && validMoves.length > 0) {
-      text += `\n\n${formatValidMovesForModel({ validMoves })}`
+      text += `\n\n${formatValidMovesForModel({ validMoves, perspective })}`
     }
 
     return gameResponse(text)
