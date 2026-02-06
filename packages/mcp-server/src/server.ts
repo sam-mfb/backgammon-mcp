@@ -207,14 +207,6 @@ function errorResponse(message: string): {
 }
 
 /**
- * Convert a point number from white's perspective to black's perspective (or vice versa).
- * White point N = Black point (25 - N)
- */
-function flipPointPerspective(point: number): number {
-  return 25 - point
-}
-
-/**
  * Format a point number as a simple string.
  * Example: "24" or "bar" or "off"
  */
@@ -249,21 +241,20 @@ function formatGameStateForModel(state: GameState): string {
   lines.push(`Bar: White ${String(state.board.bar.white)}, Black ${String(state.board.bar.black)}`)
   lines.push(`Borne off: White ${String(state.board.borneOff.white)}, Black ${String(state.board.borneOff.black)}`)
 
-  // Board positions - show occupied points with both perspectives
+  // Board positions - show occupied points (white's perspective only)
   const whitePositions: string[] = []
   const blackPositions: string[] = []
 
   for (let i = 0; i < 24; i++) {
     const pointValue = state.board.points[i]
     const whitePoint = i + 1
-    const blackPoint = flipPointPerspective(whitePoint)
 
     if (pointValue > 0) {
       // White checkers
-      whitePositions.push(`${String(whitePoint)} (black: ${String(blackPoint)}): ${String(pointValue)}`)
+      whitePositions.push(`${String(whitePoint)}: ${String(pointValue)}`)
     } else if (pointValue < 0) {
       // Black checkers
-      blackPositions.push(`${String(whitePoint)} (black: ${String(blackPoint)}): ${String(-pointValue)}`)
+      blackPositions.push(`${String(whitePoint)}: ${String(-pointValue)}`)
     }
   }
 
@@ -285,13 +276,13 @@ function textResponse(text: string): {
  * Format valid moves as a structured, labeled list for the model.
  * Includes die values and hit indicators for each destination.
  * Example:
- *   Available moves:
+ *   VALID MOVES (you must choose from this list):
  *   - From point 24: → 21 (die: 3), → 19 (die: 5, hits)
  *   - From bar: → 5 (die: 5)
  */
 function formatValidMovesForModel({
   validMoves,
-  header = 'Available moves'
+  header = 'VALID MOVES (you must choose ONLY from this list)'
 }: {
   validMoves: readonly {
     from: number | 'bar'
@@ -828,12 +819,29 @@ registerAppTool(
     const gameStateStr = formatGameStateForModel(state)
     const diceText = `${String(diceRoll.die1)}-${String(diceRoll.die2)}`
 
+    // Calculate blocked points for current player
+    const blockedPoints: number[] = []
+    for (let i = 0; i < 24; i++) {
+      const pointValue = state.board.points[i]
+      const whitePoint = i + 1
+      // Blocked if opponent has 2+ checkers
+      if (currentPlayer === 'black' && pointValue >= 2) {
+        blockedPoints.push(whitePoint)
+      } else if (currentPlayer === 'white' && pointValue <= -2) {
+        blockedPoints.push(whitePoint)
+      }
+    }
+    const blockedText =
+      blockedPoints.length > 0
+        ? `\nYou cannot land on these points (blocked by opponent): ${blockedPoints.join(', ')}\n`
+        : ''
+
     let text = `${PERSPECTIVE_REMINDER}\n\nCurrent game state:\n${gameStateStr}`
     text += opponentTurnText
     if (turnForfeited) {
       text += `\n\nYou rolled: ${diceText}\nNo legal moves available - turn forfeited.\n\nACTION REQUIRED: Call model_take_turn({ forfeit: true }) to complete your turn.`
     } else {
-      text += `\n\nYou rolled: ${diceText}\n\n${formatValidMovesForModel({ validMoves })}`
+      text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves })}`
     }
 
     return {
