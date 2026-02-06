@@ -251,10 +251,10 @@ function formatGameStateForModel(state: GameState): string {
 
     if (pointValue > 0) {
       // White checkers
-      whitePositions.push(`${String(whitePoint)}: ${String(pointValue)}`)
+      whitePositions.push(`${String(pointValue)} at point ${String(whitePoint)}`)
     } else if (pointValue < 0) {
       // Black checkers
-      blackPositions.push(`${String(whitePoint)}: ${String(-pointValue)}`)
+      blackPositions.push(`${String(-pointValue)} at point ${String(whitePoint)}`)
     }
   }
 
