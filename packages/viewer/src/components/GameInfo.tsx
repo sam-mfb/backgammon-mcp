@@ -4,7 +4,8 @@ import type {
   DieValue,
   GamePhase,
   GameResult,
-  Player
+  Player,
+  Turn
 } from '@backgammon/game'
 import { DiceDisplay } from './DiceDisplay'
 
@@ -15,6 +16,7 @@ interface GameInfoProps {
   diceRoll: DiceRoll | null
   remainingMoves: readonly DieValue[]
   result: GameResult | null
+  previousTurn: Turn | null
 }
 
 function phaseLabel(phase: GamePhase): string {
@@ -53,7 +55,8 @@ export function GameInfo({
   turnNumber,
   diceRoll,
   remainingMoves,
-  result
+  result,
+  previousTurn
 }: GameInfoProps): React.JSX.Element {
   return (
     <div className="game-info">
@@ -83,7 +86,11 @@ export function GameInfo({
             <span className="game-info__label">Turn:</span>
             <span className="game-info__value">{turnNumber}</span>
           </div>
-          <DiceDisplay diceRoll={diceRoll} remainingMoves={remainingMoves} />
+          <DiceDisplay
+            diceRoll={diceRoll}
+            remainingMoves={remainingMoves}
+            previousTurn={previousTurn}
+          />
         </>
       )}
     </div>

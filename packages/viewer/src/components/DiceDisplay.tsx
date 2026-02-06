@@ -1,29 +1,59 @@
 import type React from 'react'
-import type { DiceRoll, DieValue } from '@backgammon/game'
+import type { DiceRoll, DieValue, Turn } from '@backgammon/game'
 
 interface DiceDisplayProps {
   diceRoll: DiceRoll | null
   remainingMoves: readonly DieValue[]
+  previousTurn: Turn | null
 }
 
 interface DieProps {
   value: DieValue
   used: boolean
+  faded?: boolean
 }
 
-function Die({ value, used }: DieProps): React.JSX.Element {
+function Die({ value, used, faded = false }: DieProps): React.JSX.Element {
+  const classNames = [
+    'die',
+    `die--${String(value)}`,
+    used && 'die--used',
+    faded && 'die--faded'
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className={`die die--${String(value)} ${used ? 'die--used' : ''}`}>
+    <div className={classNames}>
       <span className="die__value">{value}</span>
     </div>
   )
 }
 
+function titleCase(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
 export function DiceDisplay({
   diceRoll,
-  remainingMoves
+  remainingMoves,
+  previousTurn
 }: DiceDisplayProps): React.JSX.Element {
+  // No current roll - show previous turn's dice in faded state
   if (!diceRoll) {
+    if (previousTurn) {
+      const { die1, die2 } = previousTurn.diceRoll
+      return (
+        <div className="dice-display dice-display--previous">
+          <span className="dice-display__previous-label">
+            {titleCase(previousTurn.player)}&apos;s roll:
+          </span>
+          <Die value={die1} used={false} faded />
+          <Die value={die2} used={false} faded />
+        </div>
+      )
+    }
+
     return (
       <div className="dice-display dice-display--empty">
         <span>No roll</span>

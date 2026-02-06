@@ -4,7 +4,8 @@ import type {
   GameAction,
   Player,
   PointIndex,
-  MoveTo
+  MoveTo,
+  Turn
 } from '@backgammon/game'
 import { GameInfo } from './components/GameInfo'
 import { BoardSurface } from './components/BoardSurface'
@@ -61,7 +62,8 @@ export function BoardView({
     turnNumber,
     diceRoll,
     remainingMoves,
-    result
+    result,
+    history
   } = gameState
 
   const canRoll = phase === 'rolling'
@@ -72,6 +74,10 @@ export function BoardView({
     phase === 'moving' &&
     remainingMoves.length > 0 &&
     (validMoves?.length ?? 0) === 0
+
+  // Get the last completed turn for showing previous dice and move highlights
+  const previousTurn: Turn | null =
+    history.length > 0 ? history[history.length - 1] : null
 
   // Determine if it's a human's turn (for AI control)
   // undefined means backward-compatible mode (all interactions enabled)
@@ -89,6 +95,7 @@ export function BoardView({
         diceRoll={diceRoll}
         remainingMoves={remainingMoves}
         result={result}
+        previousTurn={previousTurn}
       />
       <BoardSurface
         board={board}
@@ -96,6 +103,7 @@ export function BoardView({
         selectedSource={selectedSource}
         validDestinations={validDestinations}
         lastAction={lastAction}
+        previousTurn={previousTurn}
         onPointClick={isHumanTurn ? onPointClick : undefined}
         onBarClick={isHumanTurn ? onBarClick : undefined}
         onBorneOffClick={isHumanTurn ? onBorneOffClick : undefined}

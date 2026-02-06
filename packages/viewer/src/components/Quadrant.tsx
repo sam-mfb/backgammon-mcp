@@ -3,7 +3,8 @@ import type {
   BoardState,
   GameAction,
   PointIndex,
-  MoveTo
+  MoveTo,
+  Turn
 } from '@backgammon/game'
 import type { SelectedSource } from '../BoardView'
 import { Point } from './Point'
@@ -16,6 +17,7 @@ interface QuadrantProps {
   selectedSource: SelectedSource
   validDestinations: readonly MoveTo[]
   lastAction?: GameAction | null
+  previousTurn?: Turn | null
   onPointClick?: (pointIndex: PointIndex) => void
 }
 
@@ -27,6 +29,7 @@ export function Quadrant({
   selectedSource,
   validDestinations,
   lastAction,
+  previousTurn,
   onPointClick
 }: QuadrantProps): React.JSX.Element {
   const step = startPoint < endPoint ? 1 : -1
@@ -50,6 +53,16 @@ export function Quadrant({
       ? lastAction.to
       : null
 
+  // Compute previous turn's move destinations for highlighting
+  const previousTurnDestinations = new Set<number>()
+  if (previousTurn) {
+    for (const move of previousTurn.moves) {
+      if (move.to !== 'off') {
+        previousTurnDestinations.add(move.to)
+      }
+    }
+  }
+
   return (
     <div className={`quadrant quadrant--${position}`}>
       {pointIndices.map(pointIndex => (
@@ -64,6 +77,7 @@ export function Quadrant({
           )}
           isLastMoveSource={lastMoveSource === pointIndex}
           isLastMoveDestination={lastMoveDestination === pointIndex}
+          isPreviousTurnDestination={previousTurnDestinations.has(pointIndex)}
           onClick={onPointClick}
         />
       ))}

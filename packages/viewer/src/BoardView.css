@@ -160,6 +160,22 @@
   background: var(--bgv-die-used-bg);
 }
 
+.die--faded {
+  opacity: 0.3;
+  background: var(--bgv-die-used-bg);
+}
+
+.dice-display--previous {
+  color: var(--bgv-text-muted);
+}
+
+.dice-display__previous-label {
+  font-size: 11px;
+  color: var(--bgv-text-muted);
+  font-style: italic;
+  white-space: nowrap;
+}
+
 .die__value {
   pointer-events: none;
 }
@@ -662,4 +678,91 @@
 .point--last-move-destination .point__triangle {
   box-shadow: inset 0 0 15px
     var(--bgv-last-move-highlight, rgba(255, 200, 0, 0.6));
+}
+
+/* =============================================================================
+   Previous Turn Highlighting
+   Shows where the opponent moved on their last turn
+   ============================================================================= */
+
+.point--previous-turn-destination .point__triangle {
+  filter: brightness(1.15);
+}
+
+.point--previous-turn-destination .checker {
+  box-shadow:
+    0 0 0 2px var(--bgv-previous-move-highlight, rgba(255, 160, 0, 0.5)),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* =============================================================================
+   Checker Stacking (5+ checkers on a point)
+   Overflow checkers are rendered on top of the base stack
+   ============================================================================= */
+
+.point__checkers-overflow {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+
+.point--top .point__checkers-overflow {
+  top: 4px;
+}
+
+.point--bottom .point__checkers-overflow {
+  bottom: 4px;
+  flex-direction: column-reverse;
+}
+
+.point__checkers-overflow .checker {
+  width: 28px;
+  height: 28px;
+  margin-top: -2px;
+  border-width: 2px;
+  opacity: 0.9;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.point__checkers-overflow .checker:first-child {
+  margin-top: 0;
+}
+
+.point--bottom .point__checkers-overflow .checker {
+  margin-top: 0;
+  margin-bottom: -2px;
+}
+
+.point--bottom .point__checkers-overflow .checker:first-child {
+  margin-bottom: 0;
+}
+
+/* Count badge for points with 5+ checkers */
+.point__count {
+  position: absolute;
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.point--top .point__count {
+  top: 50%;
+  right: 0;
+}
+
+.point--bottom .point__count {
+  bottom: 50%;
+  right: 0;
 }

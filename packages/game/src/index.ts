@@ -12,6 +12,7 @@ export type {
   Move,
   MoveFrom,
   MoveTo,
+  Turn,
   GamePhase,
   GameResult,
   GameState,
