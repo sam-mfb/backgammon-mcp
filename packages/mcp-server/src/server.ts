@@ -831,7 +831,7 @@ registerAppTool(
     let text = `${PERSPECTIVE_REMINDER}\n\nCurrent game state:\n${gameStateStr}`
     text += opponentTurnText
     if (turnForfeited) {
-      text += `\n\nYou rolled: ${diceText}\nNo legal moves - turn forfeited.`
+      text += `\n\nYou rolled: ${diceText}\nNo legal moves available - turn forfeited.\n\nACTION REQUIRED: Call model_take_turn({ forfeit: true }) to complete your turn.`
     } else {
       text += `\n\nYou rolled: ${diceText}\n\n${formatValidMovesForModel({ validMoves })}`
     }
