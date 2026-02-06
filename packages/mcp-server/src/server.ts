@@ -29,7 +29,8 @@ import {
   performEndTurn,
   resetGame,
   getValidMoves,
-  type GameState
+  type GameState,
+  type GameAction
 } from '@backgammon/game'
 
 // =============================================================================
@@ -771,9 +772,14 @@ registerAppTool(
     // Get opponent's last turn for context (since not all clients implement updateModelContext)
     const currentPlayer = state.currentPlayer
     const opponent = currentPlayer === 'white' ? 'black' : 'white'
-    const opponentLastTurn = [...state.history]
-      .reverse()
-      .find(turn => turn.player === opponent)
+    let opponentLastTurn: (typeof state.history)[number] | undefined
+    for (let i = state.history.length - 1; i >= 0; i--) {
+      const turn = state.history[i]
+      if (turn.player === opponent) {
+        opponentLastTurn = turn
+        break
+      }
+    }
 
     let opponentTurnText = ''
     if (opponentLastTurn) {
@@ -785,14 +791,24 @@ registerAppTool(
         oppMovesStr = '(no valid moves - turn forfeited)'
       } else {
         // Get hit info from actionHistory for opponent's moves
-        const turnMoveActions = state.actionHistory.filter(
-          action => action.type === 'piece_move' && action.player === opponent
-        )
-        const recentMoveActions = turnMoveActions.slice(-opponentLastTurn.moves.length)
+        const recentMoveActions: GameAction[] = []
+        for (
+          let i = state.actionHistory.length - 1;
+          i >= 0 && recentMoveActions.length < opponentLastTurn.moves.length;
+          i--
+        ) {
+          const action = state.actionHistory[i]
+          if (action.type === 'piece_move' && action.player === opponent) {
+            // Unshift to keep actions in chronological order (oldest first)
+            recentMoveActions.unshift(action)
+          }
+        }
+
+        const includeHitInfo = recentMoveActions.length === opponentLastTurn.moves.length
 
         oppMovesStr = opponentLastTurn.moves
           .map((m, i) => {
-            const hitAction = recentMoveActions[i]
+            const hitAction = includeHitInfo ? recentMoveActions[i] : undefined
             const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
             return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
           })
@@ -1117,9 +1133,14 @@ registerAppTool(
     }
 
     // Find the last turn for the specified player
-    const lastTurnForPlayer = [...state.history]
-      .reverse()
-      .find(turn => turn.player === player)
+    let lastTurnForPlayer: (typeof state.history)[number] | undefined
+    for (let i = state.history.length - 1; i >= 0; i--) {
+      const turn = state.history[i]
+      if (turn.player === player) {
+        lastTurnForPlayer = turn
+        break
+      }
+    }
 
     if (!lastTurnForPlayer) {
       const playerName = player.charAt(0).toUpperCase() + player.slice(1)
@@ -1136,16 +1157,24 @@ registerAppTool(
       movesStr = '(no valid moves - turn forfeited)'
     } else {
       // Get hit info from actionHistory for this turn's moves
-      const turnMoveActions = state.actionHistory.filter(
-        action =>
-          action.type === 'piece_move' && action.player === player
-      )
-      // Match moves to their hit status from the most recent actions
-      const recentMoveActions = turnMoveActions.slice(-lastTurnForPlayer.moves.length)
+      const recentMoveActions: GameAction[] = []
+      for (
+        let i = state.actionHistory.length - 1;
+        i >= 0 && recentMoveActions.length < lastTurnForPlayer.moves.length;
+        i--
+      ) {
+        const action = state.actionHistory[i]
+        if (action.type === 'piece_move' && action.player === player) {
+          // Unshift to keep actions in chronological order (oldest first)
+          recentMoveActions.unshift(action)
+        }
+      }
+
+      const includeHitInfo = recentMoveActions.length === lastTurnForPlayer.moves.length
 
       movesStr = lastTurnForPlayer.moves
         .map((m, i) => {
-          const hitAction = recentMoveActions[i]
+          const hitAction = includeHitInfo ? recentMoveActions[i] : undefined
           const hitStr = hitAction && 'hit' in hitAction && hitAction.hit ? ' (hit!)' : ''
           return `${formatPointDual(m.from)}→${formatPointDual(m.to)}${hitStr}`
         })
