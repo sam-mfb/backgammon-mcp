@@ -26,6 +26,7 @@ export type RootState = { game: GameState }
 import {
   applyMoveToBoard,
   checkGameOver,
+  filterMovesByDie,
   getRequiredMoves,
   getValidMoves,
   createInitialBoard
@@ -170,7 +171,13 @@ export const performStartGame = createSyncThunk<
     actionHistory: []
   }
 
-  const validMoves = getValidMoves({ state: initialState })
+  const allValidMoves = getValidMoves({ state: initialState })
+
+  // Filter moves by required die (must-play-higher rule) - unlikely at game start but for consistency
+  const requirements = getRequiredMoves({ state: initialState })
+  const validMoves = requirements.requiredDie
+    ? filterMovesByDie({ availableMoves: allValidMoves, dieValue: requirements.requiredDie })
+    : allValidMoves
 
   return ok({
     firstPlayer,
@@ -226,8 +233,14 @@ export const performRollDice = createSyncThunk<
     movesThisTurn: []
   }
 
-  const validMoves = getValidMoves({ state: tempState })
-  const turnForfeited = validMoves.length === 0
+  const allValidMoves = getValidMoves({ state: tempState })
+  const turnForfeited = allValidMoves.length === 0
+
+  // Filter moves by required die (must-play-higher rule)
+  const requirements = getRequiredMoves({ state: tempState })
+  const validMoves = requirements.requiredDie
+    ? filterMovesByDie({ availableMoves: allValidMoves, dieValue: requirements.requiredDie })
+    : allValidMoves
 
   return ok({
     diceRoll,
@@ -354,7 +367,13 @@ export const performMove = createSyncThunk<
   }
 
   const gameOver = checkGameOver({ state: stateAfterMove })
-  const newValidMoves = gameOver ? [] : getValidMoves({ state: stateAfterMove })
+  const allNewValidMoves = gameOver ? [] : getValidMoves({ state: stateAfterMove })
+
+  // Filter moves by required die (must-play-higher rule)
+  const newRequirements = gameOver ? null : getRequiredMoves({ state: stateAfterMove })
+  const newValidMoves = newRequirements?.requiredDie
+    ? filterMovesByDie({ availableMoves: allNewValidMoves, dieValue: newRequirements.requiredDie })
+    : allNewValidMoves
 
   return ok({
     move,

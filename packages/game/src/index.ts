@@ -65,4 +65,4 @@ export {
 // Rules Engine
 // =============================================================================
 
-export { getValidMoves } from './rules'
+export { getValidMoves, getRequiredMoves, filterMovesByDie } from './rules'

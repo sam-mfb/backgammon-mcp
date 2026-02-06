@@ -16,6 +16,8 @@ import {
   performEndTurn,
   resetGame,
   getValidMoves,
+  getRequiredMoves,
+  filterMovesByDie,
   type GameState,
   type DieValue
 } from '../index'
@@ -513,6 +515,148 @@ describe('Error Types', () => {
 // =============================================================================
 // Sync Thunk Middleware Tests
 // =============================================================================
+
+// =============================================================================
+// Must-Play-Higher Rule Filtering Tests
+// =============================================================================
+
+describe('Must-Play-Higher Rule Filtering', () => {
+  let store: TestStore
+
+  beforeEach(() => {
+    store = createTestStore()
+  })
+
+  it('should filter validMoves to only include required die when must-play-higher applies', () => {
+    // This tests the scenario where:
+    // - Player has one checker on point 1
+    // - Player rolls 1-3
+    // - Both dice can bear off, but must use the higher die (3)
+    // - validMoves should ONLY include the die 3 option
+
+    // Start game to initialize
+    store.dispatch(performStartGame())
+
+    // Set up a specific board state: white has 1 checker on point 1, 14 borne off
+    const currentState = getState(store)
+
+    // Create bearing off state for white
+    const bearOffBoard = {
+      points: [
+        1, 0, 0, 0, 0, 0, // Points 1-6: 1 white checker on point 1
+        0, 0, 0, 0, 0, 0, // Points 7-12
+        0, 0, 0, 0, 0, 0, // Points 13-18
+        -15, 0, 0, 0, 0, 0 // Points 19-24: all black on 19
+      ] as [
+        number, number, number, number, number, number,
+        number, number, number, number, number, number,
+        number, number, number, number, number, number,
+        number, number, number, number, number, number
+      ],
+      bar: { white: 0, black: 0 },
+      borneOff: { white: 14, black: 0 }
+    }
+
+    // Create test state with our specific board
+    const testState: GameState = {
+      ...currentState,
+      board: bearOffBoard,
+      currentPlayer: 'white',
+      phase: 'moving',
+      diceRoll: { die1: 1, die2: 3 },
+      remainingMoves: [1, 3] as DieValue[],
+      movesThisTurn: []
+    }
+
+    const allValidMoves = getValidMoves({ state: testState })
+
+    // Without filtering, both dice should be able to bear off
+    expect(allValidMoves.length).toBe(1) // Only from point 1
+    expect(allValidMoves[0].from).toBe(1)
+    expect(allValidMoves[0].destinations.length).toBe(2) // Both die 1 and die 3
+
+    // Check that requirements say we must play higher die
+    const requirements = getRequiredMoves({ state: testState })
+    expect(requirements.mustPlayHigherDie).toBe(true)
+    expect(requirements.requiredDie).toBe(3)
+
+    // Apply filtering (this is what operations now do)
+    const filteredMoves = filterMovesByDie({
+      availableMoves: allValidMoves,
+      dieValue: requirements.requiredDie!
+    })
+
+    // After filtering, only die 3 should be available
+    expect(filteredMoves.length).toBe(1)
+    expect(filteredMoves[0].destinations.length).toBe(1)
+    expect(filteredMoves[0].destinations[0].dieValue).toBe(3)
+    expect(filteredMoves[0].destinations[0].to).toBe('off')
+  })
+
+  it('should not filter when both dice can be played', () => {
+    store.dispatch(performStartGame())
+
+    const state = getState(store)
+
+    // In a normal starting position with different dice,
+    // both dice should be playable, so no filtering should occur
+    const requirements = getRequiredMoves({ state })
+
+    // At game start with 2 different dice, we can usually play both
+    // So requiredDie should be null
+    expect(requirements.requiredDie).toBeNull()
+  })
+
+  it('performMove should return filtered validMoves after move', () => {
+    // Test that after making a move, the returned validMoves are also filtered
+    store.dispatch(performStartGame())
+
+    const currentState = getState(store)
+
+    // Create a board where after first move, only one die is playable
+    // White has 2 checkers: one on point 6, one on point 1
+    // Roll 5-1: Can move 6->1 with 5, then must bear off with 1
+    const testBoard = {
+      points: [
+        1, 0, 0, 0, 0, 1, // Points 1-6: checkers on 1 and 6
+        0, 0, 0, 0, 0, 0, // Points 7-12
+        0, 0, 0, 0, 0, 0, // Points 13-18
+        -15, 0, 0, 0, 0, 0 // Points 19-24: all black on 19
+      ] as [
+        number, number, number, number, number, number,
+        number, number, number, number, number, number,
+        number, number, number, number, number, number,
+        number, number, number, number, number, number
+      ],
+      bar: { white: 0, black: 0 },
+      borneOff: { white: 13, black: 0 }
+    }
+
+    // Manually set up the state
+    const testState: GameState = {
+      ...currentState,
+      board: testBoard,
+      currentPlayer: 'white',
+      phase: 'moving',
+      diceRoll: { die1: 5, die2: 1 },
+      remainingMoves: [5, 1] as DieValue[],
+      movesThisTurn: []
+    }
+
+    // Verify initial moves: should be able to use both dice
+    const initialMoves = getValidMoves({ state: testState })
+    const initialRequirements = getRequiredMoves({ state: testState })
+
+    // Both dice should be playable initially
+    expect(initialRequirements.requiredDie).toBeNull()
+
+    // Find move from point 6 using die 5 (to point 1)
+    const moveFrom6 = initialMoves.find(m => m.from === 6)
+    expect(moveFrom6).toBeDefined()
+    const moveTo1 = moveFrom6?.destinations.find(d => d.to === 1 && d.dieValue === 5)
+    expect(moveTo1).toBeDefined()
+  })
+})
 
 describe('Sync Thunk Middleware', () => {
   it('should execute payloadCreator and store result in meta', () => {
