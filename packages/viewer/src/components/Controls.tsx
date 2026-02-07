@@ -7,8 +7,11 @@ interface ControlsProps {
   noMovesAvailable?: boolean
   /** When true, all controls are disabled (opponent's turn or AI playing) */
   disabled?: boolean
+  /** Whether undo is available */
+  canUndo?: boolean
   onRollClick?: () => void
   onEndTurnClick?: () => void
+  onUndoClick?: () => void
 }
 
 export function Controls({
@@ -17,8 +20,10 @@ export function Controls({
   isGameOver,
   noMovesAvailable = false,
   disabled = false,
+  canUndo = false,
   onRollClick,
-  onEndTurnClick
+  onEndTurnClick,
+  onUndoClick
 }: ControlsProps): React.JSX.Element {
   if (isGameOver) {
     return (
@@ -51,6 +56,13 @@ export function Controls({
         onClick={onRollClick}
       >
         Roll Dice
+      </button>
+      <button
+        className="controls__button controls__button--undo"
+        disabled={disabled || !canUndo}
+        onClick={onUndoClick}
+      >
+        Undo
       </button>
       <button
         className="controls__button controls__button--end-turn"

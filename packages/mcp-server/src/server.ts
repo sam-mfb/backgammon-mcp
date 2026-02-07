@@ -27,6 +27,8 @@ import {
   performRollDice,
   performMove,
   performEndTurn,
+  performUndoMove,
+  performUndoAllMoves,
   resetGame,
   getValidMoves,
   type GameState,
@@ -792,6 +794,98 @@ registerAppTool(
       structuredContent: {
         gameState: state,
         turnSummary: summaryText
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'view_undo_move',
+  {
+    description:
+      "Undo the last move made during the human player's current turn.",
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn")
+    }
+
+    const action = store.dispatch(performUndoMove())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to undo move')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const { validMoves } = result.value
+    const state = store.getState().game
+
+    // Pop the last hit tracking entry since we undid that move
+    movesWithHitsThisTurn.pop()
+
+    return {
+      content: [{ type: 'text' as const, text: 'Move undone.' }],
+      structuredContent: {
+        gameState: state,
+        validMoves
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'view_undo_all_moves',
+  {
+    description:
+      "Undo all moves made during the human player's current turn.",
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn")
+    }
+
+    const action = store.dispatch(performUndoAllMoves())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to undo moves')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const { validMoves } = result.value
+    const state = store.getState().game
+
+    // Clear all hit tracking since we undid all moves
+    movesWithHitsThisTurn = []
+
+    return {
+      content: [{ type: 'text' as const, text: 'All moves undone.' }],
+      structuredContent: {
+        gameState: state,
+        validMoves
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }

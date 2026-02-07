@@ -47,6 +47,7 @@ export {
   selectRemainingMoves,
   selectValidMoves,
   selectCanEndTurn,
+  selectCanUndo,
   selectLastAction
 } from './gameSlice'
 
@@ -58,7 +59,9 @@ export {
   performStartGame,
   performRollDice,
   performMove,
-  performEndTurn
+  performEndTurn,
+  performUndoMove,
+  performUndoAllMoves
 } from './operations'
 
 // =============================================================================
