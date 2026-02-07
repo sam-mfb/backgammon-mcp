@@ -14,7 +14,11 @@ import {
   performRollDice,
   performMove,
   performEndTurn,
+  performUndoMove,
+  performUndoAllMoves,
   resetGame,
+  selectValidMoves,
+  selectCanUndo,
   getValidMoves,
   getRequiredMoves,
   filterMovesByDie,
@@ -712,6 +716,436 @@ describe('Sync Thunk Middleware', () => {
       expect(result.error).toHaveProperty('type')
       expect(result.error).toHaveProperty('message')
       expect(result.error.type).toBe('no_game')
+    }
+  })
+})
+
+// =============================================================================
+// performUndoMove Tests
+// =============================================================================
+
+describe('performUndoMove', () => {
+  let store: TestStore
+
+  beforeEach(() => {
+    store = createTestStore()
+  })
+
+  it('should fail if no game is started', () => {
+    const action = store.dispatch(performUndoMove())
+    const result = action.meta.result!
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.type).toBe('no_game')
+    }
+  })
+
+  it('should fail if not in moving phase', () => {
+    store.dispatch(performStartGame())
+    makeAllAvailableMoves(store)
+    store.dispatch(performEndTurn())
+
+    // Now in rolling phase
+    const action = store.dispatch(performUndoMove())
+    const result = action.meta.result!
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.type).toBe('wrong_phase')
+    }
+  })
+
+  it('should fail if no moves have been made this turn', () => {
+    store.dispatch(performStartGame())
+
+    // In moving phase but no moves made yet
+    const action = store.dispatch(performUndoMove())
+    const result = action.meta.result!
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.type).toBe('nothing_to_undo')
+    }
+  })
+
+  it('should undo a single move and restore board state', () => {
+    store.dispatch(performStartGame())
+
+    const stateBefore = getState(store)
+    const boardBefore = stateBefore.board
+    const remainingBefore = [...stateBefore.remainingMoves]
+
+    // Make one valid move
+    const move = getFirstValidMove(stateBefore)
+    expect(move).not.toBeNull()
+    if (!move) return
+
+    store.dispatch(performMove(move))
+    const stateAfterMove = getState(store)
+    expect(stateAfterMove.movesThisTurn.length).toBe(1)
+
+    // Undo the move
+    const undoAction = store.dispatch(performUndoMove())
+    const undoResult = undoAction.meta.result!
+
+    expect(undoResult.ok).toBe(true)
+    if (!undoResult.ok) return
+
+    expect(undoResult.value.undoneMoves.length).toBe(1)
+    expect(undoResult.value.undoneMoves[0].move).toEqual(move)
+
+    // Board should be restored
+    const stateAfterUndo = getState(store)
+    expect(stateAfterUndo.board.points).toEqual(boardBefore.points)
+    expect(stateAfterUndo.board.bar).toEqual(boardBefore.bar)
+    expect(stateAfterUndo.board.borneOff).toEqual(boardBefore.borneOff)
+
+    // Remaining moves should be restored
+    expect([...stateAfterUndo.remainingMoves].sort()).toEqual([...remainingBefore].sort())
+
+    // No moves should remain in movesThisTurn
+    expect(stateAfterUndo.movesThisTurn.length).toBe(0)
+  })
+
+  it('should undo only the last move when multiple moves made', () => {
+    store.dispatch(performStartGame())
+
+    // Make two moves
+    const state1 = getState(store)
+    const move1 = getFirstValidMove(state1)
+    expect(move1).not.toBeNull()
+    if (!move1) return
+    store.dispatch(performMove(move1))
+
+    const state2 = getState(store)
+    const boardAfterMove1 = state2.board
+    const move2 = getFirstValidMove(state2)
+
+    if (!move2) return // might not have a second valid move
+    store.dispatch(performMove(move2))
+
+    expect(getState(store).movesThisTurn.length).toBe(2)
+
+    // Undo only the last move
+    const undoAction = store.dispatch(performUndoMove())
+    const undoResult = undoAction.meta.result!
+
+    expect(undoResult.ok).toBe(true)
+    if (!undoResult.ok) return
+
+    const stateAfterUndo = getState(store)
+    expect(stateAfterUndo.movesThisTurn.length).toBe(1)
+
+    // Board should match state after first move
+    expect(stateAfterUndo.board.points).toEqual(boardAfterMove1.points)
+    expect(stateAfterUndo.board.bar).toEqual(boardAfterMove1.bar)
+    expect(stateAfterUndo.board.borneOff).toEqual(boardAfterMove1.borneOff)
+  })
+
+  it('should restore the used die value to remaining moves', () => {
+    store.dispatch(performStartGame())
+
+    const stateBefore = getState(store)
+    const remainingBefore = [...stateBefore.remainingMoves]
+
+    const move = getFirstValidMove(stateBefore)
+    expect(move).not.toBeNull()
+    if (!move) return
+
+    store.dispatch(performMove(move))
+    const stateAfterMove = getState(store)
+    expect(stateAfterMove.remainingMoves.length).toBe(remainingBefore.length - 1)
+
+    store.dispatch(performUndoMove())
+
+    const stateAfterUndo = getState(store)
+    expect([...stateAfterUndo.remainingMoves].sort()).toEqual([...remainingBefore].sort())
+  })
+})
+
+// =============================================================================
+// performUndoAllMoves Tests
+// =============================================================================
+
+describe('performUndoAllMoves', () => {
+  let store: TestStore
+
+  beforeEach(() => {
+    store = createTestStore()
+  })
+
+  it('should fail if no game is started', () => {
+    const action = store.dispatch(performUndoAllMoves())
+    const result = action.meta.result!
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.type).toBe('no_game')
+    }
+  })
+
+  it('should fail if no moves have been made', () => {
+    store.dispatch(performStartGame())
+
+    const action = store.dispatch(performUndoAllMoves())
+    const result = action.meta.result!
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.type).toBe('nothing_to_undo')
+    }
+  })
+
+  it('should undo all moves and fully restore board state', () => {
+    store.dispatch(performStartGame())
+
+    const stateBefore = getState(store)
+    const boardBefore = stateBefore.board
+    const remainingBefore = [...stateBefore.remainingMoves]
+
+    // Make all available moves
+    const movesMade = makeAllAvailableMoves(store)
+    expect(movesMade).toBeGreaterThan(0)
+
+    const stateAfterMoves = getState(store)
+    expect(stateAfterMoves.movesThisTurn.length).toBe(movesMade)
+
+    // Undo all
+    const undoAction = store.dispatch(performUndoAllMoves())
+    const undoResult = undoAction.meta.result!
+
+    expect(undoResult.ok).toBe(true)
+    if (!undoResult.ok) return
+
+    expect(undoResult.value.undoneMoves.length).toBe(movesMade)
+
+    // Board should be fully restored
+    const stateAfterUndo = getState(store)
+    expect(stateAfterUndo.board.points).toEqual(boardBefore.points)
+    expect(stateAfterUndo.board.bar).toEqual(boardBefore.bar)
+    expect(stateAfterUndo.board.borneOff).toEqual(boardBefore.borneOff)
+
+    // All dice should be restored
+    expect([...stateAfterUndo.remainingMoves].sort()).toEqual([...remainingBefore].sort())
+
+    // No moves this turn
+    expect(stateAfterUndo.movesThisTurn.length).toBe(0)
+  })
+
+  it('should undo a single move when only one was made', () => {
+    store.dispatch(performStartGame())
+
+    const stateBefore = getState(store)
+    const move = getFirstValidMove(stateBefore)
+    expect(move).not.toBeNull()
+    if (!move) return
+
+    store.dispatch(performMove(move))
+
+    const undoAction = store.dispatch(performUndoAllMoves())
+    const undoResult = undoAction.meta.result!
+
+    expect(undoResult.ok).toBe(true)
+    if (!undoResult.ok) return
+
+    expect(undoResult.value.undoneMoves.length).toBe(1)
+    expect(getState(store).movesThisTurn.length).toBe(0)
+  })
+})
+
+// =============================================================================
+// selectCanUndo Tests
+// =============================================================================
+
+describe('selectCanUndo', () => {
+  let store: TestStore
+
+  beforeEach(() => {
+    store = createTestStore()
+  })
+
+  it('should be false before game starts', () => {
+    expect(selectCanUndo(store.getState())).toBe(false)
+  })
+
+  it('should be false at start of turn (no moves made)', () => {
+    store.dispatch(performStartGame())
+    expect(selectCanUndo(store.getState())).toBe(false)
+  })
+
+  it('should be true after making a move', () => {
+    store.dispatch(performStartGame())
+
+    const move = getFirstValidMove(getState(store))
+    expect(move).not.toBeNull()
+    if (!move) return
+
+    store.dispatch(performMove(move))
+    expect(selectCanUndo(store.getState())).toBe(true)
+  })
+
+  it('should be false after undoing all moves', () => {
+    store.dispatch(performStartGame())
+
+    const move = getFirstValidMove(getState(store))
+    expect(move).not.toBeNull()
+    if (!move) return
+
+    store.dispatch(performMove(move))
+    expect(selectCanUndo(store.getState())).toBe(true)
+
+    store.dispatch(performUndoMove())
+    expect(selectCanUndo(store.getState())).toBe(false)
+  })
+
+  it('should be false in rolling phase', () => {
+    store.dispatch(performStartGame())
+    makeAllAvailableMoves(store)
+    store.dispatch(performEndTurn())
+
+    expect(getState(store).phase).toBe('rolling')
+    expect(selectCanUndo(store.getState())).toBe(false)
+  })
+})
+
+// =============================================================================
+// selectValidMoves Tests
+// =============================================================================
+
+describe('selectValidMoves', () => {
+  let store: TestStore
+
+  beforeEach(() => {
+    store = createTestStore()
+  })
+
+  it('should return empty array when not in moving phase', () => {
+    expect(selectValidMoves(store.getState())).toEqual([])
+  })
+
+  it('should return valid moves after game start', () => {
+    store.dispatch(performStartGame())
+
+    const validMoves = selectValidMoves(store.getState())
+    expect(validMoves.length).toBeGreaterThan(0)
+  })
+
+  it('should return empty array when no remaining moves', () => {
+    store.dispatch(performStartGame())
+    makeAllAvailableMoves(store)
+
+    const state = getState(store)
+    expect(state.remainingMoves.length).toBe(0)
+    expect(selectValidMoves(store.getState())).toEqual([])
+  })
+
+  it('should include must-play-higher-die filtering', () => {
+    // This tests that selectValidMoves applies the must-play-higher-die rule.
+    // Set up: white has 1 checker on point 1, 14 borne off, roll 1-3.
+    // Both dice can bear off, but must use the higher die (3).
+
+    store.dispatch(performStartGame())
+
+    const currentState = getState(store)
+
+    const bearOffBoard = {
+      points: [
+        1, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0,
+        -15, 0, 0, 0, 0, 0
+      ] as [
+        number, number, number, number, number, number,
+        number, number, number, number, number, number,
+        number, number, number, number, number, number,
+        number, number, number, number, number, number
+      ],
+      bar: { white: 0, black: 0 },
+      borneOff: { white: 14, black: 0 }
+    }
+
+    const testState: GameState = {
+      ...currentState,
+      board: bearOffBoard,
+      currentPlayer: 'white',
+      phase: 'moving',
+      diceRoll: { die1: 1, die2: 3 },
+      remainingMoves: [1, 3] as DieValue[],
+      movesThisTurn: []
+    }
+
+    // Verify the raw rules engine returns both dice options
+    const allMoves = getValidMoves({ state: testState })
+    expect(allMoves.length).toBe(1)
+    expect(allMoves[0].destinations.length).toBe(2)
+
+    // Verify requirements mandate higher die
+    const requirements = getRequiredMoves({ state: testState })
+    expect(requirements.requiredDie).toBe(3)
+
+    // Now test the selector filters correctly
+    const rootState = { game: testState }
+    const selectorResult = selectValidMoves(rootState)
+
+    expect(selectorResult.length).toBe(1)
+    expect(selectorResult[0].destinations.length).toBe(1)
+    expect(selectorResult[0].destinations[0].dieValue).toBe(3)
+  })
+
+  it('should not filter when both dice are playable', () => {
+    store.dispatch(performStartGame())
+
+    const state = getState(store)
+
+    // In a normal starting position with different dice,
+    // both dice should be playable so no filtering should occur
+    const requirements = getRequiredMoves({ state })
+    expect(requirements.requiredDie).toBeNull()
+
+    // selectValidMoves should match getValidMoves (no filtering)
+    const selectorResult = selectValidMoves(store.getState())
+    const rawMoves = getValidMoves({ state })
+
+    expect(selectorResult).toEqual(rawMoves)
+  })
+
+  it('should update after undo restores dice', () => {
+    store.dispatch(performStartGame())
+
+    const movesBefore = selectValidMoves(store.getState())
+    expect(movesBefore.length).toBeGreaterThan(0)
+
+    const move = getFirstValidMove(getState(store))
+    expect(move).not.toBeNull()
+    if (!move) return
+
+    store.dispatch(performMove(move))
+
+    store.dispatch(performUndoMove())
+
+    // After undo, valid moves should have the same sources and destination points
+    const movesAfterUndo = selectValidMoves(store.getState())
+    expect(movesAfterUndo.length).toBe(movesBefore.length)
+
+    // Same set of source points
+    const sourcesBefore = movesBefore.map(m => m.from).sort()
+    const sourcesAfter = movesAfterUndo.map(m => m.from).sort()
+    expect(sourcesAfter).toEqual(sourcesBefore)
+
+    // Same set of destinations for each source
+    for (const moveBefore of movesBefore) {
+      const moveAfter = movesAfterUndo.find(m => m.from === moveBefore.from)
+      expect(moveAfter).toBeDefined()
+      if (!moveAfter) continue
+
+      const destsBefore = moveBefore.destinations
+        .map(d => `${String(d.to)}-${String(d.dieValue)}`)
+        .sort()
+      const destsAfter = moveAfter.destinations
+        .map(d => `${String(d.to)}-${String(d.dieValue)}`)
+        .sort()
+      expect(destsAfter).toEqual(destsBefore)
     }
   })
 })
