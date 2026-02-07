@@ -30,9 +30,7 @@ import {
   performUndoMove,
   performUndoAllMoves,
   resetGame,
-  getValidMoves,
-  getRequiredMoves,
-  filterMovesByDie,
+  selectValidMoves,
   type GameState,
   type GameAction
 } from '@backgammon/game'
@@ -402,18 +400,6 @@ function isAITurn(state: GameState, config: GameConfig): boolean {
   const control =
     state.currentPlayer === 'white' ? config.whiteControl : config.blackControl
   return control === 'ai'
-}
-
-/**
- * Compute valid moves for the current state, applying must-play-higher-die filtering.
- */
-function computeFilteredValidMoves(state: GameState): ReturnType<typeof getValidMoves> {
-  if (state.phase !== 'moving' || state.remainingMoves.length === 0) return []
-  const allMoves = getValidMoves({ state })
-  const requirements = getRequiredMoves({ state })
-  return requirements.requiredDie
-    ? filterMovesByDie({ availableMoves: allMoves, dieValue: requirements.requiredDie })
-    : allMoves
 }
 
 /**
@@ -844,7 +830,7 @@ registerAppTool(
     }
 
     const state = store.getState().game
-    const validMoves = computeFilteredValidMoves(state)
+    const validMoves = selectValidMoves(store.getState())
 
     // Pop the last hit tracking entry since we undid that move
     movesWithHitsThisTurn.pop()
@@ -890,7 +876,7 @@ registerAppTool(
     }
 
     const state = store.getState().game
-    const validMoves = computeFilteredValidMoves(state)
+    const validMoves = selectValidMoves(store.getState())
 
     // Clear all hit tracking since we undid all moves
     movesWithHitsThisTurn = []
@@ -1155,7 +1141,7 @@ registerAppTool(
         // Return error with context about which move failed
         const currentState = store.getState().game
         const perspective = currentState.currentPlayer ?? 'white'
-        const validMoves = getValidMoves({ state: currentState })
+        const validMoves = selectValidMoves(store.getState())
         const validMovesText = formatValidMovesForModel({ validMoves, perspective })
         return {
           content: [
@@ -1423,9 +1409,8 @@ registerAppTool(
       )
     }
 
-    // Get valid moves if in moving phase
-    const validMoves =
-      state.phase === 'moving' ? getValidMoves({ state }) : undefined
+    // Get valid moves (selector handles phase check)
+    const validMoves = selectValidMoves(store.getState())
 
     const playerName = state.currentPlayer
       ? state.currentPlayer.charAt(0).toUpperCase() +
@@ -1444,7 +1429,7 @@ registerAppTool(
       text += `\nRemaining dice: [${state.remainingMoves.join(', ')}]`
     }
 
-    if (validMoves && validMoves.length > 0) {
+    if (validMoves.length > 0) {
       text += `\n\n${formatValidMovesForModel({ validMoves, perspective })}`
     }
 

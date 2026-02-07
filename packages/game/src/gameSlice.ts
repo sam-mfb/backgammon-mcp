@@ -24,6 +24,8 @@ import { getOpponent } from './types'
 import {
   checkGameOver,
   getValidMoves,
+  getRequiredMoves,
+  filterMovesByDie,
   canEndTurn,
   createInitialBoard
 } from './rules'
@@ -554,7 +556,11 @@ export const selectValidMoves = createSelector([selectGameState], gameState => {
   if (gameState.phase !== 'moving' || gameState.remainingMoves.length === 0) {
     return []
   }
-  return getValidMoves({ state: gameState })
+  const allMoves = getValidMoves({ state: gameState })
+  const requirements = getRequiredMoves({ state: gameState })
+  return requirements.requiredDie
+    ? filterMovesByDie({ availableMoves: allMoves, dieValue: requirements.requiredDie })
+    : allMoves
 })
 
 export const selectCanEndTurn = createSelector([selectGameState], gameState =>
