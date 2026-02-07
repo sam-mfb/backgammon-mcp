@@ -31,6 +31,8 @@ import {
   performUndoAllMoves,
   resetGame,
   getValidMoves,
+  getRequiredMoves,
+  filterMovesByDie,
   type GameState,
   type GameAction
 } from '@backgammon/game'
@@ -400,6 +402,18 @@ function isAITurn(state: GameState, config: GameConfig): boolean {
   const control =
     state.currentPlayer === 'white' ? config.whiteControl : config.blackControl
   return control === 'ai'
+}
+
+/**
+ * Compute valid moves for the current state, applying must-play-higher-die filtering.
+ */
+function computeFilteredValidMoves(state: GameState): ReturnType<typeof getValidMoves> {
+  if (state.phase !== 'moving' || state.remainingMoves.length === 0) return []
+  const allMoves = getValidMoves({ state })
+  const requirements = getRequiredMoves({ state })
+  return requirements.requiredDie
+    ? filterMovesByDie({ availableMoves: allMoves, dieValue: requirements.requiredDie })
+    : allMoves
 }
 
 /**
@@ -829,8 +843,8 @@ registerAppTool(
       return errorResponse(result.error.message)
     }
 
-    const { validMoves } = result.value
     const state = store.getState().game
+    const validMoves = computeFilteredValidMoves(state)
 
     // Pop the last hit tracking entry since we undid that move
     movesWithHitsThisTurn.pop()
@@ -875,8 +889,8 @@ registerAppTool(
       return errorResponse(result.error.message)
     }
 
-    const { validMoves } = result.value
     const state = store.getState().game
+    const validMoves = computeFilteredValidMoves(state)
 
     // Clear all hit tracking since we undid all moves
     movesWithHitsThisTurn = []

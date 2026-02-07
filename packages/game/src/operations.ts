@@ -7,7 +7,6 @@
 
 import type {
   AvailableMoves,
-  BoardState,
   DiceRoll,
   DieValue,
   GameAction,
@@ -138,7 +137,6 @@ export interface EndTurnResult {
 
 export interface UndoMoveResult {
   readonly undoneMoves: readonly { readonly move: Move; readonly hit: boolean }[]
-  readonly validMoves: readonly AvailableMoves[]
 }
 
 // =============================================================================
@@ -490,30 +488,8 @@ export const performUndoMove = createSyncThunk<
 
   const lastMove = state.movesThisTurn[state.movesThisTurn.length - 1]
 
-  // The reducer will handle the actual board reversal.
-  // We compute valid moves for what the state will look like after undo.
-  // Build the projected state by replaying all moves except the last.
-  const projectedRemainingMoves = [...state.remainingMoves, lastMove.dieUsed]
-  const projectedMovesThisTurn = state.movesThisTurn.slice(0, -1)
-
-  // Rebuild board: start from state and reverse the last move
-  // We'll let the reducer do the actual reversal; here just compute valid moves
-  // by building a projected state from action replay
-  const projectedState = buildProjectedStateAfterUndo({
-    state,
-    movesToKeep: projectedMovesThisTurn,
-    remainingMoves: projectedRemainingMoves
-  })
-
-  const allValidMoves = getValidMoves({ state: projectedState })
-  const requirements = getRequiredMoves({ state: projectedState })
-  const validMoves = requirements.requiredDie
-    ? filterMovesByDie({ availableMoves: allValidMoves, dieValue: requirements.requiredDie })
-    : allValidMoves
-
   return ok({
-    undoneMoves: [{ move: lastMove, hit: lastAction.hit }],
-    validMoves
+    undoneMoves: [{ move: lastMove, hit: lastAction.hit }]
   })
 })
 
@@ -563,154 +539,10 @@ export const performUndoAllMoves = createSyncThunk<
     hit: pieceMoveActions[i]?.hit ?? false
   }))
 
-  // Compute remaining moves: restore all dice used this turn
-  const allDiceUsed = state.movesThisTurn.map(m => m.dieUsed)
-  const projectedRemainingMoves = [...state.remainingMoves, ...allDiceUsed]
-
-  const projectedState = buildProjectedStateAfterUndo({
-    state,
-    movesToKeep: [],
-    remainingMoves: projectedRemainingMoves
-  })
-
-  const allValidMoves = getValidMoves({ state: projectedState })
-  const requirements = getRequiredMoves({ state: projectedState })
-  const validMoves = requirements.requiredDie
-    ? filterMovesByDie({ availableMoves: allValidMoves, dieValue: requirements.requiredDie })
-    : allValidMoves
-
   return ok({
-    undoneMoves,
-    validMoves
+    undoneMoves
   })
 })
-
-/**
- * Build a projected game state after undoing moves, by replaying only
- * the moves we want to keep from the turn-start board state.
- */
-function buildProjectedStateAfterUndo({
-  state,
-  movesToKeep,
-  remainingMoves
-}: {
-  state: GameState
-  movesToKeep: readonly Move[]
-  remainingMoves: readonly DieValue[]
-}): GameState {
-  // Find the board state at the start of this turn by looking at actionHistory.
-  // The turn started after the last dice_roll action. We need to reconstruct
-  // the board before any piece_move actions in this turn.
-  // Strategy: reverse all moves in movesThisTurn to get back to turn-start board,
-  // then replay movesToKeep.
-
-  // First, reverse all current moves to get turn-start board
-  let board = state.board
-  const moveCount = state.movesThisTurn.length
-  const player = state.currentPlayer
-  if (!player) return state
-
-  // Get hit info from actionHistory
-  const pieceMoveActions: (GameAction & { type: 'piece_move' })[] = []
-  for (let i = state.actionHistory.length - 1; i >= 0 && pieceMoveActions.length < moveCount; i--) {
-    const action = state.actionHistory[i]
-    if (action.type === 'piece_move') {
-      pieceMoveActions.unshift(action)
-    }
-  }
-
-  // Reverse moves in reverse order to get back to turn-start board
-  for (let i = moveCount - 1; i >= 0; i--) {
-    const move = state.movesThisTurn[i]
-    const hit = pieceMoveActions[i]?.hit ?? false
-    board = reverseMove({ board, move, player, hit })
-  }
-
-  // Replay movesToKeep
-  let replayState: GameState = {
-    ...state,
-    board,
-    remainingMoves,
-    movesThisTurn: []
-  }
-  for (const move of movesToKeep) {
-    const newBoard = applyMoveToBoard({ state: replayState, move })
-    const newRemaining = [...replayState.remainingMoves]
-    const idx = newRemaining.indexOf(move.dieUsed)
-    if (idx !== -1) newRemaining.splice(idx, 1)
-    replayState = {
-      ...replayState,
-      board: newBoard,
-      remainingMoves: newRemaining,
-      movesThisTurn: [...replayState.movesThisTurn, move]
-    }
-  }
-
-  return replayState
-}
-
-/**
- * Reverse a single move on the board. Pure function.
- * This is the inverse of applyMoveToBoard.
- */
-function reverseMove({
-  board,
-  move,
-  player,
-  hit
-}: {
-  board: BoardState
-  move: Move
-  player: Player
-  hit: boolean
-}): BoardState {
-  const { from, to } = move
-
-  const newPoints = [...board.points] as BoardState['points']
-  const newBar = { ...board.bar }
-  const newBorneOff = { ...board.borneOff }
-  const opponent = getOpponent(player)
-
-  // Remove checker from destination (reverse of placing)
-  if (to === 'off') {
-    newBorneOff[player]--
-  } else {
-    const toIndex = to - 1
-    if (player === 'white') {
-      newPoints[toIndex]--
-    } else {
-      newPoints[toIndex]++
-    }
-
-    // If this move was a hit, restore opponent's checker from bar to this point
-    if (hit) {
-      newBar[opponent]--
-      if (opponent === 'white') {
-        newPoints[toIndex]++
-      } else {
-        newPoints[toIndex]--
-      }
-    }
-  }
-
-  // Restore checker to source (reverse of removing)
-  if (from === 'bar') {
-    newBar[player]++
-  } else {
-    const fromIndex = from - 1
-    if (player === 'white') {
-      newPoints[fromIndex]++
-    } else {
-      newPoints[fromIndex]--
-    }
-  }
-
-  return {
-    points: newPoints,
-    bar: newBar,
-    borneOff: newBorneOff
-  }
-}
 
 // =============================================================================
 // Action Type Helpers (for extraReducers)
