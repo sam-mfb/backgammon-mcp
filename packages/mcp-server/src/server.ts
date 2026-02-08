@@ -1138,25 +1138,18 @@ registerAppTool(
       }
 
       if (!result.ok) {
-        // Return error with context about which move failed
+        // Undo any previously successful moves so state doesn't accumulate across retries
+        if (executedMoves.length > 0) {
+          store.dispatch(performUndoAllMoves())
+        }
+
         const currentState = store.getState().game
         const perspective = currentState.currentPlayer ?? 'white'
         const validMoves = selectValidMoves(store.getState())
         const validMovesText = formatValidMovesForModel({ validMoves, perspective })
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Error: Move ${String(i + 1)} (${formatPoint(move.from, perspective)}→${formatPoint(move.to, perspective)}) failed: ${result.error.message}.\n\n${validMovesText}`
-            }
-          ],
-          structuredContent: {
-            gameState: currentState,
-            validMoves
-          },
-          _meta: { ui: { resourceUri: RESOURCE_URI } },
-          isError: true
-        }
+        return errorResponse(
+          `Move ${String(i + 1)} (${formatPoint(move.from, perspective)}→${formatPoint(move.to, perspective)}) failed: ${result.error.message}. All moves have been rolled back — resubmit your COMPLETE turn.\n\n${validMovesText}`
+        )
       }
 
       executedMoves.push({
@@ -1197,7 +1190,17 @@ registerAppTool(
     }
 
     if (!endResult.ok) {
-      return errorResponse(endResult.error.message)
+      // Undo all moves so state doesn't accumulate across retries
+      store.dispatch(performUndoAllMoves())
+
+      const currentState = store.getState().game
+      const perspective = currentState.currentPlayer ?? 'white'
+      const validMoves = selectValidMoves(store.getState())
+      const validMovesText = formatValidMovesForModel({ validMoves, perspective })
+
+      return errorResponse(
+        `${endResult.error.message} You submitted ${String(executedMoves.length)} move(s) but more are available. All moves have been rolled back — resubmit your COMPLETE turn.\n\n${validMovesText}`
+      )
     }
 
     const { nextPlayer } = endResult.value
