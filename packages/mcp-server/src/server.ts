@@ -1008,7 +1008,7 @@ registerAppTool(
     if (turnForfeited) {
       text += `\n\nYou rolled: ${diceText}\nNo legal moves available - turn forfeited.\n\nACTION REQUIRED: Call model_take_turn({ forfeit: true }) to complete your turn.`
     } else {
-      text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves, perspective: currentPlayer })}`
+      text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves, perspective: currentPlayer })}\n\nACTION REQUIRED: Call model_take_turn with ALL of your moves for this turn in a single call. Do NOT submit moves one at a time.`
     }
 
     return {
