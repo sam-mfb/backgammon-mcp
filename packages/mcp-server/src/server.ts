@@ -1147,8 +1147,17 @@ registerAppTool(
         const perspective = currentState.currentPlayer ?? 'white'
         const validMoves = selectValidMoves(store.getState())
         const validMovesText = formatValidMovesForModel({ validMoves, perspective })
+
+        // Build a perspective-correct error reason (result.error.message uses internal coordinates)
+        let reason: string
+        if (result.error.type === 'must_play_required') {
+          reason = `You must play the ${String(result.error.requiredDie)} die.`
+        } else {
+          reason = `${formatPoint(move.from, perspective)}→${formatPoint(move.to, perspective)} (die ${String(move.dieUsed)}) is not a valid move.`
+        }
+
         return errorResponse(
-          `Move ${String(i + 1)} (${formatPoint(move.from, perspective)}→${formatPoint(move.to, perspective)}) failed: ${result.error.message}. All moves have been rolled back — resubmit your COMPLETE turn.\n\n${validMovesText}`
+          `Move ${String(i + 1)} failed: ${reason} All moves have been rolled back — resubmit your COMPLETE turn.\n\n${validMovesText}`
         )
       }
 
