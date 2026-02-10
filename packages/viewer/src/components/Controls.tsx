@@ -59,7 +59,7 @@ export function Controls({
       </button>
       <button
         className="controls__button controls__button--undo"
-        disabled={disabled || !canUndo}
+        disabled={disabled || !canUndo || !onUndoClick}
         onClick={onUndoClick}
       >
         Undo

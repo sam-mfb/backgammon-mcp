@@ -104,7 +104,12 @@ export type NothingToUndoError = {
   readonly message: string
 }
 
-export type UndoError = NoGameError | WrongPhaseError | NothingToUndoError
+export type UndoHistoryMismatchError = {
+  readonly type: 'undo_history_mismatch'
+  readonly message: string
+}
+
+export type UndoError = NoGameError | WrongPhaseError | NothingToUndoError | UndoHistoryMismatchError
 
 // =============================================================================
 // Result Types
@@ -448,7 +453,7 @@ export const performEndTurn = createSyncThunk<
 
 /**
  * Undo the last move in the current turn.
- * Only valid during moving phase with at least one move made.
+ * Valid during moving or game_over phase (to undo the winning bear-off).
  */
 export const performUndoMove = createSyncThunk<
   Result<UndoMoveResult, UndoError>
@@ -462,7 +467,7 @@ export const performUndoMove = createSyncThunk<
     })
   }
 
-  if (state.phase !== 'moving') {
+  if (state.phase !== 'moving' && state.phase !== 'game_over') {
     return err({
       type: 'wrong_phase',
       phase: state.phase,
@@ -477,11 +482,19 @@ export const performUndoMove = createSyncThunk<
     })
   }
 
-  // Find the last piece_move action to get hit info
-  const lastAction = state.actionHistory[state.actionHistory.length - 1]
-  if (lastAction.type !== 'piece_move') {
+  // Scan backwards for the most recent piece_move action
+  let lastPieceMove: (GameAction & { type: 'piece_move' }) | null = null
+  for (let i = state.actionHistory.length - 1; i >= 0; i--) {
+    const action = state.actionHistory[i]
+    if (action.type === 'piece_move') {
+      lastPieceMove = action
+      break
+    }
+  }
+
+  if (!lastPieceMove) {
     return err({
-      type: 'nothing_to_undo',
+      type: 'undo_history_mismatch',
       message: 'No piece_move action found in history to undo.'
     })
   }
@@ -489,13 +502,13 @@ export const performUndoMove = createSyncThunk<
   const lastMove = state.movesThisTurn[state.movesThisTurn.length - 1]
 
   return ok({
-    undoneMoves: [{ move: lastMove, hit: lastAction.hit }]
+    undoneMoves: [{ move: lastMove, hit: lastPieceMove.hit }]
   })
 })
 
 /**
  * Undo all moves in the current turn.
- * Only valid during moving phase with at least one move made.
+ * Valid during moving or game_over phase (to undo the winning bear-off).
  */
 export const performUndoAllMoves = createSyncThunk<
   Result<UndoMoveResult, UndoError>
@@ -509,7 +522,7 @@ export const performUndoAllMoves = createSyncThunk<
     })
   }
 
-  if (state.phase !== 'moving') {
+  if (state.phase !== 'moving' && state.phase !== 'game_over') {
     return err({
       type: 'wrong_phase',
       phase: state.phase,
@@ -524,7 +537,7 @@ export const performUndoAllMoves = createSyncThunk<
     })
   }
 
-  // Collect all piece_move actions from this turn (in reverse order for undo)
+  // Collect all piece_move actions from this turn
   const moveCount = state.movesThisTurn.length
   const pieceMoveActions: (GameAction & { type: 'piece_move' })[] = []
   for (let i = state.actionHistory.length - 1; i >= 0 && pieceMoveActions.length < moveCount; i--) {
@@ -534,9 +547,16 @@ export const performUndoAllMoves = createSyncThunk<
     }
   }
 
+  if (pieceMoveActions.length !== moveCount) {
+    return err({
+      type: 'undo_history_mismatch',
+      message: `Cannot undo: expected ${String(moveCount)} piece_move actions in history but found ${String(pieceMoveActions.length)}.`
+    })
+  }
+
   const undoneMoves = state.movesThisTurn.map((move, i) => ({
     move,
-    hit: pieceMoveActions[i]?.hit ?? false
+    hit: pieceMoveActions[i].hit
   }))
 
   return ok({

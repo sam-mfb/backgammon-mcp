@@ -568,6 +568,7 @@ export const selectCanEndTurn = createSelector([selectGameState], gameState =>
 )
 
 export const selectCanUndo = (state: RootState): boolean =>
-  state.game.phase === 'moving' && state.game.movesThisTurn.length > 0
+  (state.game.phase === 'moving' || state.game.phase === 'game_over') &&
+  state.game.movesThisTurn.length > 0
 
 export default gameSlice.reducer
