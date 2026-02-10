@@ -89,6 +89,10 @@ export function McpAppShim(): React.JSX.Element {
       (remainingMoves.length === 0 || validMoves.length === 0)) ||
     phase === 'game_over'
 
+  // Can undo when in moving phase with moves made this turn
+  const canUndo =
+    phase === 'moving' && (gameState?.movesThisTurn.length ?? 0) > 0
+
   // Automatically applies theme, variables, and fonts from host context
   useHostStyles(app, app?.getHostContext())
 
@@ -271,6 +275,23 @@ export function McpAppShim(): React.JSX.Element {
     void doEndTurn()
   }, [app, phase, gameState])
 
+  const handleUndoClick = useCallback(() => {
+    if (!app) return
+    const doUndo = async (): Promise<void> => {
+      const result = await app.callServerTool({
+        name: 'view_undo_move',
+        arguments: {}
+      })
+      const content = result.structuredContent as
+        | BackgammonStructuredContent
+        | undefined
+      if (content) {
+        setToolResult({ structuredContent: content })
+      }
+    }
+    void doUndo()
+  }, [app])
+
   // Handle point click
   const handlePointClick = useCallback(
     (pointIndex: PointIndex): void => {
@@ -421,8 +442,10 @@ export function McpAppShim(): React.JSX.Element {
         onPointClick={handlePointClick}
         onBarClick={handleBarClick}
         onBorneOffClick={handleBorneOffClick}
+        canUndo={canUndo}
         onRollClick={handleRollClick}
         onEndTurnClick={handleEndTurnClick}
+        onUndoClick={handleUndoClick}
       />
       {logMessage && <div className="log-toast">{logMessage}</div>}
     </>

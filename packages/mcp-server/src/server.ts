@@ -27,8 +27,10 @@ import {
   performRollDice,
   performMove,
   performEndTurn,
+  performUndoMove,
+  performUndoAllMoves,
   resetGame,
-  getValidMoves,
+  selectValidMoves,
   type GameState,
   type GameAction
 } from '@backgammon/game'
@@ -798,6 +800,98 @@ registerAppTool(
   }
 )
 
+registerAppTool(
+  server,
+  'view_undo_move',
+  {
+    description:
+      "Undo the last move made during the human player's current turn.",
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn")
+    }
+
+    const action = store.dispatch(performUndoMove())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to undo move')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const state = store.getState().game
+    const validMoves = selectValidMoves(store.getState())
+
+    // Pop the last hit tracking entry since we undid that move
+    movesWithHitsThisTurn.pop()
+
+    return {
+      content: [{ type: 'text' as const, text: 'Move undone.' }],
+      structuredContent: {
+        gameState: state,
+        validMoves
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'view_undo_all_moves',
+  {
+    description:
+      "Undo all moves made during the human player's current turn.",
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn")
+    }
+
+    const action = store.dispatch(performUndoAllMoves())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to undo moves')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const state = store.getState().game
+    const validMoves = selectValidMoves(store.getState())
+
+    // Clear all hit tracking since we undid all moves
+    movesWithHitsThisTurn = []
+
+    return {
+      content: [{ type: 'text' as const, text: 'All moves undone.' }],
+      structuredContent: {
+        gameState: state,
+        validMoves
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+    }
+  }
+)
+
 // =============================================================================
 // Model Tools (visibility: ['model']) - For AI player actions
 // =============================================================================
@@ -914,7 +1008,7 @@ registerAppTool(
     if (turnForfeited) {
       text += `\n\nYou rolled: ${diceText}\nNo legal moves available - turn forfeited.\n\nACTION REQUIRED: Call model_take_turn({ forfeit: true }) to complete your turn.`
     } else {
-      text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves, perspective: currentPlayer })}`
+      text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves, perspective: currentPlayer })}\n\nACTION REQUIRED: Call model_take_turn with ALL of your moves for this turn in a single call. Do NOT submit moves one at a time.`
     }
 
     return {
@@ -1044,25 +1138,27 @@ registerAppTool(
       }
 
       if (!result.ok) {
-        // Return error with context about which move failed
+        // Undo any previously successful moves so state doesn't accumulate across retries
+        if (executedMoves.length > 0) {
+          store.dispatch(performUndoAllMoves())
+        }
+
         const currentState = store.getState().game
         const perspective = currentState.currentPlayer ?? 'white'
-        const validMoves = getValidMoves({ state: currentState })
+        const validMoves = selectValidMoves(store.getState())
         const validMovesText = formatValidMovesForModel({ validMoves, perspective })
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Error: Move ${String(i + 1)} (${formatPoint(move.from, perspective)}→${formatPoint(move.to, perspective)}) failed: ${result.error.message}.\n\n${validMovesText}`
-            }
-          ],
-          structuredContent: {
-            gameState: currentState,
-            validMoves
-          },
-          _meta: { ui: { resourceUri: RESOURCE_URI } },
-          isError: true
+
+        // Build a perspective-correct error reason (result.error.message uses internal coordinates)
+        let reason: string
+        if (result.error.type === 'must_play_required') {
+          reason = `You must play the ${String(result.error.requiredDie)} die.`
+        } else {
+          reason = `${formatPoint(move.from, perspective)}→${formatPoint(move.to, perspective)} (die ${String(move.dieUsed)}) is not a valid move.`
         }
+
+        return errorResponse(
+          `Move ${String(i + 1)} failed: ${reason} All moves have been rolled back — resubmit your COMPLETE turn.\n\n${validMovesText}`
+        )
       }
 
       executedMoves.push({
@@ -1103,7 +1199,17 @@ registerAppTool(
     }
 
     if (!endResult.ok) {
-      return errorResponse(endResult.error.message)
+      // Undo all moves so state doesn't accumulate across retries
+      store.dispatch(performUndoAllMoves())
+
+      const currentState = store.getState().game
+      const perspective = currentState.currentPlayer ?? 'white'
+      const validMoves = selectValidMoves(store.getState())
+      const validMovesText = formatValidMovesForModel({ validMoves, perspective })
+
+      return errorResponse(
+        `${endResult.error.message} You submitted ${String(executedMoves.length)} move(s) but more are available. All moves have been rolled back — resubmit your COMPLETE turn.\n\n${validMovesText}`
+      )
     }
 
     const { nextPlayer } = endResult.value
@@ -1315,9 +1421,8 @@ registerAppTool(
       )
     }
 
-    // Get valid moves if in moving phase
-    const validMoves =
-      state.phase === 'moving' ? getValidMoves({ state }) : undefined
+    // Get valid moves (selector handles phase check)
+    const validMoves = selectValidMoves(store.getState())
 
     const playerName = state.currentPlayer
       ? state.currentPlayer.charAt(0).toUpperCase() +
@@ -1336,7 +1441,7 @@ registerAppTool(
       text += `\nRemaining dice: [${state.remainingMoves.join(', ')}]`
     }
 
-    if (validMoves && validMoves.length > 0) {
+    if (validMoves.length > 0) {
       text += `\n\n${formatValidMovesForModel({ validMoves, perspective })}`
     }
 

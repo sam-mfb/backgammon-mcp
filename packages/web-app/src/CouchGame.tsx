@@ -6,6 +6,7 @@ import {
   resetGame,
   selectValidMoves,
   selectCanEndTurn,
+  selectCanUndo,
   selectPhase,
   selectCurrentPlayer,
   selectBoard,
@@ -13,7 +14,8 @@ import {
   performStartGame,
   performRollDice,
   performMove,
-  performEndTurn
+  performEndTurn,
+  performUndoMove
 } from '@backgammon/game'
 import { BoardView } from '@backgammon/viewer'
 
@@ -35,6 +37,7 @@ export function CouchGame(): React.JSX.Element {
   // Use memoized selectors for expensive computations
   const availableMoves = useAppSelector(selectValidMoves)
   const canEndTurnNow = useAppSelector(selectCanEndTurn)
+  const canUndoNow = useAppSelector(selectCanUndo)
   const lastAction = useAppSelector(selectLastAction)
 
   // Handle starting the game using the new operation
@@ -66,6 +69,22 @@ export function CouchGame(): React.JSX.Element {
     if (result?.ok !== true) {
       console.error(
         'End turn failed:',
+        result?.ok === false ? result.error.message : 'unknown error'
+      )
+      return
+    }
+    setSelectedSource(null)
+    setValidDestinations([])
+  }
+
+  // Handle undo
+  const handleUndoClick = (): void => {
+    if (phase !== 'moving') return
+    const action = dispatch(performUndoMove())
+    const result = action.meta.result
+    if (result?.ok !== true) {
+      console.error(
+        'Undo failed:',
         result?.ok === false ? result.error.message : 'unknown error'
       )
       return
@@ -229,8 +248,10 @@ export function CouchGame(): React.JSX.Element {
           onPointClick={handlePointClick}
           onBarClick={handleBarClick}
           onBorneOffClick={handleBorneOffClick}
+          canUndo={canUndoNow}
           onRollClick={handleRollClick}
           onEndTurnClick={handleEndTurnClick}
+          onUndoClick={handleUndoClick}
         />
       )}
 

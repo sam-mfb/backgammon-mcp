@@ -39,6 +39,10 @@ interface BoardViewProps {
   onRollClick?: () => void
   /** Callback when the end turn button is clicked */
   onEndTurnClick?: () => void
+  /** Whether undo is available (moves have been made this turn) */
+  canUndo?: boolean
+  /** Callback when the undo button is clicked */
+  onUndoClick?: () => void
 }
 
 export function BoardView({
@@ -53,7 +57,9 @@ export function BoardView({
   onBarClick,
   onBorneOffClick,
   onRollClick,
-  onEndTurnClick
+  onEndTurnClick,
+  canUndo: canUndoProp,
+  onUndoClick
 }: BoardViewProps): React.JSX.Element {
   const {
     board,
@@ -114,8 +120,10 @@ export function BoardView({
         isGameOver={isGameOver}
         noMovesAvailable={noMovesAvailable}
         disabled={!isHumanTurn}
+        canUndo={canUndoProp ?? false}
         onRollClick={onRollClick}
         onEndTurnClick={onEndTurnClick}
+        onUndoClick={onUndoClick}
       />
     </div>
   )

@@ -20,9 +20,12 @@ import type {
   Move,
   Player
 } from './types'
+import { getOpponent } from './types'
 import {
   checkGameOver,
   getValidMoves,
+  getRequiredMoves,
+  filterMovesByDie,
   canEndTurn,
   createInitialBoard
 } from './rules'
@@ -32,10 +35,14 @@ import {
   performRollDice,
   performMove,
   performEndTurn,
+  performUndoMove,
+  performUndoAllMoves,
   type StartGameAction,
   type RollDiceAction,
   type MakeMoveAction,
-  type EndTurnAction
+  type EndTurnAction,
+  type UndoMoveAction,
+  type UndoAllMovesAction
 } from './operations'
 
 /** State shape expected by selectors - apps must configure their store with { game: GameState } */
@@ -340,6 +347,153 @@ export const gameSlice = createSlice({
         state.phase = 'rolling'
       }
     })
+
+    // Handle performUndoMove
+    builder.addMatcher(
+      performUndoMove.match,
+      (state, action: UndoMoveAction) => {
+        const result = action.meta.result
+        if (result?.ok && state.currentPlayer) {
+          const { undoneMoves } = result.value
+          const player = state.currentPlayer
+          const opponent = getOpponent(player)
+
+          for (let i = undoneMoves.length - 1; i >= 0; i--) {
+            const { move, hit } = undoneMoves[i]
+            const { from, to } = move
+
+            // Remove checker from destination
+            if (to === 'off') {
+              state.board.borneOff[player]--
+            } else {
+              const toIndex = to - 1
+              if (player === 'white') {
+                state.board.points[toIndex]--
+              } else {
+                state.board.points[toIndex]++
+              }
+
+              // Restore hit opponent checker
+              if (hit) {
+                state.board.bar[opponent]--
+                if (opponent === 'white') {
+                  state.board.points[toIndex]++
+                } else {
+                  state.board.points[toIndex]--
+                }
+              }
+            }
+
+            // Restore checker to source
+            if (from === 'bar') {
+              state.board.bar[player]++
+            } else {
+              const fromIndex = from - 1
+              if (player === 'white') {
+                state.board.points[fromIndex]++
+              } else {
+                state.board.points[fromIndex]--
+              }
+            }
+
+            // Restore die to remaining moves
+            state.remainingMoves.push(move.dieUsed)
+
+            // Pop from movesThisTurn
+            state.movesThisTurn.pop()
+
+            // Pop the piece_move from actionHistory
+            for (let j = state.actionHistory.length - 1; j >= 0; j--) {
+              if (state.actionHistory[j].type === 'piece_move') {
+                state.actionHistory.splice(j, 1)
+                break
+              }
+            }
+          }
+
+          // If game was over due to bearing off all, restore to moving phase
+          if (state.phase === 'game_over') {
+            state.phase = 'moving'
+            state.result = null
+          }
+        }
+      }
+    )
+
+    // Handle performUndoAllMoves
+    builder.addMatcher(
+      performUndoAllMoves.match,
+      (state, action: UndoAllMovesAction) => {
+        const result = action.meta.result
+        if (result?.ok && state.currentPlayer) {
+          const { undoneMoves } = result.value
+          const player = state.currentPlayer
+          const opponent = getOpponent(player)
+
+          // Reverse all moves in reverse order
+          for (let i = undoneMoves.length - 1; i >= 0; i--) {
+            const { move, hit } = undoneMoves[i]
+            const { from, to } = move
+
+            // Remove checker from destination
+            if (to === 'off') {
+              state.board.borneOff[player]--
+            } else {
+              const toIndex = to - 1
+              if (player === 'white') {
+                state.board.points[toIndex]--
+              } else {
+                state.board.points[toIndex]++
+              }
+
+              // Restore hit opponent checker
+              if (hit) {
+                state.board.bar[opponent]--
+                if (opponent === 'white') {
+                  state.board.points[toIndex]++
+                } else {
+                  state.board.points[toIndex]--
+                }
+              }
+            }
+
+            // Restore checker to source
+            if (from === 'bar') {
+              state.board.bar[player]++
+            } else {
+              const fromIndex = from - 1
+              if (player === 'white') {
+                state.board.points[fromIndex]++
+              } else {
+                state.board.points[fromIndex]--
+              }
+            }
+
+            // Restore die to remaining moves
+            state.remainingMoves.push(move.dieUsed)
+          }
+
+          // Clear all moves this turn
+          state.movesThisTurn = []
+
+          // Remove all piece_move actions from this turn in actionHistory
+          const moveCount = undoneMoves.length
+          let removed = 0
+          for (let j = state.actionHistory.length - 1; j >= 0 && removed < moveCount; j--) {
+            if (state.actionHistory[j].type === 'piece_move') {
+              state.actionHistory.splice(j, 1)
+              removed++
+            }
+          }
+
+          // If game was over due to bearing off all, restore to moving phase
+          if (state.phase === 'game_over') {
+            state.phase = 'moving'
+            state.result = null
+          }
+        }
+      }
+    )
   }
 })
 
@@ -402,11 +556,19 @@ export const selectValidMoves = createSelector([selectGameState], gameState => {
   if (gameState.phase !== 'moving' || gameState.remainingMoves.length === 0) {
     return []
   }
-  return getValidMoves({ state: gameState })
+  const allMoves = getValidMoves({ state: gameState })
+  const requirements = getRequiredMoves({ state: gameState })
+  return requirements.requiredDie
+    ? filterMovesByDie({ availableMoves: allMoves, dieValue: requirements.requiredDie })
+    : allMoves
 })
 
 export const selectCanEndTurn = createSelector([selectGameState], gameState =>
   canEndTurn({ state: gameState })
 )
+
+export const selectCanUndo = (state: RootState): boolean =>
+  (state.game.phase === 'moving' || state.game.phase === 'game_over') &&
+  state.game.movesThisTurn.length > 0
 
 export default gameSlice.reducer
