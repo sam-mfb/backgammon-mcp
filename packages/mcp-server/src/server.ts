@@ -869,6 +869,8 @@ registerAppTool(
     const { newCubeValue, proposedBy } = result.value
     const playerName = proposedBy.charAt(0).toUpperCase() + proposedBy.slice(1)
 
+    const modelNotification = `${playerName} (${proposedBy}) proposes to double the stakes to ${String(newCubeValue)}. You must call model_respond_to_double with 'accept' to continue at higher stakes or 'decline' to forfeit at the current cube value.`
+
     return {
       content: [
         {
@@ -877,7 +879,8 @@ registerAppTool(
         }
       ],
       structuredContent: {
-        gameState: state
+        gameState: state,
+        modelNotification
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
@@ -928,11 +931,15 @@ registerAppTool(
     const state = store.getState().game
 
     let text: string
+    let modelNotification: string
     if (result.value.response === 'accept') {
       text = `Double accepted. Cube is now at ${String(result.value.newCubeValue)}.`
+      const responderName = responder.charAt(0).toUpperCase() + responder.slice(1)
+      modelNotification = `${responderName} (${responder}) accepted the double. Cube is now at ${String(result.value.newCubeValue)}, owned by ${responder}. It is your turn to roll — call model_roll_dice.`
     } else {
       const winnerName = result.value.winner.charAt(0).toUpperCase() + result.value.winner.slice(1)
       text = `Double declined. ${winnerName} wins ${String(result.value.gameResult.points)} point(s).`
+      modelNotification = `${responder.charAt(0).toUpperCase() + responder.slice(1)} (${responder}) declined the double. ${winnerName} wins ${String(result.value.gameResult.points)} point(s). Game over.`
 
       // Record result in match if in match play
       if (selectIsMatchInProgress(store.getState()) && state.result) {
@@ -944,6 +951,7 @@ registerAppTool(
       content: [{ type: 'text' as const, text }],
       structuredContent: {
         gameState: state,
+        modelNotification,
         matchState: selectMatchState(store.getState())
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
@@ -1707,9 +1715,16 @@ registerAppTool(
         ? 'centered'
         : `owned by ${state.doublingCube.owner}`
       text += `\nDoubling cube: ${String(state.doublingCube.value)} (${cubeOwnerStr})`
-      const canDouble = selectCanDouble(store.getState())
-      if (canDouble) {
-        text += ' — you may propose a double before rolling'
+
+      if (state.phase === 'doubling_proposed' && state.doubleProposedBy) {
+        const proposerName = state.doubleProposedBy.charAt(0).toUpperCase() + state.doubleProposedBy.slice(1)
+        const proposedValue = state.doublingCube.value * 2
+        text += `\n${proposerName} has proposed doubling to ${String(proposedValue)}. Call model_respond_to_double with 'accept' or 'decline'.`
+      } else {
+        const canDouble = selectCanDouble(store.getState())
+        if (canDouble) {
+          text += ' — you may propose a double before rolling'
+        }
       }
     }
 

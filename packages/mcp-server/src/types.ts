@@ -43,5 +43,6 @@ export interface BackgammonStructuredContent {
   validMoves?: readonly AvailableMoves[]
   config?: GameConfig
   turnSummary?: string
+  modelNotification?: string
   matchState?: MatchState | null
 }

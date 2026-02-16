@@ -305,6 +305,31 @@ export function McpAppShim(): React.JSX.Element {
         | undefined
       if (content) {
         setToolResult({ structuredContent: content })
+
+        // Notify model about the double proposal
+        if (content.modelNotification) {
+          const caps = app.getHostCapabilities()
+          if (caps?.updateModelContext) {
+            try {
+              await app.updateModelContext({
+                content: [{ type: 'text', text: content.modelNotification }]
+              })
+            } catch (e) {
+              setErrorMessage(
+                `Failed to update model context: ${e instanceof Error ? e.message : String(e)}`
+              )
+            }
+          }
+
+          const proposer = content.gameState.doubleProposedBy
+          const proposerName = proposer
+            ? proposer.charAt(0).toUpperCase() + proposer.slice(1)
+            : 'Opponent'
+          await app.sendMessage({
+            role: 'user',
+            content: [{ type: 'text', text: `${proposerName} proposes double.` }]
+          })
+        }
       }
     }
     void doDouble()
@@ -323,6 +348,28 @@ export function McpAppShim(): React.JSX.Element {
           | undefined
         if (content) {
           setToolResult({ structuredContent: content })
+
+          // Notify model about the double response
+          if (content.modelNotification) {
+            const caps = app.getHostCapabilities()
+            if (caps?.updateModelContext) {
+              try {
+                await app.updateModelContext({
+                  content: [{ type: 'text', text: content.modelNotification }]
+                })
+              } catch (e) {
+                setErrorMessage(
+                  `Failed to update model context: ${e instanceof Error ? e.message : String(e)}`
+                )
+              }
+            }
+
+            const responseLabel = response === 'accept' ? 'accepts' : 'declines'
+            await app.sendMessage({
+              role: 'user',
+              content: [{ type: 'text', text: `Human ${responseLabel} double.` }]
+            })
+          }
         }
       }
       void doRespond()
