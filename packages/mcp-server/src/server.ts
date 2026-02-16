@@ -17,15 +17,7 @@ import {
   RESOURCE_MIME_TYPE
 } from '@modelcontextprotocol/ext-apps/server'
 import {
-  PlayerSchema,
-  DieValueSchema,
-  PointIndexSchema,
-  MoveFromSchema,
-  MoveToSchema,
-  MoveSchema,
   GameStateSchema,
-  AvailableMovesSchema,
-  GameConfigSchema,
   GameResponseOutputSchema
 } from './schemas'
 import { store, setGameConfig } from './store'
@@ -447,7 +439,7 @@ When playing, just make your moves without commentary or strategy discussion unl
     store.dispatch(setGameConfig(config))
 
     // Doubling cube only applies in match play
-    const enableCube = matchTargetScore ? (enableDoublingCube ?? true) : false
+    const enableCube = matchTargetScore ? enableDoublingCube : false
 
     // Set up match if target score provided
     if (matchTargetScore) {
