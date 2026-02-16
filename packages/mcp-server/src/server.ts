@@ -202,6 +202,34 @@ function formatGameStateForModel({
   return lines.join('\n')
 }
 
+/**
+ * Format match state and doubling cube info as a text snippet for model context.
+ * Returns empty string if not in match play.
+ */
+function formatMatchInfoForModel(): string {
+  const rootState = store.getState()
+  const gameState = rootState.game
+  const matchState = selectMatchState(rootState)
+  const lines: string[] = []
+
+  if (gameState.doublingCube) {
+    const cubeOwnerStr = gameState.doublingCube.owner === 'centered'
+      ? 'centered'
+      : `owned by ${gameState.doublingCube.owner}`
+    lines.push(`Doubling cube: ${String(gameState.doublingCube.value)} (${cubeOwnerStr})`)
+  }
+
+  if (matchState) {
+    let matchLine = `Match score: White ${String(matchState.score.white)}, Black ${String(matchState.score.black)} (playing to ${String(matchState.config.targetScore)}, game ${String(matchState.gameNumber)})`
+    if (matchState.isCrawfordGame) {
+      matchLine += ' [Crawford game — no doubling]'
+    }
+    lines.push(matchLine)
+  }
+
+  return lines.join('\n')
+}
+
 function textResponse(text: string): {
   content: { type: 'text'; text: string }[]
 } {
@@ -348,11 +376,18 @@ function formatTurnSummaryForModel({
   const nextPlayerName =
     summary.nextPlayer.charAt(0).toUpperCase() + summary.nextPlayer.slice(1)
 
-  return `${playerName} (${summary.player}) completed turn:
+  let text = `${playerName} (${summary.player}) completed turn:
 - Rolled: ${diceStr}
 - Moves: ${movesStr}
 - Board: White ${String(summary.boardSummary.whiteHome)} home, Black ${String(summary.boardSummary.blackHome)} home, White ${String(summary.boardSummary.whiteBar)} bar, Black ${String(summary.boardSummary.blackBar)} bar
 - ${nextPlayerName}'s turn (${summary.nextPlayer}) to roll.`
+
+  const matchInfo = formatMatchInfoForModel()
+  if (matchInfo) {
+    text += `\n${matchInfo}`
+  }
+
+  return text
 }
 
 // =============================================================================
@@ -869,7 +904,11 @@ registerAppTool(
     const { newCubeValue, proposedBy } = result.value
     const playerName = proposedBy.charAt(0).toUpperCase() + proposedBy.slice(1)
 
-    const modelNotification = `${playerName} (${proposedBy}) proposes to double the stakes to ${String(newCubeValue)}. You must call model_respond_to_double with 'accept' to continue at higher stakes or 'decline' to forfeit at the current cube value.`
+    let modelNotification = `${playerName} (${proposedBy}) proposes to double the stakes to ${String(newCubeValue)}. You must call model_respond_to_double with 'accept' to continue at higher stakes or 'decline' to forfeit at the current cube value.`
+    const matchInfo = formatMatchInfoForModel()
+    if (matchInfo) {
+      modelNotification += `\n${matchInfo}`
+    }
 
     return {
       content: [
@@ -880,7 +919,8 @@ registerAppTool(
       ],
       structuredContent: {
         gameState: state,
-        modelNotification
+        modelNotification,
+        matchState: selectMatchState(store.getState())
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
@@ -945,6 +985,11 @@ registerAppTool(
       if (selectIsMatchInProgress(store.getState()) && state.result) {
         store.dispatch(recordGameResult(state.result))
       }
+    }
+
+    const matchInfo = formatMatchInfoForModel()
+    if (matchInfo) {
+      modelNotification += `\n${matchInfo}`
     }
 
     return {
@@ -1192,7 +1237,8 @@ registerAppTool(
         }
       ],
       structuredContent: {
-        gameState: state
+        gameState: state,
+        matchState: selectMatchState(store.getState())
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
     }
@@ -1342,7 +1388,8 @@ registerAppTool(
           }
         ],
         structuredContent: {
-          gameState: state
+          gameState: state,
+          matchState: selectMatchState(store.getState())
         },
         _meta: { ui: { resourceUri: RESOURCE_URI } }
       }
@@ -1491,7 +1538,8 @@ registerAppTool(
         }
       ],
       structuredContent: {
-        gameState: state
+        gameState: state,
+        matchState: selectMatchState(store.getState())
       },
       _meta: { ui: { resourceUri: RESOURCE_URI } }
     }
