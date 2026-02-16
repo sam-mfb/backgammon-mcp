@@ -14,16 +14,19 @@ export function DoublingCube({
   canDouble,
   onClick
 }: DoublingCubeProps): React.JSX.Element {
-  const positionClass =
+  const ownerClass =
     owner === 'centered'
       ? 'doubling-cube--centered'
       : owner === 'white'
-        ? 'doubling-cube--white'
-        : 'doubling-cube--black'
+        ? 'doubling-cube--owner-white'
+        : 'doubling-cube--owner-black'
+
+  const ownerLabel =
+    owner === 'centered' ? null : owner === 'white' ? 'W' : 'B'
 
   return (
     <div
-      className={`doubling-cube ${positionClass}${canDouble ? ' doubling-cube--clickable' : ''}`}
+      className={`doubling-cube ${ownerClass}${canDouble ? ' doubling-cube--clickable' : ''}`}
       onClick={canDouble ? onClick : undefined}
       onKeyDown={
         canDouble
@@ -37,9 +40,14 @@ export function DoublingCube({
       }
       role={canDouble ? 'button' : undefined}
       tabIndex={canDouble ? 0 : undefined}
-      aria-label={`Doubling cube: ${String(value)}${canDouble ? ' (click to double)' : ''}`}
+      aria-label={`Doubling cube: ${String(value)}, ${owner === 'centered' ? 'centered' : `owned by ${owner}`}${canDouble ? ' (click to double)' : ''}`}
     >
       <span className="doubling-cube__value">{value}</span>
+      {ownerLabel && (
+        <span className={`doubling-cube__owner doubling-cube__owner--${owner}`}>
+          {ownerLabel}
+        </span>
+      )}
     </div>
   )
 }
