@@ -5,7 +5,7 @@
  */
 
 import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { gameReducer, gameSyncThunkMiddleware } from '@backgammon/game'
+import { gameReducer, matchReducer, gameSyncThunkMiddleware } from '@backgammon/game'
 
 // =============================================================================
 // Types
@@ -50,6 +50,7 @@ export const { setGameConfig } = configSlice.actions
 export const store = configureStore({
   reducer: {
     game: gameReducer,
+    match: matchReducer,
     config: configSlice.reducer
   },
   middleware: getDefaultMiddleware =>

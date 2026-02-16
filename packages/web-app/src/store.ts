@@ -1,9 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit'
-import { gameReducer, gameSyncThunkMiddleware } from '@backgammon/game'
+import { gameReducer, gameSyncThunkMiddleware, matchReducer } from '@backgammon/game'
 
 export const store = configureStore({
   reducer: {
-    game: gameReducer
+    game: gameReducer,
+    match: matchReducer
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({

@@ -5,7 +5,7 @@
  * both the server (src/server.ts) and client (src/client/McpAppShim.tsx).
  */
 
-import type { GameState, AvailableMoves, Move, Player } from '@backgammon/game'
+import type { GameState, AvailableMoves, Move, Player, MatchState } from '@backgammon/game'
 
 export type PlayerControl = 'human' | 'ai'
 
@@ -43,4 +43,5 @@ export interface BackgammonStructuredContent {
   validMoves?: readonly AvailableMoves[]
   config?: GameConfig
   turnSummary?: string
+  matchState?: MatchState | null
 }

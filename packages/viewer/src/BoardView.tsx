@@ -5,11 +5,14 @@ import type {
   Player,
   PointIndex,
   MoveTo,
-  Turn
+  Turn,
+  CubeValue
 } from '@backgammon/game'
 import { GameInfo } from './components/GameInfo'
 import { BoardSurface } from './components/BoardSurface'
 import { Controls } from './components/Controls'
+import { DoubleProposal } from './components/DoubleProposal'
+import { MatchScoreBoard } from './components/MatchScoreBoard'
 import './BoardView.css'
 
 /** Source position for a selected checker */
@@ -43,6 +46,24 @@ interface BoardViewProps {
   canUndo?: boolean
   /** Callback when the undo button is clicked */
   onUndoClick?: () => void
+
+  // Doubling cube props
+  /** Whether the current player can propose a double */
+  canDouble?: boolean
+  /** Callback when the double button is clicked */
+  onDoubleClick?: () => void
+  /** Callback when responding to a double: accept or decline */
+  onDoubleResponse?: (response: 'accept' | 'decline') => void
+
+  // Match play props
+  /** Match score (null when not in match play) */
+  matchScore?: { white: number; black: number } | null
+  /** Match target score (null when not in match play) */
+  matchTargetScore?: number | null
+  /** Whether this is the Crawford game */
+  isCrawfordGame?: boolean
+  /** Current game number in the match */
+  matchGameNumber?: number
 }
 
 export function BoardView({
@@ -59,7 +80,14 @@ export function BoardView({
   onRollClick,
   onEndTurnClick,
   canUndo: canUndoProp,
-  onUndoClick
+  onUndoClick,
+  canDouble: canDoubleProp = false,
+  onDoubleClick,
+  onDoubleResponse,
+  matchScore,
+  matchTargetScore,
+  isCrawfordGame = false,
+  matchGameNumber
 }: BoardViewProps): React.JSX.Element {
   const {
     board,
@@ -69,7 +97,9 @@ export function BoardView({
     diceRoll,
     remainingMoves,
     result,
-    history
+    history,
+    doublingCube,
+    doubleProposedBy
   } = gameState
 
   const canRoll = phase === 'rolling'
@@ -92,8 +122,27 @@ export function BoardView({
     humanControlled === 'both' ||
     humanControlled === currentPlayer
 
+  // Doubling proposal state
+  const isDoublingProposed = phase === 'doubling_proposed' && doubleProposedBy !== null
+
+  // Compute the proposed new cube value for the proposal UI
+  const proposedNewValue: CubeValue | null = isDoublingProposed && doublingCube
+    ? ((doublingCube.value * 2) as CubeValue)
+    : null
+
   return (
     <div className="board-view">
+      {/* Match scoreboard (only in match play) */}
+      {matchScore && matchTargetScore && (
+        <MatchScoreBoard
+          whiteScore={matchScore.white}
+          blackScore={matchScore.black}
+          targetScore={matchTargetScore}
+          isCrawfordGame={isCrawfordGame}
+          gameNumber={matchGameNumber ?? 1}
+        />
+      )}
+
       <GameInfo
         currentPlayer={currentPlayer}
         phase={phase}
@@ -102,7 +151,9 @@ export function BoardView({
         remainingMoves={remainingMoves}
         result={result}
         previousTurn={previousTurn}
+        doublingCube={doublingCube}
       />
+
       <BoardSurface
         board={board}
         currentPlayer={currentPlayer}
@@ -110,10 +161,24 @@ export function BoardView({
         validDestinations={validDestinations}
         lastAction={lastAction}
         previousTurn={previousTurn}
+        doublingCube={doublingCube}
+        canDouble={isHumanTurn && canDoubleProp}
+        onDoubleCubeClick={onDoubleClick}
         onPointClick={isHumanTurn ? onPointClick : undefined}
         onBarClick={isHumanTurn ? onBarClick : undefined}
         onBorneOffClick={isHumanTurn ? onBorneOffClick : undefined}
       />
+
+      {/* Double proposal overlay */}
+      {isDoublingProposed && doubleProposedBy && proposedNewValue && onDoubleResponse && (
+        <DoubleProposal
+          proposedBy={doubleProposedBy}
+          newValue={proposedNewValue}
+          onAccept={() => onDoubleResponse('accept')}
+          onDecline={() => onDoubleResponse('decline')}
+        />
+      )}
+
       <Controls
         canRoll={canRoll}
         canEndTurn={canEndTurn}
@@ -121,9 +186,11 @@ export function BoardView({
         noMovesAvailable={noMovesAvailable}
         disabled={!isHumanTurn}
         canUndo={canUndoProp ?? false}
+        canDouble={isHumanTurn && canDoubleProp}
         onRollClick={onRollClick}
         onEndTurnClick={onEndTurnClick}
         onUndoClick={onUndoClick}
+        onDoubleClick={onDoubleClick}
       />
     </div>
   )

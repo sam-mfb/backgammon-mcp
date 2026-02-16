@@ -2,6 +2,7 @@ import type React from 'react'
 import type {
   DiceRoll,
   DieValue,
+  DoublingCubeState,
   GamePhase,
   GameResult,
   Player,
@@ -17,6 +18,7 @@ interface GameInfoProps {
   remainingMoves: readonly DieValue[]
   result: GameResult | null
   previousTurn: Turn | null
+  doublingCube?: DoublingCubeState | null
 }
 
 function phaseLabel(phase: GamePhase): string {
@@ -27,6 +29,8 @@ function phaseLabel(phase: GamePhase): string {
       return 'Rolling for First'
     case 'rolling':
       return 'Roll Dice'
+    case 'doubling_proposed':
+      return 'Double Proposed'
     case 'moving':
       return 'Make Moves'
     case 'game_over':
@@ -34,15 +38,20 @@ function phaseLabel(phase: GamePhase): string {
   }
 }
 
-function victoryLabel(victoryType: GameResult['victoryType']): string {
-  switch (victoryType) {
-    case 'single':
-      return ''
-    case 'gammon':
-      return ' (Gammon!)'
-    case 'backgammon':
-      return ' (Backgammon!)'
+function victoryLabel(result: GameResult): string {
+  const parts: string[] = []
+
+  if (result.victoryType === 'gammon') {
+    parts.push('Gammon!')
+  } else if (result.victoryType === 'backgammon') {
+    parts.push('Backgammon!')
   }
+
+  if (result.points > 1) {
+    parts.push(`${String(result.points)} pts`)
+  }
+
+  return parts.length > 0 ? ` (${parts.join(' — ')})` : ''
 }
 
 function titleCase(str: string): string {
@@ -56,7 +65,8 @@ export function GameInfo({
   diceRoll,
   remainingMoves,
   result,
-  previousTurn
+  previousTurn,
+  doublingCube
 }: GameInfoProps): React.JSX.Element {
   return (
     <div className="game-info">
@@ -65,7 +75,7 @@ export function GameInfo({
           <span
             className={`game-info__winner game-info__winner--${result.winner}`}
           >
-            {titleCase(result.winner)} wins{victoryLabel(result.victoryType)}
+            {titleCase(result.winner)} wins{victoryLabel(result)}
           </span>
         </div>
       ) : (
@@ -86,6 +96,12 @@ export function GameInfo({
             <span className="game-info__label">Turn:</span>
             <span className="game-info__value">{turnNumber}</span>
           </div>
+          {doublingCube && (
+            <div className="game-info__cube">
+              <span className="game-info__label">Cube:</span>
+              <span className="game-info__value">{doublingCube.value}</span>
+            </div>
+          )}
           <DiceDisplay
             diceRoll={diceRoll}
             remainingMoves={remainingMoves}

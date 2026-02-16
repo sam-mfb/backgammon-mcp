@@ -766,3 +766,168 @@
   bottom: 50%;
   right: 0;
 }
+
+/* =============================================================================
+   Doubling Cube
+   ============================================================================= */
+
+.doubling-cube {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(145deg, #e8d5b0, #c4a96a);
+  border: 2px solid #a08040;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #2d1a00;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  user-select: none;
+}
+
+.doubling-cube--centered {
+  margin: 0 auto;
+}
+
+.doubling-cube--white {
+  margin: 0 auto;
+  align-self: flex-end;
+}
+
+.doubling-cube--black {
+  margin: 0 auto;
+  align-self: flex-start;
+}
+
+.doubling-cube--clickable {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.doubling-cube--clickable:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 8px var(--bgv-accent-shadow), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.doubling-cube__value {
+  pointer-events: none;
+}
+
+/* Bar placeholder - make it a flex container for the cube */
+.bar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =============================================================================
+   Double Proposal
+   ============================================================================= */
+
+.double-proposal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--bgv-bg-secondary);
+  border: 2px solid var(--bgv-accent);
+  border-radius: 8px;
+}
+
+.double-proposal__message {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bgv-text-primary);
+}
+
+.double-proposal__actions {
+  display: flex;
+  gap: 12px;
+}
+
+.double-proposal__button {
+  min-width: 100px;
+}
+
+/* =============================================================================
+   Double Button (Controls)
+   ============================================================================= */
+
+.controls__button--double {
+  background: #c9a227;
+  color: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(201, 162, 39, 0.4);
+}
+
+.controls__button--double:hover:not(:disabled) {
+  background: #d4b33a;
+  box-shadow: 0 4px 12px rgba(201, 162, 39, 0.5);
+}
+
+/* Undo button base styling */
+.controls__button--undo {
+  background: var(--bgv-button-bg);
+  color: var(--bgv-text-primary);
+}
+
+.controls__button--undo:hover:not(:disabled) {
+  background: var(--bgv-button-hover-bg);
+}
+
+/* =============================================================================
+   Match Scoreboard
+   ============================================================================= */
+
+.match-scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bgv-bg-secondary);
+  border-radius: 6px;
+  color: var(--bgv-text-primary);
+  font-size: 14px;
+}
+
+.match-scoreboard__score {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.match-scoreboard__player--white {
+  color: var(--bgv-text-primary);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.match-scoreboard__player--black {
+  color: #888;
+}
+
+.match-scoreboard__separator {
+  color: var(--bgv-text-muted);
+}
+
+.match-scoreboard__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.match-scoreboard__target,
+.match-scoreboard__game {
+  color: var(--bgv-text-secondary);
+}
+
+.match-scoreboard__crawford {
+  color: #c9a227;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

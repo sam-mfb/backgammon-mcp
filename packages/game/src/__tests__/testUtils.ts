@@ -171,7 +171,9 @@ export function createNewGameState(): GameState {
     movesThisTurn: [],
     result: null,
     history: [],
-    actionHistory: []
+    actionHistory: [],
+    doublingCube: null,
+    doubleProposedBy: null
   }
 }
 

@@ -24,6 +24,31 @@ export function getOpponent(player: Player): Player {
 /** Valid die values (1-6) */
 export type DieValue = 1 | 2 | 3 | 4 | 5 | 6
 
+/** Valid doubling cube values */
+export type CubeValue = 1 | 2 | 4 | 8 | 16 | 32 | 64
+
+/** Who owns/controls the doubling cube */
+export type CubeOwner = Player | 'centered'
+
+/**
+ * Doubling cube state
+ * - When centered, either player may propose a double
+ * - When owned by a player, only that player may propose
+ */
+export interface DoublingCubeState {
+  readonly value: CubeValue
+  readonly owner: CubeOwner
+}
+
+/**
+ * Options for starting a new individual game.
+ * When not provided, defaults to no doubling cube.
+ */
+export interface GameOptions {
+  readonly enableDoublingCube: boolean
+  readonly isCrawfordGame: boolean
+}
+
 /** Point indices (1-24, matching standard backgammon notation) */
 export type PointIndex =
   | 1
@@ -63,6 +88,23 @@ export function isValidPointIndex(n: number): n is PointIndex {
  */
 export function isValidDieValue(n: number): n is DieValue {
   return Number.isInteger(n) && n >= 1 && n <= 6
+}
+
+const VALID_CUBE_VALUES = new Set([1, 2, 4, 8, 16, 32, 64])
+
+/**
+ * Type guard to check if a number is a valid cube value.
+ */
+export function isValidCubeValue(n: number): n is CubeValue {
+  return VALID_CUBE_VALUES.has(n)
+}
+
+/**
+ * Double the cube value. Returns the next cube value, or null if already at max (64).
+ */
+export function doubleCubeValue(value: CubeValue): CubeValue | null {
+  if (value >= 64) return null
+  return (value * 2) as CubeValue
 }
 
 // =============================================================================
@@ -244,6 +286,21 @@ export type GameAction =
       readonly type: 'turn_end'
       readonly player: Player
     }
+  | {
+      readonly type: 'double_proposed'
+      readonly player: Player
+      readonly newValue: CubeValue
+    }
+  | {
+      readonly type: 'double_accepted'
+      readonly player: Player
+      readonly cubeValue: CubeValue
+    }
+  | {
+      readonly type: 'double_declined'
+      readonly player: Player
+      readonly cubeValue: CubeValue
+    }
 
 // =============================================================================
 // Game State
@@ -254,11 +311,15 @@ export type GameAction =
  *
  * Flow:
  * not_started -> rolling_for_first -> rolling <-> moving -> game_over
+ *                                      |
+ *                                      v
+ *                                doubling_proposed -> rolling (accept) or game_over (decline)
  */
 export type GamePhase =
   | 'not_started'
   | 'rolling_for_first'
   | 'rolling'
+  | 'doubling_proposed'
   | 'moving'
   | 'game_over'
 
@@ -276,6 +337,10 @@ export type VictoryType = 'single' | 'gammon' | 'backgammon'
 export interface GameResult {
   readonly winner: Player
   readonly victoryType: VictoryType
+  /** Doubling cube value at end of game (1 when cube is disabled) */
+  readonly cubeValue: CubeValue
+  /** Total points scored: victoryMultiplier * cubeValue */
+  readonly points: number
 }
 
 /**
@@ -314,4 +379,10 @@ export interface GameState {
 
   /** Chronological history of all game actions (for replay/undo) */
   readonly actionHistory: readonly GameAction[]
+
+  /** Doubling cube state (null when cube is disabled for this game) */
+  readonly doublingCube: DoublingCubeState | null
+
+  /** Which player proposed a double (non-null only in doubling_proposed phase) */
+  readonly doubleProposedBy: Player | null
 }

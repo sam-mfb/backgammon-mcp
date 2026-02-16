@@ -14,7 +14,9 @@ import {
 import type {
   BoardState,
   DiceRoll,
+  DoublingCubeState,
   GameAction,
+  GameOptions,
   GameResult,
   GameState,
   Move,
@@ -22,6 +24,7 @@ import type {
 } from './types'
 import { getOpponent } from './types'
 import {
+  canProposeDouble,
   checkGameOver,
   getValidMoves,
   getRequiredMoves,
@@ -37,12 +40,16 @@ import {
   performEndTurn,
   performUndoMove,
   performUndoAllMoves,
+  performProposeDouble,
+  performRespondToDouble,
   type StartGameAction,
   type RollDiceAction,
   type MakeMoveAction,
   type EndTurnAction,
   type UndoMoveAction,
-  type UndoAllMovesAction
+  type UndoAllMovesAction,
+  type ProposeDoubleAction,
+  type RespondToDoubleAction
 } from './operations'
 
 /** State shape expected by selectors - apps must configure their store with { game: GameState } */
@@ -69,7 +76,9 @@ const initialState: GameState = {
   movesThisTurn: [],
   result: null,
   history: [],
-  actionHistory: []
+  actionHistory: [],
+  doublingCube: null,
+  doubleProposedBy: null
 }
 
 export const gameSlice = createSlice({
@@ -192,6 +201,10 @@ export const gameSlice = createSlice({
         const result = action.meta.result
         if (result?.ok) {
           const { firstPlayer, diceRoll } = result.value
+          const options: GameOptions | void = action.payload
+          const gameOptions = options || undefined
+          const enableCube = (gameOptions?.enableDoublingCube ?? false) && !(gameOptions?.isCrawfordGame ?? false)
+
           const initialBoard = createInitialBoard()
           state.board.points = initialBoard.points
           state.board.bar.white = initialBoard.bar.white
@@ -206,6 +219,8 @@ export const gameSlice = createSlice({
           state.movesThisTurn = []
           state.result = null
           state.history = []
+          state.doublingCube = enableCube ? { value: 1, owner: 'centered' } : null
+          state.doubleProposedBy = null
 
           // Append game_start action to history
           // diceRoll is arranged so die1 is the first player's (higher) roll
@@ -494,6 +509,65 @@ export const gameSlice = createSlice({
         }
       }
     )
+
+    // Handle performProposeDouble
+    builder.addMatcher(
+      performProposeDouble.match,
+      (state, action: ProposeDoubleAction) => {
+        const result = action.meta.result
+        if (result?.ok && state.currentPlayer) {
+          const { proposedBy, newCubeValue } = result.value
+
+          state.phase = 'doubling_proposed'
+          state.doubleProposedBy = proposedBy
+
+          const doubleAction: GameAction = {
+            type: 'double_proposed',
+            player: proposedBy,
+            newValue: newCubeValue
+          }
+          state.actionHistory.push(doubleAction)
+        }
+      }
+    )
+
+    // Handle performRespondToDouble
+    builder.addMatcher(
+      performRespondToDouble.match,
+      (state, action: RespondToDoubleAction) => {
+        const result = action.meta.result
+        if (result?.ok && state.doubleProposedBy) {
+          if (result.value.response === 'accept') {
+            const { newCubeValue, newOwner } = result.value
+
+            // Update cube
+            state.doublingCube = { value: newCubeValue, owner: newOwner }
+            state.doubleProposedBy = null
+            state.phase = 'rolling'
+
+            const acceptAction: GameAction = {
+              type: 'double_accepted',
+              player: newOwner,
+              cubeValue: newCubeValue
+            }
+            state.actionHistory.push(acceptAction)
+          } else {
+            const { winner, gameResult } = result.value
+
+            state.result = gameResult
+            state.phase = 'game_over'
+            state.doubleProposedBy = null
+
+            const declineAction: GameAction = {
+              type: 'double_declined',
+              player: getOpponent(winner),
+              cubeValue: gameResult.cubeValue
+            }
+            state.actionHistory.push(declineAction)
+          }
+        }
+      }
+    )
   }
 })
 
@@ -570,5 +644,15 @@ export const selectCanEndTurn = createSelector([selectGameState], gameState =>
 export const selectCanUndo = (state: RootState): boolean =>
   (state.game.phase === 'moving' || state.game.phase === 'game_over') &&
   state.game.movesThisTurn.length > 0
+
+export const selectDoublingCube = (state: RootState): DoublingCubeState | null =>
+  state.game.doublingCube
+
+export const selectCanDouble = createSelector([selectGameState], gameState =>
+  canProposeDouble({ state: gameState })
+)
+
+export const selectDoubleProposedBy = (state: RootState): Player | null =>
+  state.game.doubleProposedBy
 
 export default gameSlice.reducer
