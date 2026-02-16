@@ -16,6 +16,18 @@ import {
   registerAppResource,
   RESOURCE_MIME_TYPE
 } from '@modelcontextprotocol/ext-apps/server'
+import {
+  PlayerSchema,
+  DieValueSchema,
+  PointIndexSchema,
+  MoveFromSchema,
+  MoveToSchema,
+  MoveSchema,
+  GameStateSchema,
+  AvailableMovesSchema,
+  GameConfigSchema,
+  GameResponseOutputSchema
+} from './schemas'
 import { store, setGameConfig } from './store'
 import type {
   BackgammonStructuredContent,
@@ -32,6 +44,7 @@ import {
   performProposeDouble,
   performRespondToDouble,
   resetGame,
+  selectPhase,
   selectValidMoves,
   selectCanDouble,
   selectMatchState,
@@ -53,194 +66,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RESOURCE_URI = 'ui://backgammon/board'
 
-// =============================================================================
-// Output Schemas (Zod schemas for tool output validation)
-// =============================================================================
-
-const PlayerSchema = z.enum(['white', 'black'])
-
-const DieValueSchema = z.union([
-  z.literal(1),
-  z.literal(2),
-  z.literal(3),
-  z.literal(4),
-  z.literal(5),
-  z.literal(6)
-])
-
-const PointIndexSchema = z.number().int().min(1).max(24)
-
-const CheckerCountsSchema = z.object({
-  white: z.number().int().min(0),
-  black: z.number().int().min(0)
-})
-
-const BoardStateSchema = z.object({
-  points: z.tuple([
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number()
-  ]),
-  bar: CheckerCountsSchema,
-  borneOff: CheckerCountsSchema
-})
-
-const DiceRollSchema = z.object({
-  die1: DieValueSchema,
-  die2: DieValueSchema
-})
-
-const MoveFromSchema = z.union([PointIndexSchema, z.literal('bar')])
-
-const MoveToSchema = z.union([PointIndexSchema, z.literal('off')])
-
-const MoveSchema = z.object({
-  from: MoveFromSchema,
-  to: MoveToSchema,
-  dieUsed: DieValueSchema
-})
-
-const TurnSchema = z.object({
-  player: PlayerSchema,
-  diceRoll: DiceRollSchema,
-  moves: z.array(MoveSchema)
-})
-
-const GamePhaseSchema = z.enum([
-  'not_started',
-  'rolling_for_first',
-  'rolling',
-  'doubling_proposed',
-  'moving',
-  'game_over'
-])
-
-const VictoryTypeSchema = z.enum(['single', 'gammon', 'backgammon'])
-
-const CubeValueSchema = z.union([
-  z.literal(1),
-  z.literal(2),
-  z.literal(4),
-  z.literal(8),
-  z.literal(16),
-  z.literal(32),
-  z.literal(64)
-])
-
-const CubeOwnerSchema = z.union([PlayerSchema, z.literal('centered')])
-
-const DoublingCubeStateSchema = z.object({
-  value: CubeValueSchema,
-  owner: CubeOwnerSchema
-})
-
-const GameResultSchema = z.object({
-  winner: PlayerSchema,
-  victoryType: VictoryTypeSchema,
-  cubeValue: CubeValueSchema,
-  points: z.number().int().min(1)
-})
-
-const GameActionSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('game_start'),
-    firstPlayer: PlayerSchema,
-    whiteRoll: DieValueSchema,
-    blackRoll: DieValueSchema
-  }),
-  z.object({
-    type: z.literal('dice_roll'),
-    player: PlayerSchema,
-    roll: DiceRollSchema,
-    turnForfeited: z.boolean()
-  }),
-  z.object({
-    type: z.literal('piece_move'),
-    player: PlayerSchema,
-    from: MoveFromSchema,
-    to: MoveToSchema,
-    dieUsed: DieValueSchema,
-    hit: z.boolean()
-  }),
-  z.object({
-    type: z.literal('turn_end'),
-    player: PlayerSchema
-  }),
-  z.object({
-    type: z.literal('double_proposed'),
-    player: PlayerSchema,
-    newValue: CubeValueSchema
-  }),
-  z.object({
-    type: z.literal('double_accepted'),
-    player: PlayerSchema,
-    cubeValue: CubeValueSchema
-  }),
-  z.object({
-    type: z.literal('double_declined'),
-    player: PlayerSchema,
-    cubeValue: CubeValueSchema
-  })
-])
-
-const GameStateSchema = z.object({
-  board: BoardStateSchema,
-  currentPlayer: PlayerSchema.nullable(),
-  phase: GamePhaseSchema,
-  diceRoll: DiceRollSchema.nullable(),
-  remainingMoves: z.array(DieValueSchema),
-  turnNumber: z.number().int().min(0),
-  movesThisTurn: z.array(MoveSchema),
-  result: GameResultSchema.nullable(),
-  history: z.array(TurnSchema),
-  actionHistory: z.array(GameActionSchema),
-  doublingCube: DoublingCubeStateSchema.nullable(),
-  doubleProposedBy: PlayerSchema.nullable()
-})
-
-const MoveDestinationSchema = z.object({
-  to: MoveToSchema,
-  dieValue: DieValueSchema,
-  wouldHit: z.boolean()
-})
-
-const AvailableMovesSchema = z.object({
-  from: MoveFromSchema,
-  destinations: z.array(MoveDestinationSchema)
-})
-
-const GameConfigSchema = z.object({
-  whiteControl: z.enum(['human', 'ai']),
-  blackControl: z.enum(['human', 'ai'])
-})
-
-/** Output schema shape for tools that return game state with valid moves and config */
-const GameResponseOutputSchema = {
-  gameState: GameStateSchema,
-  validMoves: z.array(AvailableMovesSchema).optional(),
-  config: GameConfigSchema.optional()
-}
+// Output schemas are defined in ./schemas.ts for testability
 
 // =============================================================================
 // Helpers
@@ -612,6 +438,11 @@ When playing, just make your moves without commentary or strategy discussion unl
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
   ({ whiteControl, blackControl, enableDoublingCube, matchTargetScore }) => {
+    const currentPhase = selectPhase(store.getState())
+    if (currentPhase !== 'not_started' && currentPhase !== 'game_over') {
+      return errorResponse('A game is already in progress. Use backgammon_get_game_state to see the current state.')
+    }
+
     const config: GameConfig = { whiteControl, blackControl }
     store.dispatch(setGameConfig(config))
 
