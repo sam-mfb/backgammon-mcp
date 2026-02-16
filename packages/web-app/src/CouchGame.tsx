@@ -31,7 +31,7 @@ import {
 import { BoardView } from '@backgammon/viewer'
 
 type GameMode =
-  | { mode: 'single'; enableDoublingCube: boolean }
+  | { mode: 'single' }
   | { mode: 'match'; targetScore: number; enableDoublingCube: boolean }
 
 export function CouchGame(): React.JSX.Element {
@@ -46,10 +46,7 @@ export function CouchGame(): React.JSX.Element {
   )
 
   // Game setup state
-  const [gameMode, setGameMode] = useState<GameMode>({
-    mode: 'single',
-    enableDoublingCube: false
-  })
+  const [gameMode, setGameMode] = useState<GameMode>({ mode: 'single' })
   const [matchTargetInput, setMatchTargetInput] = useState('7')
 
   const phase = useAppSelector(selectPhase)
@@ -72,14 +69,16 @@ export function CouchGame(): React.JSX.Element {
 
   // Handle starting the game using the new operation
   const handleStartGame = (): void => {
+    const enableCube = gameMode.mode === 'match' && gameMode.enableDoublingCube
+
     // If match mode, start the match first
     if (gameMode.mode === 'match') {
       const targetScore = parseInt(matchTargetInput, 10) || 7
-      dispatch(startMatch({ targetScore, enableDoublingCube: gameMode.enableDoublingCube }))
+      dispatch(startMatch({ targetScore, enableDoublingCube: enableCube }))
     }
 
     dispatch(performStartGame({
-      enableDoublingCube: gameMode.enableDoublingCube,
+      enableDoublingCube: enableCube,
       isCrawfordGame: false
     }))
   }
@@ -323,7 +322,7 @@ export function CouchGame(): React.JSX.Element {
                 type="radio"
                 name="gameMode"
                 checked={gameMode.mode === 'single'}
-                onChange={() => setGameMode({ mode: 'single', enableDoublingCube: gameMode.enableDoublingCube })}
+                onChange={() => setGameMode({ mode: 'single' })}
               />
               Single Game
             </label>
@@ -335,32 +334,34 @@ export function CouchGame(): React.JSX.Element {
                 onChange={() => setGameMode({
                   mode: 'match',
                   targetScore: parseInt(matchTargetInput, 10) || 7,
-                  enableDoublingCube: gameMode.enableDoublingCube
+                  enableDoublingCube: true
                 })}
               />
               Match Play
             </label>
             {gameMode.mode === 'match' && (
-              <label className="couch-game__option">
-                Target Score:
-                <input
-                  type="number"
-                  min="1"
-                  max="25"
-                  value={matchTargetInput}
-                  onChange={e => setMatchTargetInput(e.target.value)}
-                  className="couch-game__target-input"
-                />
-              </label>
+              <>
+                <label className="couch-game__option">
+                  Target Score:
+                  <input
+                    type="number"
+                    min="1"
+                    max="25"
+                    value={matchTargetInput}
+                    onChange={e => setMatchTargetInput(e.target.value)}
+                    className="couch-game__target-input"
+                  />
+                </label>
+                <label className="couch-game__option">
+                  <input
+                    type="checkbox"
+                    checked={gameMode.enableDoublingCube}
+                    onChange={e => setGameMode({ ...gameMode, enableDoublingCube: e.target.checked })}
+                  />
+                  Doubling Cube
+                </label>
+              </>
             )}
-            <label className="couch-game__option">
-              <input
-                type="checkbox"
-                checked={gameMode.enableDoublingCube}
-                onChange={e => setGameMode({ ...gameMode, enableDoublingCube: e.target.checked })}
-              />
-              Doubling Cube
-            </label>
           </div>
           <button
             className="couch-game__start-button"

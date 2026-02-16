@@ -599,8 +599,8 @@ When playing, just make your moves without commentary or strategy discussion unl
       enableDoublingCube: z
         .boolean()
         .optional()
-        .default(false)
-        .describe('Enable the doubling cube for this game'),
+        .default(true)
+        .describe('Enable the doubling cube in match play. Only applies when matchTargetScore is set. Ignored for single games.'),
       matchTargetScore: z
         .number()
         .int()
@@ -615,11 +615,14 @@ When playing, just make your moves without commentary or strategy discussion unl
     const config: GameConfig = { whiteControl, blackControl }
     store.dispatch(setGameConfig(config))
 
+    // Doubling cube only applies in match play
+    const enableCube = matchTargetScore ? (enableDoublingCube ?? true) : false
+
     // Set up match if target score provided
     if (matchTargetScore) {
       store.dispatch(startMatch({
         targetScore: matchTargetScore,
-        enableDoublingCube: enableDoublingCube ?? false
+        enableDoublingCube: enableCube
       }))
     } else {
       // Reset any existing match
@@ -629,7 +632,7 @@ When playing, just make your moves without commentary or strategy discussion unl
     // Determine if this is a Crawford game (no doubling)
     const isCrawford = selectIsCrawfordGame(store.getState())
     const gameOptions: GameOptions = {
-      enableDoublingCube: enableDoublingCube ?? false,
+      enableDoublingCube: enableCube,
       isCrawfordGame: isCrawford
     }
 
@@ -648,11 +651,11 @@ When playing, just make your moves without commentary or strategy discussion unl
       firstPlayer.charAt(0).toUpperCase() + firstPlayer.slice(1)
     let text = `Game started. ${playerName} goes first with ${String(diceRoll.die1)}-${String(diceRoll.die2)}.`
 
-    if (enableDoublingCube) {
-      text += ' Doubling cube is enabled.'
-    }
     if (matchState) {
       text += ` Match play to ${String(matchTargetScore)} points (game ${String(matchState.gameNumber)}).`
+      if (enableCube) {
+        text += ' Doubling cube is enabled.'
+      }
       if (isCrawford) {
         text += ' Crawford game — no doubling.'
       }
