@@ -1146,6 +1146,9 @@ registerAppTool(
       return errorResponse('Match is already completed')
     }
 
+    // Reset previous game state before starting next
+    store.dispatch(resetGame())
+
     // Determine game options for next game
     const isCrawford = selectIsCrawfordGame(store.getState())
     const gameOptions: GameOptions = {
