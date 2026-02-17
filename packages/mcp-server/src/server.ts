@@ -687,6 +687,7 @@ registerAppTool(
       text += '.'
     }
 
+    let modelNotification: string | undefined
     if (gameOver) {
       const winnerName =
         gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
@@ -698,6 +699,23 @@ registerAppTool(
       if (selectIsMatchInProgress(store.getState())) {
         store.dispatch(recordGameResult(gameOver))
       }
+
+      const updatedMatchState = selectMatchState(store.getState())
+      if (updatedMatchState) {
+        const matchInfo = formatMatchInfoForModel()
+        modelNotification = `Game over! ${winnerName} wins with a ${gameOver.victoryType}.`
+        if (matchInfo) {
+          modelNotification += `\n${matchInfo}`
+        }
+        if (updatedMatchState.phase === 'completed') {
+          const matchWinner = updatedMatchState.winner
+            ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+            : 'Unknown'
+          modelNotification += `\nMatch over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+        } else {
+          modelNotification += '\nCall model_start_next_game to continue the match.'
+        }
+      }
     }
 
     return {
@@ -705,7 +723,8 @@ registerAppTool(
       structuredContent: {
         gameState: state,
         validMoves,
-        matchState: selectMatchState(store.getState())
+        matchState: selectMatchState(store.getState()),
+        ...(modelNotification ? { modelNotification } : {})
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
@@ -985,6 +1004,18 @@ registerAppTool(
       if (selectIsMatchInProgress(store.getState()) && state.result) {
         store.dispatch(recordGameResult(state.result))
       }
+
+      const updatedMatchState = selectMatchState(store.getState())
+      if (updatedMatchState) {
+        if (updatedMatchState.phase === 'completed') {
+          const matchWinner = updatedMatchState.winner
+            ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+            : 'Unknown'
+          modelNotification += ` Match over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+        } else {
+          modelNotification += ' Call model_start_next_game to continue the match.'
+        }
+      }
     }
 
     const matchInfo = formatMatchInfoForModel()
@@ -1059,6 +1090,83 @@ registerAppTool(
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
+  }
+)
+
+registerAppTool(
+  server,
+  'model_start_next_game',
+  {
+    description:
+      'Start the next game in a match after the current game ends. Preserves match score. Do NOT call backgammon_start_game to continue a match — that resets the match.',
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
+  },
+  () => {
+    const matchState = selectMatchState(store.getState())
+    if (!matchState) {
+      return errorResponse('Not in match play. Use backgammon_start_game to start a new game.')
+    }
+    if (matchState.phase === 'completed') {
+      const winnerName = matchState.winner
+        ? matchState.winner.charAt(0).toUpperCase() + matchState.winner.slice(1)
+        : 'Unknown'
+      return errorResponse(`Match is already completed. ${winnerName} won the match ${String(matchState.score.white)}-${String(matchState.score.black)}.`)
+    }
+
+    const currentPhase = selectPhase(store.getState())
+    if (currentPhase !== 'game_over') {
+      return errorResponse('Current game is still in progress. Finish the current game first.')
+    }
+
+    // Reset previous game state before starting next
+    store.dispatch(resetGame())
+
+    // Determine game options for next game
+    const isCrawford = selectIsCrawfordGame(store.getState())
+    const gameOptions: GameOptions = {
+      enableDoublingCube: matchState.config.enableDoublingCube,
+      isCrawfordGame: isCrawford
+    }
+
+    const action = store.dispatch(performStartGame(gameOptions))
+    const result = action.meta.result
+
+    if (result?.ok !== true) {
+      return errorResponse('Failed to start next game')
+    }
+
+    const { firstPlayer, diceRoll, validMoves } = result.value
+    const state = store.getState().game
+    const config = store.getState().config
+    const updatedMatchState = selectMatchState(store.getState())
+    const gameNumber = selectMatchGameNumber(store.getState())
+
+    const playerName = firstPlayer.charAt(0).toUpperCase() + firstPlayer.slice(1)
+    let text = `Game ${String(gameNumber)} started. ${playerName} goes first with ${String(diceRoll.die1)}-${String(diceRoll.die2)}.`
+    if (isCrawford) {
+      text += ' Crawford game — no doubling.'
+    }
+
+    const matchInfo = formatMatchInfoForModel()
+    if (matchInfo) {
+      text += `\n${matchInfo}`
+    }
+
+    // Tell the model what to do next
+    if (isAITurn(state, config)) {
+      text += `\n\nIt is your turn. Call model_take_turn with your moves.`
+      const perspective = firstPlayer
+      text += `\n${formatValidMovesForModel({ validMoves, perspective })}`
+    } else {
+      text += `\n\nWaiting for opponent to play.`
+    }
+
+    return gameResponse(text, {
+      gameState: state,
+      validMoves,
+      config,
+      matchState: updatedMatchState
+    })
   }
 )
 
@@ -1297,6 +1405,19 @@ registerAppTool(
       if (selectIsMatchInProgress(store.getState()) && state.result) {
         store.dispatch(recordGameResult(state.result))
       }
+
+      const updatedMatchState = selectMatchState(store.getState())
+      if (updatedMatchState) {
+        text += `\n${formatMatchInfoForModel()}`
+        if (updatedMatchState.phase === 'completed') {
+          const matchWinner = updatedMatchState.winner
+            ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+            : 'Unknown'
+          text += `\nMatch over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+        } else {
+          text += '\nCall model_start_next_game to continue the match.'
+        }
+      }
     }
 
     return {
@@ -1474,8 +1595,22 @@ registerAppTool(
         }
 
         // Record result in match if in match play
-        if (selectIsMatchInProgress(store.getState())) {
+        const isMatch = selectIsMatchInProgress(store.getState())
+        if (isMatch) {
           store.dispatch(recordGameResult(gameOverResult))
+        }
+
+        const updatedMatchState = selectMatchState(store.getState())
+        if (updatedMatchState) {
+          gameOverText += `\n${formatMatchInfoForModel()}`
+          if (updatedMatchState.phase === 'completed') {
+            const matchWinner = updatedMatchState.winner
+              ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+              : 'Unknown'
+            gameOverText += `\nMatch over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+          } else {
+            gameOverText += '\nCall model_start_next_game to continue the match.'
+          }
         }
 
         return {
@@ -1487,7 +1622,7 @@ registerAppTool(
           ],
           structuredContent: {
             gameState: state,
-            matchState: selectMatchState(store.getState())
+            matchState: updatedMatchState
           },
           _meta: { ui: { resourceUri: RESOURCE_URI } }
         }
