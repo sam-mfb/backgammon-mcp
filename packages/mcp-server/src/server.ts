@@ -16,6 +16,10 @@ import {
   registerAppResource,
   RESOURCE_MIME_TYPE
 } from '@modelcontextprotocol/ext-apps/server'
+import {
+  GameStateSchema,
+  GameResponseOutputSchema
+} from './schemas'
 import { store, setGameConfig } from './store'
 import type {
   BackgammonStructuredContent,
@@ -29,10 +33,22 @@ import {
   performEndTurn,
   performUndoMove,
   performUndoAllMoves,
+  performProposeDouble,
+  performRespondToDouble,
   resetGame,
+  selectPhase,
   selectValidMoves,
+  selectCanDouble,
+  selectMatchState,
+  selectIsCrawfordGame,
+  selectIsMatchInProgress,
+  selectMatchGameNumber,
+  startMatch,
+  recordGameResult,
+  resetMatch,
   type GameState,
-  type GameAction
+  type GameAction,
+  type GameOptions
 } from '@backgammon/game'
 
 // =============================================================================
@@ -42,157 +58,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RESOURCE_URI = 'ui://backgammon/board'
 
-// =============================================================================
-// Output Schemas (Zod schemas for tool output validation)
-// =============================================================================
-
-const PlayerSchema = z.enum(['white', 'black'])
-
-const DieValueSchema = z.union([
-  z.literal(1),
-  z.literal(2),
-  z.literal(3),
-  z.literal(4),
-  z.literal(5),
-  z.literal(6)
-])
-
-const PointIndexSchema = z.number().int().min(1).max(24)
-
-const CheckerCountsSchema = z.object({
-  white: z.number().int().min(0),
-  black: z.number().int().min(0)
-})
-
-const BoardStateSchema = z.object({
-  points: z.tuple([
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number(),
-    z.number()
-  ]),
-  bar: CheckerCountsSchema,
-  borneOff: CheckerCountsSchema
-})
-
-const DiceRollSchema = z.object({
-  die1: DieValueSchema,
-  die2: DieValueSchema
-})
-
-const MoveFromSchema = z.union([PointIndexSchema, z.literal('bar')])
-
-const MoveToSchema = z.union([PointIndexSchema, z.literal('off')])
-
-const MoveSchema = z.object({
-  from: MoveFromSchema,
-  to: MoveToSchema,
-  dieUsed: DieValueSchema
-})
-
-const TurnSchema = z.object({
-  player: PlayerSchema,
-  diceRoll: DiceRollSchema,
-  moves: z.array(MoveSchema)
-})
-
-const GamePhaseSchema = z.enum([
-  'not_started',
-  'rolling_for_first',
-  'rolling',
-  'moving',
-  'game_over'
-])
-
-const VictoryTypeSchema = z.enum(['single', 'gammon', 'backgammon'])
-
-const GameResultSchema = z.object({
-  winner: PlayerSchema,
-  victoryType: VictoryTypeSchema
-})
-
-const GameActionSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('game_start'),
-    firstPlayer: PlayerSchema,
-    whiteRoll: DieValueSchema,
-    blackRoll: DieValueSchema
-  }),
-  z.object({
-    type: z.literal('dice_roll'),
-    player: PlayerSchema,
-    roll: DiceRollSchema,
-    turnForfeited: z.boolean()
-  }),
-  z.object({
-    type: z.literal('piece_move'),
-    player: PlayerSchema,
-    from: MoveFromSchema,
-    to: MoveToSchema,
-    dieUsed: DieValueSchema,
-    hit: z.boolean()
-  }),
-  z.object({
-    type: z.literal('turn_end'),
-    player: PlayerSchema
-  })
-])
-
-const GameStateSchema = z.object({
-  board: BoardStateSchema,
-  currentPlayer: PlayerSchema.nullable(),
-  phase: GamePhaseSchema,
-  diceRoll: DiceRollSchema.nullable(),
-  remainingMoves: z.array(DieValueSchema),
-  turnNumber: z.number().int().min(0),
-  movesThisTurn: z.array(MoveSchema),
-  result: GameResultSchema.nullable(),
-  history: z.array(TurnSchema),
-  actionHistory: z.array(GameActionSchema)
-})
-
-const MoveDestinationSchema = z.object({
-  to: MoveToSchema,
-  dieValue: DieValueSchema,
-  wouldHit: z.boolean()
-})
-
-const AvailableMovesSchema = z.object({
-  from: MoveFromSchema,
-  destinations: z.array(MoveDestinationSchema)
-})
-
-const GameConfigSchema = z.object({
-  whiteControl: z.enum(['human', 'ai']),
-  blackControl: z.enum(['human', 'ai'])
-})
-
-/** Output schema shape for tools that return game state with valid moves and config */
-const GameResponseOutputSchema = {
-  gameState: GameStateSchema,
-  validMoves: z.array(AvailableMovesSchema).optional(),
-  config: GameConfigSchema.optional()
-}
+// Output schemas are defined in ./schemas.ts for testability
 
 // =============================================================================
 // Helpers
@@ -315,6 +181,51 @@ function formatGameStateForModel({
 
   lines.push(`White checkers: ${whitePositions.length > 0 ? whitePositions.join(', ') : 'none'}`)
   lines.push(`Black checkers: ${blackPositions.length > 0 ? blackPositions.join(', ') : 'none'}`)
+
+  // Doubling cube info
+  if (state.doublingCube) {
+    const cubeOwnerStr = state.doublingCube.owner === 'centered'
+      ? 'centered'
+      : `owned by ${state.doublingCube.owner}`
+    lines.push(`Doubling cube: ${String(state.doublingCube.value)} (${cubeOwnerStr})`)
+  }
+
+  // Match info
+  const matchState = selectMatchState({ match: store.getState().match })
+  if (matchState) {
+    lines.push(`Match score: White ${String(matchState.score.white)}, Black ${String(matchState.score.black)} (target: ${String(matchState.config.targetScore)})`)
+    if (matchState.isCrawfordGame) {
+      lines.push('Crawford game (no doubling allowed)')
+    }
+  }
+
+  return lines.join('\n')
+}
+
+/**
+ * Format match state and doubling cube info as a text snippet for model context.
+ * Returns empty string if not in match play.
+ */
+function formatMatchInfoForModel(): string {
+  const rootState = store.getState()
+  const gameState = rootState.game
+  const matchState = selectMatchState(rootState)
+  const lines: string[] = []
+
+  if (gameState.doublingCube) {
+    const cubeOwnerStr = gameState.doublingCube.owner === 'centered'
+      ? 'centered'
+      : `owned by ${gameState.doublingCube.owner}`
+    lines.push(`Doubling cube: ${String(gameState.doublingCube.value)} (${cubeOwnerStr})`)
+  }
+
+  if (matchState) {
+    let matchLine = `Match score: White ${String(matchState.score.white)}, Black ${String(matchState.score.black)} (playing to ${String(matchState.config.targetScore)}, game ${String(matchState.gameNumber)})`
+    if (matchState.isCrawfordGame) {
+      matchLine += ' [Crawford game — no doubling]'
+    }
+    lines.push(matchLine)
+  }
 
   return lines.join('\n')
 }
@@ -465,11 +376,18 @@ function formatTurnSummaryForModel({
   const nextPlayerName =
     summary.nextPlayer.charAt(0).toUpperCase() + summary.nextPlayer.slice(1)
 
-  return `${playerName} (${summary.player}) completed turn:
+  let text = `${playerName} (${summary.player}) completed turn:
 - Rolled: ${diceStr}
 - Moves: ${movesStr}
 - Board: White ${String(summary.boardSummary.whiteHome)} home, Black ${String(summary.boardSummary.blackHome)} home, White ${String(summary.boardSummary.whiteBar)} bar, Black ${String(summary.boardSummary.blackBar)} bar
 - ${nextPlayerName}'s turn (${summary.nextPlayer}) to roll.`
+
+  const matchInfo = formatMatchInfoForModel()
+  if (matchInfo) {
+    text += `\n${matchInfo}`
+  }
+
+  return text
 }
 
 // =============================================================================
@@ -530,16 +448,53 @@ When playing, just make your moves without commentary or strategy discussion unl
         .enum(['human', 'ai'])
         .optional()
         .default('ai')
-        .describe("Who controls black: 'human' (UI) or 'ai' (model)")
+        .describe("Who controls black: 'human' (UI) or 'ai' (model)"),
+      enableDoublingCube: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe('Enable the doubling cube in match play. Only applies when matchTargetScore is set. Ignored for single games.'),
+      matchTargetScore: z
+        .number()
+        .int()
+        .min(1)
+        .optional()
+        .describe('Target score for match play. When set, starts a match. Omit for a single game.')
     },
     outputSchema: GameResponseOutputSchema,
     _meta: { ui: { resourceUri: RESOURCE_URI } }
   },
-  ({ whiteControl, blackControl }) => {
+  ({ whiteControl, blackControl, enableDoublingCube, matchTargetScore }) => {
+    const currentPhase = selectPhase(store.getState())
+    if (currentPhase !== 'not_started' && currentPhase !== 'game_over') {
+      return errorResponse('A game is already in progress. Use backgammon_get_game_state to see the current state.')
+    }
+
     const config: GameConfig = { whiteControl, blackControl }
     store.dispatch(setGameConfig(config))
 
-    const action = store.dispatch(performStartGame())
+    // Doubling cube only applies in match play
+    const enableCube = matchTargetScore ? enableDoublingCube : false
+
+    // Set up match if target score provided
+    if (matchTargetScore) {
+      store.dispatch(startMatch({
+        targetScore: matchTargetScore,
+        enableDoublingCube: enableCube
+      }))
+    } else {
+      // Reset any existing match
+      store.dispatch(resetMatch())
+    }
+
+    // Determine if this is a Crawford game (no doubling)
+    const isCrawford = selectIsCrawfordGame(store.getState())
+    const gameOptions: GameOptions = {
+      enableDoublingCube: enableCube,
+      isCrawfordGame: isCrawford
+    }
+
+    const action = store.dispatch(performStartGame(gameOptions))
     const result = action.meta.result
 
     if (result?.ok !== true) {
@@ -548,15 +503,27 @@ When playing, just make your moves without commentary or strategy discussion unl
 
     const { firstPlayer, diceRoll, validMoves } = result.value
     const state = store.getState().game
+    const matchState = selectMatchState(store.getState())
 
     const playerName =
       firstPlayer.charAt(0).toUpperCase() + firstPlayer.slice(1)
-    const text = `Game started. ${playerName} goes first with ${String(diceRoll.die1)}-${String(diceRoll.die2)}.`
+    let text = `Game started. ${playerName} goes first with ${String(diceRoll.die1)}-${String(diceRoll.die2)}.`
+
+    if (matchState) {
+      text += ` Match play to ${String(matchTargetScore)} points (game ${String(matchState.gameNumber)}).`
+      if (enableCube) {
+        text += ' Doubling cube is enabled.'
+      }
+      if (isCrawford) {
+        text += ' Crawford game — no doubling.'
+      }
+    }
 
     return gameResponse(text, {
       gameState: state,
       validMoves,
-      config
+      config,
+      matchState
     })
   }
 )
@@ -720,17 +687,44 @@ registerAppTool(
       text += '.'
     }
 
+    let modelNotification: string | undefined
     if (gameOver) {
       const winnerName =
         gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
       text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
+      if (gameOver.points > 1) {
+        text += ` (${String(gameOver.points)} points)`
+      }
+      // Record result in match if in match play
+      if (selectIsMatchInProgress(store.getState())) {
+        store.dispatch(recordGameResult(gameOver))
+      }
+
+      const updatedMatchState = selectMatchState(store.getState())
+      if (updatedMatchState) {
+        const matchInfo = formatMatchInfoForModel()
+        modelNotification = `Game over! ${winnerName} wins with a ${gameOver.victoryType}.`
+        if (matchInfo) {
+          modelNotification += `\n${matchInfo}`
+        }
+        if (updatedMatchState.phase === 'completed') {
+          const matchWinner = updatedMatchState.winner
+            ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+            : 'Unknown'
+          modelNotification += `\nMatch over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+        } else {
+          modelNotification += '\nCall model_start_next_game to continue the match.'
+        }
+      }
     }
 
     return {
       content: [{ type: 'text' as const, text }],
       structuredContent: {
         gameState: state,
-        validMoves
+        validMoves,
+        matchState: selectMatchState(store.getState()),
+        ...(modelNotification ? { modelNotification } : {})
       },
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
     }
@@ -893,6 +887,290 @@ registerAppTool(
 )
 
 // =============================================================================
+// View-Only Tools: Doubling (visibility: ['app'])
+// =============================================================================
+
+registerAppTool(
+  server,
+  'view_propose_double',
+  {
+    description:
+      "Propose doubling the stakes during the human player's turn (before rolling).",
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the human's turn
+    if (!isHumanTurn(stateBefore, config)) {
+      return errorResponse("It's not the human player's turn to double")
+    }
+
+    const action = store.dispatch(performProposeDouble())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to propose double')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const state = store.getState().game
+    const { newCubeValue, proposedBy } = result.value
+    const playerName = proposedBy.charAt(0).toUpperCase() + proposedBy.slice(1)
+
+    let modelNotification = `${playerName} (${proposedBy}) proposes to double the stakes to ${String(newCubeValue)}. You must call model_respond_to_double with 'accept' to continue at higher stakes or 'decline' to forfeit at the current cube value.`
+    const matchInfo = formatMatchInfoForModel()
+    if (matchInfo) {
+      modelNotification += `\n${matchInfo}`
+    }
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `${playerName} proposes to double to ${String(newCubeValue)}.`
+        }
+      ],
+      structuredContent: {
+        gameState: state,
+        modelNotification,
+        matchState: selectMatchState(store.getState())
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'view_respond_to_double',
+  {
+    description:
+      "Respond to a doubling proposal during the human player's turn.",
+    inputSchema: {
+      response: z
+        .enum(['accept', 'decline'])
+        .describe("Accept or decline the double")
+    },
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+  },
+  ({ response }) => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // The responder is the opponent of the proposer
+    if (!stateBefore.doubleProposedBy || !stateBefore.currentPlayer) {
+      return errorResponse('No double proposal pending')
+    }
+
+    // Verify the human is the one who needs to respond
+    const responder = stateBefore.doubleProposedBy === 'white' ? 'black' : 'white'
+    const responderControl = responder === 'white' ? config.whiteControl : config.blackControl
+    if (responderControl !== 'human') {
+      return errorResponse("It's not the human player's turn to respond to the double")
+    }
+
+    const action = store.dispatch(performRespondToDouble({ response }))
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to respond to double')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const state = store.getState().game
+
+    let text: string
+    let modelNotification: string
+    if (result.value.response === 'accept') {
+      text = `Double accepted. Cube is now at ${String(result.value.newCubeValue)}.`
+      const responderName = responder.charAt(0).toUpperCase() + responder.slice(1)
+      modelNotification = `${responderName} (${responder}) accepted the double. Cube is now at ${String(result.value.newCubeValue)}, owned by ${responder}. It is your turn to roll — call model_roll_dice.`
+    } else {
+      const winnerName = result.value.winner.charAt(0).toUpperCase() + result.value.winner.slice(1)
+      text = `Double declined. ${winnerName} wins ${String(result.value.gameResult.points)} point(s).`
+      modelNotification = `${responder.charAt(0).toUpperCase() + responder.slice(1)} (${responder}) declined the double. ${winnerName} wins ${String(result.value.gameResult.points)} point(s). Game over.`
+
+      // Record result in match if in match play
+      if (selectIsMatchInProgress(store.getState()) && state.result) {
+        store.dispatch(recordGameResult(state.result))
+      }
+
+      const updatedMatchState = selectMatchState(store.getState())
+      if (updatedMatchState) {
+        if (updatedMatchState.phase === 'completed') {
+          const matchWinner = updatedMatchState.winner
+            ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+            : 'Unknown'
+          modelNotification += ` Match over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+        } else {
+          modelNotification += ' Call model_start_next_game to continue the match.'
+        }
+      }
+    }
+
+    const matchInfo = formatMatchInfoForModel()
+    if (matchInfo) {
+      modelNotification += `\n${matchInfo}`
+    }
+
+    return {
+      content: [{ type: 'text' as const, text }],
+      structuredContent: {
+        gameState: state,
+        modelNotification,
+        matchState: selectMatchState(store.getState())
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'view_start_next_game',
+  {
+    description:
+      'Start the next game in a match after the current game ends.',
+    outputSchema: GameResponseOutputSchema,
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+  },
+  () => {
+    const matchState = selectMatchState(store.getState())
+    if (!matchState) {
+      return errorResponse('Not in match play')
+    }
+    if (matchState.phase === 'completed') {
+      return errorResponse('Match is already completed')
+    }
+
+    // Reset previous game state before starting next
+    store.dispatch(resetGame())
+
+    // Determine game options for next game
+    const isCrawford = selectIsCrawfordGame(store.getState())
+    const gameOptions: GameOptions = {
+      enableDoublingCube: matchState.config.enableDoublingCube,
+      isCrawfordGame: isCrawford
+    }
+
+    const action = store.dispatch(performStartGame(gameOptions))
+    const result = action.meta.result
+
+    if (result?.ok !== true) {
+      return errorResponse('Failed to start next game')
+    }
+
+    const { firstPlayer, diceRoll, validMoves } = result.value
+    const state = store.getState().game
+    const updatedMatchState = selectMatchState(store.getState())
+    const gameNumber = selectMatchGameNumber(store.getState())
+
+    const playerName = firstPlayer.charAt(0).toUpperCase() + firstPlayer.slice(1)
+    let text = `Game ${String(gameNumber)} started. ${playerName} goes first with ${String(diceRoll.die1)}-${String(diceRoll.die2)}.`
+    if (isCrawford) {
+      text += ' Crawford game — no doubling.'
+    }
+
+    return {
+      content: [{ type: 'text' as const, text }],
+      structuredContent: {
+        gameState: state,
+        validMoves,
+        matchState: updatedMatchState
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['app'] } }
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'model_start_next_game',
+  {
+    description:
+      'Start the next game in a match after the current game ends. Preserves match score. Do NOT call backgammon_start_game to continue a match — that resets the match.',
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
+  },
+  () => {
+    const matchState = selectMatchState(store.getState())
+    if (!matchState) {
+      return errorResponse('Not in match play. Use backgammon_start_game to start a new game.')
+    }
+    if (matchState.phase === 'completed') {
+      const winnerName = matchState.winner
+        ? matchState.winner.charAt(0).toUpperCase() + matchState.winner.slice(1)
+        : 'Unknown'
+      return errorResponse(`Match is already completed. ${winnerName} won the match ${String(matchState.score.white)}-${String(matchState.score.black)}.`)
+    }
+
+    const currentPhase = selectPhase(store.getState())
+    if (currentPhase !== 'game_over') {
+      return errorResponse('Current game is still in progress. Finish the current game first.')
+    }
+
+    // Reset previous game state before starting next
+    store.dispatch(resetGame())
+
+    // Determine game options for next game
+    const isCrawford = selectIsCrawfordGame(store.getState())
+    const gameOptions: GameOptions = {
+      enableDoublingCube: matchState.config.enableDoublingCube,
+      isCrawfordGame: isCrawford
+    }
+
+    const action = store.dispatch(performStartGame(gameOptions))
+    const result = action.meta.result
+
+    if (result?.ok !== true) {
+      return errorResponse('Failed to start next game')
+    }
+
+    const { firstPlayer, diceRoll, validMoves } = result.value
+    const state = store.getState().game
+    const config = store.getState().config
+    const updatedMatchState = selectMatchState(store.getState())
+    const gameNumber = selectMatchGameNumber(store.getState())
+
+    const playerName = firstPlayer.charAt(0).toUpperCase() + firstPlayer.slice(1)
+    let text = `Game ${String(gameNumber)} started. ${playerName} goes first with ${String(diceRoll.die1)}-${String(diceRoll.die2)}.`
+    if (isCrawford) {
+      text += ' Crawford game — no doubling.'
+    }
+
+    const matchInfo = formatMatchInfoForModel()
+    if (matchInfo) {
+      text += `\n${matchInfo}`
+    }
+
+    // Tell the model what to do next
+    if (isAITurn(state, config)) {
+      text += `\n\nIt is your turn. Call model_take_turn with your moves.`
+      const perspective = firstPlayer
+      text += `\n${formatValidMovesForModel({ validMoves, perspective })}`
+    } else {
+      text += `\n\nWaiting for opponent to play.`
+    }
+
+    return gameResponse(text, {
+      gameState: state,
+      validMoves,
+      config,
+      matchState: updatedMatchState
+    })
+  }
+)
+
+// =============================================================================
 // Model Tools (visibility: ['model']) - For AI player actions
 // =============================================================================
 
@@ -1005,16 +1283,150 @@ registerAppTool(
 
     let text = `${getPerspectiveReminder(currentPlayer)}\n\nCurrent game state:\n${gameStateStr}`
     text += opponentTurnText
+    // Check if doubling is available (for context, not after rolling since we already rolled)
+    const canDouble = selectCanDouble(store.getState())
+
     if (turnForfeited) {
       text += `\n\nYou rolled: ${diceText}\nNo legal moves available - turn forfeited.\n\nACTION REQUIRED: Call model_take_turn({ forfeit: true }) to complete your turn.`
     } else {
       text += `\n\nYou rolled: ${diceText}${blockedText}\n${formatValidMovesForModel({ validMoves, perspective: currentPlayer })}\n\nACTION REQUIRED: Call model_take_turn with ALL of your moves for this turn in a single call. Do NOT submit moves one at a time.`
     }
 
+    // Note about doubling for next turn (can't double after rolling, but inform for awareness)
+    if (canDouble) {
+      text += '\n\nNote: The doubling cube is available. On your next turn, you may call model_propose_double before rolling to propose doubling the stakes.'
+    }
+
     return {
       content: [{ type: 'text' as const, text }],
       _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } },
       turnForfeited
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'model_propose_double',
+  {
+    description:
+      "Propose doubling the stakes before rolling. Only available when it's your turn, phase is 'rolling', and you own the cube or it's centered. The opponent must accept (game continues at higher stakes) or decline (you win at current stakes).",
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
+  },
+  () => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // Verify it's the AI's turn
+    if (!isAITurn(stateBefore, config)) {
+      return errorResponse("It's not the AI player's turn to double")
+    }
+
+    const action = store.dispatch(performProposeDouble())
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to propose double')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const state = store.getState().game
+    const { newCubeValue, proposedBy } = result.value
+    const playerName = proposedBy.charAt(0).toUpperCase() + proposedBy.slice(1)
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `${playerName} proposes to double to ${String(newCubeValue)}. Waiting for opponent's response.`
+        }
+      ],
+      structuredContent: {
+        gameState: state,
+        matchState: selectMatchState(store.getState())
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
+    }
+  }
+)
+
+registerAppTool(
+  server,
+  'model_respond_to_double',
+  {
+    description:
+      "Respond to a doubling proposal from the opponent. Accept to continue playing at higher stakes (you get cube ownership), or decline to forfeit the game at the current cube value.",
+    inputSchema: {
+      response: z
+        .enum(['accept', 'decline'])
+        .describe("Accept or decline the double")
+    },
+    _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
+  },
+  ({ response }) => {
+    const config = store.getState().config
+    const stateBefore = store.getState().game
+
+    // The responder is the opponent of the proposer
+    if (!stateBefore.doubleProposedBy) {
+      return errorResponse('No double proposal pending')
+    }
+
+    const responder = stateBefore.doubleProposedBy === 'white' ? 'black' : 'white'
+    const responderControl = responder === 'white' ? config.whiteControl : config.blackControl
+    if (responderControl !== 'ai') {
+      return errorResponse("It's not the AI player's turn to respond to the double")
+    }
+
+    const action = store.dispatch(performRespondToDouble({ response }))
+    const result = action.meta.result
+
+    if (!result) {
+      return errorResponse('Failed to respond to double')
+    }
+
+    if (!result.ok) {
+      return errorResponse(result.error.message)
+    }
+
+    const state = store.getState().game
+
+    let text: string
+    if (result.value.response === 'accept') {
+      text = `Double accepted. Cube is now at ${String(result.value.newCubeValue)}.`
+    } else {
+      const winnerName = result.value.winner.charAt(0).toUpperCase() + result.value.winner.slice(1)
+      text = `Double declined. ${winnerName} wins ${String(result.value.gameResult.points)} point(s).`
+
+      // Record result in match if in match play
+      if (selectIsMatchInProgress(store.getState()) && state.result) {
+        store.dispatch(recordGameResult(state.result))
+      }
+
+      const updatedMatchState = selectMatchState(store.getState())
+      if (updatedMatchState) {
+        text += `\n${formatMatchInfoForModel()}`
+        if (updatedMatchState.phase === 'completed') {
+          const matchWinner = updatedMatchState.winner
+            ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+            : 'Unknown'
+          text += `\nMatch over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+        } else {
+          text += '\nCall model_start_next_game to continue the match.'
+        }
+      }
+    }
+
+    return {
+      content: [{ type: 'text' as const, text }],
+      structuredContent: {
+        gameState: state,
+        matchState: selectMatchState(store.getState())
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI, visibility: ['model'] } }
     }
   }
 )
@@ -1097,7 +1509,8 @@ registerAppTool(
           }
         ],
         structuredContent: {
-          gameState: state
+          gameState: state,
+          matchState: selectMatchState(store.getState())
         },
         _meta: { ui: { resourceUri: RESOURCE_URI } }
       }
@@ -1171,19 +1584,45 @@ registerAppTool(
       // Check for game over after each move
       if (result.value.gameOver) {
         const state = store.getState().game
+        const gameOverResult = result.value.gameOver
         const winnerName =
-          result.value.gameOver.winner.charAt(0).toUpperCase() +
-          result.value.gameOver.winner.slice(1)
+          gameOverResult.winner.charAt(0).toUpperCase() +
+          gameOverResult.winner.slice(1)
+
+        let gameOverText = `Turn completed. Game over! ${winnerName} wins with a ${gameOverResult.victoryType}!`
+        if (gameOverResult.points > 1) {
+          gameOverText += ` (${String(gameOverResult.points)} points)`
+        }
+
+        // Record result in match if in match play
+        const isMatch = selectIsMatchInProgress(store.getState())
+        if (isMatch) {
+          store.dispatch(recordGameResult(gameOverResult))
+        }
+
+        const updatedMatchState = selectMatchState(store.getState())
+        if (updatedMatchState) {
+          gameOverText += `\n${formatMatchInfoForModel()}`
+          if (updatedMatchState.phase === 'completed') {
+            const matchWinner = updatedMatchState.winner
+              ? updatedMatchState.winner.charAt(0).toUpperCase() + updatedMatchState.winner.slice(1)
+              : 'Unknown'
+            gameOverText += `\nMatch over! ${matchWinner} wins the match ${String(updatedMatchState.score.white)}-${String(updatedMatchState.score.black)}.`
+          } else {
+            gameOverText += '\nCall model_start_next_game to continue the match.'
+          }
+        }
 
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Turn completed. Game over! ${winnerName} wins with a ${result.value.gameOver.victoryType}!`
+              text: gameOverText
             }
           ],
           structuredContent: {
-            gameState: state
+            gameState: state,
+            matchState: updatedMatchState
           },
           _meta: { ui: { resourceUri: RESOURCE_URI } }
         }
@@ -1234,7 +1673,8 @@ registerAppTool(
         }
       ],
       structuredContent: {
-        gameState: state
+        gameState: state,
+        matchState: selectMatchState(store.getState())
       },
       _meta: { ui: { resourceUri: RESOURCE_URI } }
     }
@@ -1304,6 +1744,13 @@ registerAppTool(
       const winnerName =
         gameOver.winner.charAt(0).toUpperCase() + gameOver.winner.slice(1)
       text += ` Game over! ${winnerName} wins with a ${gameOver.victoryType}!`
+      if (gameOver.points > 1) {
+        text += ` (${String(gameOver.points)} points)`
+      }
+      // Record result in match if in match play
+      if (selectIsMatchInProgress(store.getState())) {
+        store.dispatch(recordGameResult(gameOver))
+      }
     } else if (validMoves.length > 0) {
       text += `\n\n${formatValidMovesForModel({ validMoves, perspective, header: 'Remaining moves' })}`
     }
@@ -1445,6 +1892,34 @@ registerAppTool(
       text += `\n\n${formatValidMovesForModel({ validMoves, perspective })}`
     }
 
+    // Doubling cube info
+    if (state.doublingCube) {
+      const cubeOwnerStr = state.doublingCube.owner === 'centered'
+        ? 'centered'
+        : `owned by ${state.doublingCube.owner}`
+      text += `\nDoubling cube: ${String(state.doublingCube.value)} (${cubeOwnerStr})`
+
+      if (state.phase === 'doubling_proposed' && state.doubleProposedBy) {
+        const proposerName = state.doubleProposedBy.charAt(0).toUpperCase() + state.doubleProposedBy.slice(1)
+        const proposedValue = state.doublingCube.value * 2
+        text += `\n${proposerName} has proposed doubling to ${String(proposedValue)}. Call model_respond_to_double with 'accept' or 'decline'.`
+      } else {
+        const canDouble = selectCanDouble(store.getState())
+        if (canDouble) {
+          text += ' — you may propose a double before rolling'
+        }
+      }
+    }
+
+    // Match info
+    const matchState = selectMatchState(store.getState())
+    if (matchState) {
+      text += `\nMatch score: White ${String(matchState.score.white)}, Black ${String(matchState.score.black)} (target: ${String(matchState.config.targetScore)}, game ${String(matchState.gameNumber)})`
+      if (matchState.isCrawfordGame) {
+        text += ' [Crawford game]'
+      }
+    }
+
     return gameResponse(text)
   }
 )
@@ -1478,7 +1953,7 @@ registerAppTool(
 
 server.tool(
   'backgammon_get_rules',
-  'Get information about backgammon rules. Specify a section: overview, movement, dice, hitting, bearing_off, winning, or all.',
+  'Get information about backgammon rules. Specify a section: overview, movement, dice, hitting, bearing_off, winning, doubling, match_play, or all.',
   {
     section: z
       .enum([
@@ -1488,6 +1963,8 @@ server.tool(
         'hitting',
         'bearing_off',
         'winning',
+        'doubling',
+        'match_play',
         'all'
       ])
       .optional()
@@ -1571,7 +2048,44 @@ Game ends when one player bears off all 15 checkers.
 VICTORY TYPES:
 - Single (1x): Opponent has borne off at least 1 checker
 - Gammon (2x): Opponent hasn't borne off any checkers
-- Backgammon (3x): Opponent hasn't borne off any AND has checker on bar or in winner's home`
+- Backgammon (3x): Opponent hasn't borne off any AND has checker on bar or in winner's home`,
+
+      doubling: `DOUBLING CUBE
+=============
+The doubling cube is an optional feature that lets players raise the stakes.
+
+BASICS:
+- Cube starts centered at 1 (both players can propose)
+- Before rolling, the current player may propose to double
+- Opponent must accept (game continues at 2x stakes) or decline (proposer wins at current stakes)
+- After accepting, the acceptor "owns" the cube — only they can propose next double
+- Maximum cube value: 64
+
+WHEN YOU CAN DOUBLE:
+- It must be your turn
+- Phase must be 'rolling' (before you roll dice)
+- The cube must be centered OR you must own it
+- Cube value must be less than 64
+
+SCORING WITH CUBE:
+- Points = victory type multiplier × cube value
+- Example: Gammon (2x) with cube at 4 = 8 points`,
+
+      match_play: `MATCH PLAY
+==========
+In match play, players compete to reach a target score across multiple games.
+
+SCORING:
+- Single win = 1 × cube value
+- Gammon = 2 × cube value
+- Backgammon = 3 × cube value
+- First player to reach the target score wins the match
+
+CRAWFORD RULE:
+- When a player reaches target - 1 points, the NEXT game is the "Crawford game"
+- During the Crawford game, the doubling cube is DISABLED
+- After the Crawford game, doubling resumes for all subsequent games
+- The Crawford rule only triggers once per match`
     }
 
     if (section === 'all') {

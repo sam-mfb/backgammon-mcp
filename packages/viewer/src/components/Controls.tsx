@@ -9,9 +9,12 @@ interface ControlsProps {
   disabled?: boolean
   /** Whether undo is available */
   canUndo?: boolean
+  /** Whether the current player can propose a double */
+  canDouble?: boolean
   onRollClick?: () => void
   onEndTurnClick?: () => void
   onUndoClick?: () => void
+  onDoubleClick?: () => void
 }
 
 export function Controls({
@@ -21,9 +24,11 @@ export function Controls({
   noMovesAvailable = false,
   disabled = false,
   canUndo = false,
+  canDouble = false,
   onRollClick,
   onEndTurnClick,
-  onUndoClick
+  onUndoClick,
+  onDoubleClick
 }: ControlsProps): React.JSX.Element {
   if (isGameOver) {
     return (
@@ -49,6 +54,15 @@ export function Controls({
       )}
       {!disabled && noMovesAvailable && (
         <span className="controls__message">No moves available</span>
+      )}
+      {canDouble && onDoubleClick && (
+        <button
+          className="controls__button controls__button--double"
+          disabled={disabled}
+          onClick={onDoubleClick}
+        >
+          Double
+        </button>
       )}
       <button
         className="controls__button controls__button--roll"

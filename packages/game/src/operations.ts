@@ -7,9 +7,11 @@
 
 import type {
   AvailableMoves,
+  CubeValue,
   DiceRoll,
   DieValue,
   GameAction,
+  GameOptions,
   GamePhase,
   GameResult,
   GameState,
@@ -18,7 +20,7 @@ import type {
   MoveTo,
   Player
 } from './types'
-import { getOpponent, isValidDieValue, isValidPointIndex } from './types'
+import { doubleCubeValue, getOpponent, isValidDieValue, isValidPointIndex } from './types'
 import { buildCreateSyncThunk, type SyncThunkAction } from './syncThunk'
 import { type Result, ok, err } from './result'
 
@@ -26,7 +28,9 @@ import { type Result, ok, err } from './result'
 export type RootState = { game: GameState }
 import {
   applyMoveToBoard,
+  canProposeDouble,
   checkGameOver,
+  computeGamePoints,
   filterMovesByDie,
   getRequiredMoves,
   getValidMoves,
@@ -111,6 +115,20 @@ export type UndoHistoryMismatchError = {
 
 export type UndoError = NoGameError | WrongPhaseError | NothingToUndoError | UndoHistoryMismatchError
 
+export type CannotDoubleError = {
+  readonly type: 'cannot_double'
+  readonly message: string
+}
+
+export type NoDoublePendingError = {
+  readonly type: 'no_double_pending'
+  readonly message: string
+}
+
+export type ProposeDoubleError = NoGameError | WrongPhaseError | CannotDoubleError
+
+export type RespondToDoubleError = NoGameError | WrongPhaseError | NoDoublePendingError
+
 // =============================================================================
 // Result Types
 // =============================================================================
@@ -144,6 +162,25 @@ export interface UndoMoveResult {
   readonly undoneMoves: readonly { readonly move: Move; readonly hit: boolean }[]
 }
 
+export interface ProposeDoubleResult {
+  readonly proposedBy: Player
+  readonly newCubeValue: CubeValue
+}
+
+export type RespondToDoubleResult =
+  | {
+      readonly response: 'accept'
+      readonly newCubeValue: CubeValue
+      readonly newOwner: Player
+    }
+  | {
+      readonly response: 'decline'
+      readonly winner: Player
+      readonly gameResult: GameResult
+    }
+
+export type DoubleResponse = 'accept' | 'decline'
+
 // =============================================================================
 // Input Types
 // =============================================================================
@@ -167,11 +204,17 @@ const createSyncThunk = buildCreateSyncThunk<RootState>()
 /**
  * Start a new game.
  * Rolls for first player and sets up the initial board.
+ * Optionally enables the doubling cube.
  */
 export const performStartGame = createSyncThunk<
-  Result<StartGameResult, StartGameError>
->('game/performStartGame', () => {
+  Result<StartGameResult, StartGameError>,
+  GameOptions | void
+>('game/performStartGame', (options) => {
   const { diceRoll, firstPlayer } = rollForFirstPlayer()
+
+  // Determine if doubling cube should be enabled
+  const gameOptions = options || undefined
+  const enableCube = (gameOptions?.enableDoublingCube ?? false) && !(gameOptions?.isCrawfordGame ?? false)
 
   // Compute valid moves for the starting position
   const initialBoard = createInitialBoard()
@@ -185,7 +228,9 @@ export const performStartGame = createSyncThunk<
     movesThisTurn: [],
     result: null,
     history: [],
-    actionHistory: []
+    actionHistory: [],
+    doublingCube: enableCube ? { value: 1, owner: 'centered' } : null,
+    doubleProposedBy: null
   }
 
   const allValidMoves = getValidMoves({ state: initialState })
@@ -565,13 +610,124 @@ export const performUndoAllMoves = createSyncThunk<
 })
 
 // =============================================================================
+// Doubling Operations
+// =============================================================================
+
+/**
+ * Propose to double the stakes.
+ * Can only be used at the start of a turn (rolling phase) by the player
+ * who owns the cube or when the cube is centered.
+ */
+export const performProposeDouble = createSyncThunk<
+  Result<ProposeDoubleResult, ProposeDoubleError>
+>('game/performProposeDouble', (_arg, { getState }) => {
+  const state = getState().game
+
+  if (state.currentPlayer === null) {
+    return err({
+      type: 'no_game',
+      message: 'No game in progress.'
+    })
+  }
+
+  if (state.phase !== 'rolling') {
+    return err({
+      type: 'wrong_phase',
+      phase: state.phase,
+      message: `Cannot propose double in ${state.phase} phase. Must be at the start of your turn (before rolling).`
+    })
+  }
+
+  if (!canProposeDouble({ state })) {
+    const reason = state.doublingCube === null
+      ? 'Doubling cube is not enabled for this game.'
+      : state.doublingCube.value >= 64
+        ? 'Cube is already at maximum value (64).'
+        : 'You do not own the doubling cube.'
+    return err({
+      type: 'cannot_double',
+      message: reason
+    })
+  }
+
+  const newCubeValue = doubleCubeValue(state.doublingCube!.value)!
+
+  return ok({
+    proposedBy: state.currentPlayer,
+    newCubeValue
+  })
+})
+
+/**
+ * Respond to a proposed double (accept or decline).
+ * - Accept: cube value doubles, responding player takes ownership, game continues (rolling phase)
+ * - Decline: proposer wins the game at the current cube value
+ */
+export const performRespondToDouble = createSyncThunk<
+  Result<RespondToDoubleResult, RespondToDoubleError>,
+  { response: DoubleResponse }
+>('game/performRespondToDouble', ({ response }, { getState }) => {
+  const state = getState().game
+
+  if (state.currentPlayer === null) {
+    return err({
+      type: 'no_game',
+      message: 'No game in progress.'
+    })
+  }
+
+  if (state.phase !== 'doubling_proposed') {
+    return err({
+      type: 'wrong_phase',
+      phase: state.phase,
+      message: `Cannot respond to double in ${state.phase} phase. A double must be proposed first.`
+    })
+  }
+
+  if (state.doubleProposedBy === null) {
+    return err({
+      type: 'no_double_pending',
+      message: 'No double has been proposed.'
+    })
+  }
+
+  const proposer = state.doubleProposedBy
+  const responder = getOpponent(proposer)
+  const currentCubeValue = state.doublingCube!.value
+  const newCubeValue = doubleCubeValue(currentCubeValue)!
+
+  if (response === 'accept') {
+    return ok({
+      response: 'accept',
+      newCubeValue,
+      newOwner: responder
+    })
+  }
+
+  // Decline: proposer wins at current cube value (before the proposed double)
+  const gameResult: GameResult = {
+    winner: proposer,
+    victoryType: 'single',
+    cubeValue: currentCubeValue,
+    points: computeGamePoints({ victoryType: 'single', cubeValue: currentCubeValue })
+  }
+
+  return ok({
+    response: 'decline',
+    winner: proposer,
+    gameResult
+  })
+})
+
+// =============================================================================
 // Action Type Helpers (for extraReducers)
 // =============================================================================
 
 export type StartGameAction = SyncThunkAction<
   RootState,
   undefined,
-  Result<StartGameResult, StartGameError>
+  Result<StartGameResult, StartGameError>,
+  GameOptions | void
 >
 
 export type RollDiceAction = SyncThunkAction<
@@ -603,4 +759,17 @@ export type UndoAllMovesAction = SyncThunkAction<
   RootState,
   undefined,
   Result<UndoMoveResult, UndoError>
+>
+
+export type ProposeDoubleAction = SyncThunkAction<
+  RootState,
+  undefined,
+  Result<ProposeDoubleResult, ProposeDoubleError>
+>
+
+export type RespondToDoubleAction = SyncThunkAction<
+  RootState,
+  undefined,
+  Result<RespondToDoubleResult, RespondToDoubleError>,
+  { response: DoubleResponse }
 >

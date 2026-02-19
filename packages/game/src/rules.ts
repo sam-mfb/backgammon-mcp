@@ -10,6 +10,7 @@
 import type {
   AvailableMoves,
   BoardState,
+  CubeValue,
   DieValue,
   GameResult,
   GameState,
@@ -496,9 +497,12 @@ export function checkGameOver({
         loser: opponent
       })
 
+      const cubeValue: CubeValue = state.doublingCube?.value ?? 1
       return {
         winner: player,
-        victoryType
+        victoryType,
+        cubeValue,
+        points: computeGamePoints({ victoryType, cubeValue })
       }
     }
   }
@@ -898,4 +902,52 @@ export function getRequiredMoves({ state }: { state: GameState }): {
     requiredDie: null,
     maxMovesUsable
   }
+}
+
+// =============================================================================
+// Doubling Cube Functions
+// =============================================================================
+
+/**
+ * Compute the victory multiplier for a victory type.
+ * single=1, gammon=2, backgammon=3
+ */
+function getVictoryMultiplier(victoryType: VictoryType): number {
+  switch (victoryType) {
+    case 'single':
+      return 1
+    case 'gammon':
+      return 2
+    case 'backgammon':
+      return 3
+  }
+}
+
+/**
+ * Compute the total game points: victoryMultiplier * cubeValue
+ */
+export function computeGamePoints({
+  victoryType,
+  cubeValue
+}: {
+  victoryType: VictoryType
+  cubeValue: CubeValue
+}): number {
+  return getVictoryMultiplier(victoryType) * cubeValue
+}
+
+/**
+ * Check if the current player can propose a double.
+ * Conditions:
+ * - Game is in rolling phase (before rolling)
+ * - Doubling cube is enabled (non-null)
+ * - Cube value is less than 64
+ * - Current player owns the cube or cube is centered
+ */
+export function canProposeDouble({ state }: { state: GameState }): boolean {
+  if (state.phase !== 'rolling') return false
+  if (state.doublingCube === null) return false
+  if (state.doublingCube.value >= 64) return false
+  const { owner } = state.doublingCube
+  return owner === 'centered' || owner === state.currentPlayer
 }

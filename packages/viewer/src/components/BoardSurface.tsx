@@ -1,6 +1,7 @@
 import type React from 'react'
 import type {
   BoardState,
+  DoublingCubeState,
   GameAction,
   Player,
   PointIndex,
@@ -11,6 +12,7 @@ import type { SelectedSource } from '../BoardView'
 import { Quadrant } from './Quadrant'
 import { Bar } from './Bar'
 import { BorneOffArea } from './BorneOffArea'
+import { DoublingCube } from './DoublingCube'
 
 interface BoardSurfaceProps {
   board: BoardState
@@ -19,6 +21,9 @@ interface BoardSurfaceProps {
   validDestinations: readonly MoveTo[]
   lastAction?: GameAction | null
   previousTurn?: Turn | null
+  doublingCube?: DoublingCubeState | null
+  canDouble?: boolean
+  onDoubleCubeClick?: () => void
   onPointClick?: (pointIndex: PointIndex) => void
   onBarClick?: (player: Player) => void
   onBorneOffClick?: (player: Player) => void
@@ -31,6 +36,9 @@ export function BoardSurface({
   validDestinations,
   lastAction,
   previousTurn,
+  doublingCube,
+  canDouble = false,
+  onDoubleCubeClick,
   onPointClick,
   onBarClick,
   onBorneOffClick
@@ -82,7 +90,7 @@ export function BoardSurface({
         />
       </div>
 
-      {/* Bottom row: Points 12-7, Bar placeholder, Points 6-1 */}
+      {/* Bottom row: Points 12-7, Bar placeholder with doubling cube, Points 6-1 */}
       <div className="board-surface__row board-surface__row--bottom">
         <Quadrant
           startPoint={12}
@@ -95,7 +103,16 @@ export function BoardSurface({
           previousTurn={previousTurn}
           onPointClick={onPointClick}
         />
-        <div className="bar-placeholder" />
+        <div className="bar-placeholder">
+          {doublingCube && (
+            <DoublingCube
+              value={doublingCube.value}
+              owner={doublingCube.owner}
+              canDouble={canDouble}
+              onClick={onDoubleCubeClick}
+            />
+          )}
+        </div>
         <Quadrant
           startPoint={6}
           endPoint={1}

@@ -17,8 +17,20 @@ export type {
   GameResult,
   GameState,
   GameAction,
-  AvailableMoves
+  AvailableMoves,
+  CubeValue,
+  CubeOwner,
+  DoublingCubeState,
+  GameOptions,
+  VictoryType
 } from './types'
+
+export type {
+  MatchConfig,
+  MatchScore,
+  MatchPhase,
+  MatchState
+} from './matchTypes'
 
 // =============================================================================
 // Dice Utilities
@@ -48,8 +60,28 @@ export {
   selectValidMoves,
   selectCanEndTurn,
   selectCanUndo,
-  selectLastAction
+  selectLastAction,
+  selectDoublingCube,
+  selectCanDouble,
+  selectDoubleProposedBy
 } from './gameSlice'
+
+// =============================================================================
+// Match Slice
+// =============================================================================
+
+export {
+  default as matchReducer,
+  startMatch,
+  recordGameResult,
+  resetMatch,
+  selectMatchState,
+  selectMatchScore,
+  selectIsCrawfordGame,
+  selectMatchWinner,
+  selectIsMatchInProgress,
+  selectMatchGameNumber
+} from './matchSlice'
 
 // =============================================================================
 // Operations (sync thunks)
@@ -61,11 +93,19 @@ export {
   performMove,
   performEndTurn,
   performUndoMove,
-  performUndoAllMoves
+  performUndoAllMoves,
+  performProposeDouble,
+  performRespondToDouble
 } from './operations'
 
 // =============================================================================
 // Rules Engine
 // =============================================================================
 
-export { getValidMoves, getRequiredMoves, filterMovesByDie } from './rules'
+export {
+  getValidMoves,
+  getRequiredMoves,
+  filterMovesByDie,
+  canProposeDouble,
+  computeGamePoints
+} from './rules'

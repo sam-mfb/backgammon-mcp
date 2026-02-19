@@ -6,10 +6,12 @@ import {
 import { BoardView } from '@backgammon/viewer'
 import {
   selectLastAction,
+  selectCanDouble,
   type Player,
   type PointIndex,
   type MoveTo,
-  type MoveFrom
+  type MoveFrom,
+  type MatchState
 } from '@backgammon/game'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { BackgammonStructuredContent, GameConfig } from '../types'
@@ -93,6 +95,15 @@ export function McpAppShim(): React.JSX.Element {
   const canUndo =
     phase === 'moving' && (gameState?.movesThisTurn.length ?? 0) > 0
 
+  // Doubling cube state
+  const canDouble = useMemo(
+    () => gameState ? selectCanDouble({ game: gameState }) : false,
+    [gameState]
+  )
+
+  // Match state from structured content
+  const [matchState, setMatchState] = useState<MatchState | null>(null)
+
   // Automatically applies theme, variables, and fonts from host context
   useHostStyles(app, app?.getHostContext())
 
@@ -125,6 +136,13 @@ export function McpAppShim(): React.JSX.Element {
       setConfig(structuredContent.config)
     }
   }, [structuredContent?.config])
+
+  // Capture match state when returned
+  useEffect(() => {
+    if (structuredContent?.matchState !== undefined) {
+      setMatchState(structuredContent.matchState ?? null)
+    }
+  }, [structuredContent?.matchState])
 
   // Handle errors from tool calls
   useEffect(() => {
@@ -274,6 +292,90 @@ export function McpAppShim(): React.JSX.Element {
     }
     void doEndTurn()
   }, [app, phase, gameState])
+
+  const handleDoubleClick = useCallback(() => {
+    if (!app) return
+    const doDouble = async (): Promise<void> => {
+      const result = await app.callServerTool({
+        name: 'view_propose_double',
+        arguments: {}
+      })
+      const content = result.structuredContent as
+        | BackgammonStructuredContent
+        | undefined
+      if (content) {
+        setToolResult({ structuredContent: content })
+
+        // Notify model about the double proposal
+        if (content.modelNotification) {
+          const caps = app.getHostCapabilities()
+          if (caps?.updateModelContext) {
+            try {
+              await app.updateModelContext({
+                content: [{ type: 'text', text: content.modelNotification }]
+              })
+            } catch (e) {
+              setErrorMessage(
+                `Failed to update model context: ${e instanceof Error ? e.message : String(e)}`
+              )
+            }
+          }
+
+          const proposer = content.gameState.doubleProposedBy
+          const proposerName = proposer
+            ? proposer.charAt(0).toUpperCase() + proposer.slice(1)
+            : 'Opponent'
+          await app.sendMessage({
+            role: 'user',
+            content: [{ type: 'text', text: `${proposerName} proposes double.` }]
+          })
+        }
+      }
+    }
+    void doDouble()
+  }, [app])
+
+  const handleDoubleResponse = useCallback(
+    (response: 'accept' | 'decline') => {
+      if (!app) return
+      const doRespond = async (): Promise<void> => {
+        const result = await app.callServerTool({
+          name: 'view_respond_to_double',
+          arguments: { response }
+        })
+        const content = result.structuredContent as
+          | BackgammonStructuredContent
+          | undefined
+        if (content) {
+          setToolResult({ structuredContent: content })
+
+          // Notify model about the double response
+          if (content.modelNotification) {
+            const caps = app.getHostCapabilities()
+            if (caps?.updateModelContext) {
+              try {
+                await app.updateModelContext({
+                  content: [{ type: 'text', text: content.modelNotification }]
+                })
+              } catch (e) {
+                setErrorMessage(
+                  `Failed to update model context: ${e instanceof Error ? e.message : String(e)}`
+                )
+              }
+            }
+
+            const responseLabel = response === 'accept' ? 'accepts' : 'declines'
+            await app.sendMessage({
+              role: 'user',
+              content: [{ type: 'text', text: `Human ${responseLabel} double.` }]
+            })
+          }
+        }
+      }
+      void doRespond()
+    },
+    [app]
+  )
 
   const handleUndoClick = useCallback(() => {
     if (!app) return
@@ -446,6 +548,13 @@ export function McpAppShim(): React.JSX.Element {
         onRollClick={handleRollClick}
         onEndTurnClick={handleEndTurnClick}
         onUndoClick={handleUndoClick}
+        canDouble={canDouble}
+        onDoubleClick={handleDoubleClick}
+        onDoubleResponse={handleDoubleResponse}
+        matchScore={matchState ? matchState.score : null}
+        matchTargetScore={matchState ? matchState.config.targetScore : null}
+        isCrawfordGame={matchState?.isCrawfordGame ?? false}
+        matchGameNumber={matchState?.gameNumber}
       />
       {logMessage && <div className="log-toast">{logMessage}</div>}
     </>
